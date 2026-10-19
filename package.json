@@ -1,0 +1,14 @@
+{
+  "name": "epi-erp",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:web": "npm run start -w @epi/web",
+    "dev:api": "npm run dev -w @epi/api",
+    "build": "npm run build -w @epi/web && npm run build -w @epi/api",
+    "test": "npm run test -w @epi/api",
+    "typecheck": "npm run typecheck -w @epi/api && npm run typecheck -w @epi/web"
+  },
+  "engines": { "node": ">=24.15.0" }
+}

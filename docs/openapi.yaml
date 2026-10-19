@@ -1,0 +1,140 @@
+openapi: 3.0.3
+info:
+  title: EPI ERP API
+  version: 0.1.0
+  description: API de desenvolvimento; documentos emitidos usam modelo provisório.
+servers:
+  - url: /api
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Supabase JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    SheetItem:
+      type: object
+      required: [variantId, lotId]
+      properties:
+        variantId: { type: string, format: uuid }
+        lotId: { type: string, format: uuid }
+        quantity: { type: integer, enum: [1], default: 1 }
+        risk: { type: string, maxLength: 30 }
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      responses: { '200': { description: API pronta } }
+  /config:
+    get:
+      security: []
+      responses: { '200': { description: Configuração pública de Auth e feature flag facial desativada } }
+  /jobs/retention:
+    get:
+      summary: Rotina protegida por CRON_SECRET para apagar IP e agente antigos
+      responses: { '200': { description: Quantidade de evidências minimizadas }, '401': { description: Sem segredo do agendador } }
+  /bootstrap:
+    get:
+      summary: Estado inicial da organização e perfil do usuário
+      responses: { '200': { description: Dados de painel }, '401': { description: Sem sessão }, '403': { description: Sem organização } }
+  /products:
+    post:
+      summary: Criar equipamento (ADMIN/ALMOXARIFADO)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [category, description], properties: { category: { type: string }, description: { type: string }, ca: { type: string, nullable: true }, brand: { type: string }, model: { type: string }, riskCode: { type: string }, caExpiresAt: { type: string, format: date, nullable: true } } } } } }
+      responses: { '201': { description: Criado }, '403': { description: Perfil não autorizado } }
+  /variants:
+    post:
+      summary: Criar tamanho/modelo/SKU (ADMIN/ALMOXARIFADO)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [productId, size, sku, minimumStock], properties: { productId: { type: string, format: uuid }, size: { type: string }, sku: { type: string }, minimumStock: { type: integer } } } } } }
+      responses: { '201': { description: Criado } }
+  /lots:
+    post:
+      summary: Criar lote (ADMIN/ALMOXARIFADO)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [variantId, batchCode, receivedAt], properties: { variantId: { type: string, format: uuid }, batchCode: { type: string }, supplier: { type: string }, receivedAt: { type: string, format: date }, expiresAt: { type: string, format: date, nullable: true } } } } } }
+      responses: { '201': { description: Criado } }
+  /lots/{id}/receive:
+    post:
+      summary: Entrada transacional de estoque (ADMIN/ALMOXARIFADO)
+      parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [quantity], properties: { quantity: { type: integer, minimum: 1 }, reason: { type: string } } } } } }
+      responses: { '200': { description: Novo saldo } }
+  /employees:
+    post:
+      summary: Criar colaborador (ADMIN/RH/SEGURANCA)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name, registration, jobTitle, admissionDate], properties: { name: { type: string }, registration: { type: string }, department: { type: string }, jobTitle: { type: string }, admissionDate: { type: string, format: date }, terminationDate: { type: string, format: date, nullable: true }, personalEmail: { type: string, format: email, nullable: true } } } } } }
+      responses: { '201': { description: Criado } }
+  /employees/{id}:
+    patch:
+      summary: Alterar apenas dados de cadastro permitidos
+      parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses: { '200': { description: Alterado } }
+  /employees/{id}/send-verification:
+    post:
+      summary: Enviar código ao e-mail pessoal cadastrado
+      parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { description: Enviado } }
+  /verify-email:
+    post:
+      security: []
+      summary: Confirmar posse do e-mail pessoal
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [employeeId, code], properties: { employeeId: { type: string, format: uuid }, code: { type: string, pattern: '^[0-9]{6}$' } } } } } }
+      responses: { '200': { description: Verificado } }
+  /sheets:
+    post:
+      summary: Emitir ficha imutável e baixar 1 por item (ADMIN/RH/SEGURANCA)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [employeeId, documentDate, method, items], properties: { employeeId: { type: string, format: uuid }, documentDate: { type: string, format: date }, method: { type: string, enum: [MANUAL, ELECTRONIC] }, items: { type: array, items: { $ref: '#/components/schemas/SheetItem' } } } } } } }
+      responses: { '201': { description: Ficha emitida }, '409': { description: Estoque insuficiente ou lote inválido } }
+  /sheets/{id}/pdf:
+    get:
+      summary: Baixar PDF imutável e conferir hash
+      parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { description: PDF, content: { application/pdf: { schema: { type: string, format: binary } } } } }
+  /sheets/{id}/xlsx:
+    get:
+      summary: Exportar dados da versão emitida em Excel
+      parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { description: Excel } }
+  /sheets/{id}/signing-links:
+    post:
+      summary: Criar link curto de uso único para ficha eletrônica
+      parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+      responses: { '201': { description: URL e prazo } }
+  /sign/{token}:
+    get:
+      security: []
+      summary: Validar link sem revelar dados pessoais
+      parameters: [{ in: path, name: token, required: true, schema: { type: string } }]
+      responses: { '200': { description: Pendente }, '410': { description: Link inválido ou expirado } }
+  /sign/{token}/code:
+    post:
+      security: []
+      summary: Enviar código ao e-mail verificado
+      parameters: [{ in: path, name: token, required: true, schema: { type: string } }]
+      responses: { '200': { description: Enviado }, '429': { description: Limite de tentativas } }
+  /sign/{token}/preview:
+    post:
+      security: []
+      summary: Obter URL de 60 s do PDF exato após código
+      parameters: [{ in: path, name: token, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string } } } } } }
+      responses: { '200': { description: URL, hash e termos } }
+  /sign/{token}/confirm:
+    post:
+      security: []
+      summary: Registrar assinatura eletrônica simples; não confirma entrega
+      parameters: [{ in: path, name: token, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code, acceptedTerms], properties: { code: { type: string }, acceptedTerms: { type: boolean, enum: [true] } } } } } }
+      responses: { '200': { description: Assinada, recebimento pendente } }
+  /sheets/{id}/receipt:
+    post:
+      summary: Confirmar recebimento físico separadamente
+      parameters: [{ in: path, name: id, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [method, note], properties: { method: { type: string, enum: [IN_PERSON, EMPLOYEE_DECLARATION] }, note: { type: string } } } } } }
+      responses: { '200': { description: Recebimento registrado } }
