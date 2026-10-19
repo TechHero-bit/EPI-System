@@ -3,7 +3,7 @@
   "version": 2,
   "buildCommand": "npm run build",
   "installCommand": "npm ci --install-strategy=nested --no-audit --no-fund",
-  "outputDirectory": "apps/web/dist/web/browser",
+  "outputDirectory": "frontend/dist/web/browser",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/index.html" }

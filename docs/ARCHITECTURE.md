@@ -1,5 +1,7 @@
 # Decisões e limites da versão 0.1
 
+O monorepo separa `frontend/` (Angular), `backend/` (API Node/TypeScript) e `database/` (migrations Supabase). O arquivo raiz `api/index.ts` é apenas o adaptador de função da Vercel. Mover uma migration não a aplica novamente nem modifica o banco remoto.
+
 ## Modelo e controles
 
 `organizations` isola empresas; `memberships` define `ADMIN`, `ALMOXARIFADO`, `RH`, `SEGURANCA`. `employees` guarda apenas cadastro e e-mail de contato. `products` → `variants` → `lots` modela descrição/CA/marca, tamanho/SKU e fornecedor/lote/validade/saldo. `stock_movements` é o razão de entradas/saídas; não se edita saldo sem movimento.

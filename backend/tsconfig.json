@@ -3,14 +3,14 @@
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "../..",
-    "outDir": "../../dist/api",
+    "rootDir": "..",
+    "outDir": "../dist/backend",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "../../api/**/*.ts"],
+  "include": ["src/**/*.ts", "../api/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

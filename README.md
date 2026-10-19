@@ -2,6 +2,18 @@
 
 Primeira versão evolutiva de gestão de Equipamentos de Proteção Individual: estoque, colaboradores, montagem visual de ficha, emissão imutável e opção de assinatura presencial ou eletrônica simples. Interface em Angular/TypeScript, API Node/TypeScript e Supabase Postgres/Auth/Storage. O projeto começa sem dados de produção.
 
+## Organização do monorepo
+
+```text
+backend/              API Node/TypeScript, regras e testes
+database/migrations/  SQL versionado para Supabase (não executado automaticamente)
+frontend/             Aplicação Angular/TypeScript
+api/index.ts          Adaptador mínimo exigido pela Vercel para a API
+docs/                 Arquitetura e contrato OpenAPI
+```
+
+Os pacotes `@epi/backend` e `@epi/frontend` são workspaces npm independentes, com scripts centralizados na raiz. O diretório `api/` não é um segundo backend: contém apenas a entrada serverless que aponta para `backend/`.
+
 > O repositório original continha apenas a licença. A fotografia fornecida orienta os campos, mas não equivale ao PDF original. A exportação atual traz o aviso **MODELO PROVISÓRIO** e precisa ser validada contra o documento fonte antes de uso oficial.
 
 ## Arquitetura
@@ -23,7 +35,7 @@ O banco impede quantidade diferente de 1 na ficha e saída diferente de -1, e a 
 
 Requisitos: Node.js 24.15+, npm, um projeto **Supabase de desenvolvimento** e SMTP para verificação/assinatura remota.
 
-1. No Supabase de desenvolvimento, rode a migration `supabase/migrations/202610190001_init.sql` pelo SQL Editor. Confira primeiro o projeto selecionado; não rode em produção sem revisão e backup.
+1. No Supabase de desenvolvimento, rode a migration `database/migrations/202610190001_init.sql` pelo SQL Editor. Confira primeiro o projeto selecionado; não rode em produção sem revisão e backup. Se ela já foi aplicada, **não execute novamente**: esta reorganização apenas move o arquivo.
 2. Crie o primeiro usuário em **Authentication > Users**. Crie uma organização e a associação desse usuário no SQL Editor:
 
 ```sql
@@ -65,7 +77,7 @@ npm test
 npm run build
 ```
 
-Para GitHub, faça revisão dos arquivos e segredos (`git status`, `git diff`), crie commit e envie uma branch para `TechHero-bit/EPI-ERP`. `.env` está ignorado. Para Vercel, importe o repositório, use a raiz como diretório do projeto, configure as variáveis do `.env.example` em ambiente **Preview** com Supabase de desenvolvimento, ajuste `APP_ORIGIN` para o domínio Preview e valide `/api/health`. Só promova a Production depois de validar migrations, RLS, SMTP, PDF original, retenção e jurídico.
+Para GitHub, faça revisão dos arquivos e segredos (`git status`, `git diff`), crie commit e envie uma branch para `TechHero-bit/EPI-ERP`. `.env` está ignorado. Para Vercel, importe o repositório, use a **raiz** como diretório do projeto: o build produz o Angular em `frontend/dist/web/browser` e a função `api/index.ts` carrega `backend/src/app.ts`. Configure as variáveis do `.env.example` em ambiente **Preview**, ajuste `APP_ORIGIN` para o domínio Preview e valide `/api/health`. A migration já aplicada no Supabase não precisa ser executada de novo após esta mudança de pastas. Só promova a Production depois de validar RLS, SMTP, PDF original, retenção e jurídico.
 
 ## Estado e pendências
 
