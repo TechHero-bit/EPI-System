@@ -62,6 +62,9 @@ function dbResult(result: { data: any; error: any }): any {
 function dbOk(result: { error: any }) {
   if (result.error) throw error(result.error.message || 'Falha ao salvar no banco.',409);
 }
+async function audit(ctx: Context, action: string, entity: string, entityId: string, detail: Record<string, unknown> = {}) {
+  dbOk(await ctx.admin.from('audit_events').insert({ organization_id:ctx.orgId, actor_id:ctx.userId, action, entity, entity_id:entityId, detail }));
+}
 
 const app = express();
 app.disable('x-powered-by');
@@ -72,7 +75,7 @@ app.use('/api', (_req,res,next) => { res.set('Cache-Control','no-store'); next()
 app.use(cors((req, callback) => {
   try {
     const allowed = config().APP_ORIGIN;
-    callback(null, { origin: req.header('origin') === allowed ? allowed : false, methods: ['GET','POST','PATCH'], allowedHeaders: ['Authorization','Content-Type','X-Organization-Id'] });
+    callback(null, { origin: req.header('origin') === allowed ? allowed : false, methods: ['GET','POST','PATCH','DELETE'], allowedHeaders: ['Authorization','Content-Type','X-Organization-Id'] });
   } catch (e) { callback(e as Error); }
 }));
 
@@ -87,34 +90,56 @@ app.get('/api/jobs/retention', async (req,res) => {
 
 app.get('/api/bootstrap', async (req, res) => {
   const c = await context(req);
-  const [org, employees, products, sheets, movements] = await Promise.all([
+  const [org, employees, products, sheets, movements, audits] = await Promise.all([
     c.admin.from('organizations').select('id,name').eq('id',c.orgId).single(),
     c.admin.from('employees').select(c.role === 'ALMOXARIFADO' ? 'id,name,registration' : '*').eq('organization_id',c.orgId).order('name'),
     c.admin.from('products').select('*').eq('organization_id',c.orgId).order('description'),
     c.admin.from('sheets').select('id,employee_id,version,issued_at,signature_method,pdf_sha256').eq('organization_id',c.orgId).order('issued_at',{ ascending:false }).limit(100),
-    c.admin.from('stock_movements').select('id,lot_id,type,quantity,created_at,reason').eq('organization_id',c.orgId).order('created_at',{ ascending:false }).limit(100)
+    c.admin.from('stock_movements').select('id,lot_id,type,quantity,created_at,reason').eq('organization_id',c.orgId).order('created_at',{ ascending:false }).limit(100),
+    c.admin.from('audit_events').select('id,actor_id,action,entity,entity_id,detail,created_at').eq('organization_id',c.orgId).order('created_at',{ ascending:false }).limit(100)
   ]);
-  for (const result of [org,employees,products,sheets,movements]) if (result.error) throw error('Falha ao carregar dados.',500);
+  for (const result of [org,employees,products,sheets,movements,audits]) if (result.error) throw error('Falha ao carregar dados.',500);
   const productIds = (products.data ?? []).map(p => p.id);
   const variants = productIds.length ? dbResult(await c.admin.from('variants').select('*').in('product_id',productIds)) : [];
   const variantIds = variants.map((v:any) => v.id);
   const lots = variantIds.length ? dbResult(await c.admin.from('lots').select('*').in('variant_id',variantIds)) : [];
   const sheetIds = (sheets.data ?? []).map(s => s.id);
   const states = sheetIds.length ? dbResult(await c.admin.from('sheet_state').select('*').in('sheet_id',sheetIds)) : [];
-  res.json({ organization:org.data, role:c.role, employees:employees.data, products:products.data, variants, lots, sheets:sheets.data, states, movements:movements.data });
+  res.json({ organization:org.data, role:c.role, employees:employees.data, products:products.data, variants, lots, sheets:sheets.data, states, movements:movements.data, audits:audits.data });
 });
 
-const productSchema = z.object({ category: required.max(80), description: required.max(180), ca: z.string().trim().max(50).nullable().optional(), brand: z.string().trim().max(100).default(''), model: z.string().trim().max(100).default(''), riskCode: z.string().trim().max(30).default(''), caExpiresAt: isoDate.nullable().optional() });
+const productSchema = z.object({ category: required.max(80), description: required.max(180), ca: z.string().trim().max(50).nullable().optional(), brand: z.string().trim().max(100).default(''), model: z.string().trim().max(100).default(''), riskCode: z.string().trim().max(30).default(''), caExpiresAt: isoDate.nullable().optional(), active:z.boolean().optional() });
 app.post('/api/products', async (req,res) => {
   const c = await context(req,['ADMIN','ALMOXARIFADO']); const body = productSchema.parse(req.body);
   const data = dbResult(await c.admin.from('products').insert({ organization_id:c.orgId, category:body.category, description:body.description, ca:body.ca || null, brand:body.brand, model:body.model, risk_code:body.riskCode, ca_expires_at:body.caExpiresAt || null }).select().single());
+  await audit(c,'PRODUCT_CREATED','product',data.id);
   res.status(201).json(data);
+});
+app.patch('/api/products/:id', async (req,res) => {
+  const c = await context(req,['ADMIN','ALMOXARIFADO']); const body = productSchema.partial().parse(req.body);
+  await owned(c,'products',req.params.id);
+  const map = { category:'category', description:'description', ca:'ca', brand:'brand', model:'model', riskCode:'risk_code', caExpiresAt:'ca_expires_at', active:'active' } as const;
+  const payload: Record<string,unknown> = {};
+  for (const [key,column] of Object.entries(map)) if ((body as any)[key] !== undefined) {
+    const value = (body as any)[key];
+    payload[column] = key === 'ca' || key === 'caExpiresAt' ? value || null : value;
+  }
+  const data = dbResult(await c.admin.from('products').update(payload).eq('id',req.params.id).eq('organization_id',c.orgId).select().single());
+  await audit(c,'PRODUCT_UPDATED','product',data.id,Object.keys(payload).reduce((keys,key) => ({...keys,[key]:true}),{}));
+  res.json(data);
+});
+app.delete('/api/products/:id', async (req,res) => {
+  const c = await context(req,['ADMIN','ALMOXARIFADO']); const product = await owned<any>(c,'products',req.params.id);
+  if (product.active) dbOk(await c.admin.from('products').update({active:false}).eq('id',product.id).eq('organization_id',c.orgId));
+  await audit(c,'PRODUCT_DEACTIVATED','product',product.id);
+  res.status(204).end();
 });
 app.post('/api/variants', async (req,res) => {
   const c = await context(req,['ADMIN','ALMOXARIFADO']);
   const body = z.object({ productId:uuid, size:required.max(30), sku:required.max(80), minimumStock:z.number().int().min(0) }).parse(req.body);
   await owned(c,'products',body.productId);
   const data = dbResult(await c.admin.from('variants').insert({ product_id:body.productId, size:body.size, sku:body.sku, minimum_stock:body.minimumStock }).select().single());
+  await audit(c,'VARIANT_CREATED','variant',data.id);
   res.status(201).json(data);
 });
 app.post('/api/lots', async (req,res) => {
@@ -123,6 +148,7 @@ app.post('/api/lots', async (req,res) => {
   const variant = dbResult(await c.admin.from('variants').select('product_id').eq('id',body.variantId).single());
   await owned(c,'products',variant.product_id);
   const data = dbResult(await c.admin.from('lots').insert({ variant_id:body.variantId, batch_code:body.batchCode, supplier:body.supplier, received_at:body.receivedAt, expires_at:body.expiresAt || null }).select().single());
+  await audit(c,'LOT_CREATED','lot',data.id);
   res.status(201).json(data);
 });
 app.post('/api/lots/:id/receive', async (req,res) => {
@@ -136,6 +162,7 @@ const employeeSchema = z.object({ name:required.max(160), registration:required.
 app.post('/api/employees', async (req,res) => {
   const c = await context(req,['ADMIN','RH','SEGURANCA']); const body = employeeSchema.parse(req.body);
   const data = dbResult(await c.admin.from('employees').insert({ organization_id:c.orgId,name:body.name,registration:body.registration,department:body.department,job_title:body.jobTitle,admission_date:body.admissionDate,termination_date:body.terminationDate || null,personal_email:body.personalEmail || null }).select().single());
+  await audit(c,'EMPLOYEE_CREATED','employee',data.id);
   res.status(201).json(data);
 });
 app.patch('/api/employees/:id', async (req,res) => {
@@ -147,7 +174,15 @@ app.patch('/api/employees/:id', async (req,res) => {
   if ('personal_email' in payload) payload['email_verified_at'] = null;
   const data = dbResult(await c.admin.from('employees').update(payload).eq('id',req.params.id).eq('organization_id',c.orgId).select().single());
   if ('personal_email' in payload) dbOk(await c.admin.from('email_verifications').delete().eq('employee_id',req.params.id));
+  await audit(c,'EMPLOYEE_UPDATED','employee',data.id,Object.keys(payload).reduce((keys,key) => ({...keys,[key]:true}),{}));
   res.json(data);
+});
+app.delete('/api/employees/:id', async (req,res) => {
+  const c = await context(req,['ADMIN','RH','SEGURANCA']); const employee = await owned<any>(c,'employees',req.params.id);
+  const terminationDate = employee.termination_date || new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
+  if (!employee.termination_date) dbOk(await c.admin.from('employees').update({termination_date:terminationDate}).eq('id',employee.id).eq('organization_id',c.orgId));
+  await audit(c,'EMPLOYEE_TERMINATED','employee',employee.id,{terminationDate});
+  res.status(204).end();
 });
 app.post('/api/employees/:id/send-verification', async (req,res) => {
   const c = await context(req,['ADMIN','RH','SEGURANCA']);
@@ -158,6 +193,7 @@ app.post('/api/employees/:id/send-verification', async (req,res) => {
   const code = otp();
   dbOk(await c.admin.from('email_verifications').upsert({ employee_id:employee.id,email_address:employee.personal_email,code_hash:secretHash(code,config().TOKEN_PEPPER),expires_at:new Date(Date.now()+10*60_000).toISOString(),attempts:0 }));
   await sendEmail(employee.personal_email,'Confirmação de e-mail - EPI ERP',`Seu código de confirmação é ${code}. Validade: 10 minutos. Não compartilhe.`);
+  await audit(c,'EMPLOYEE_EMAIL_VERIFICATION_SENT','employee',employee.id);
   res.json({ sent:true });
 });
 app.post('/api/verify-email', async (req,res) => {
@@ -217,7 +253,7 @@ app.post('/api/sheets/:id/signing-links', async (req,res) => {
   const raw = token();
   const expiresAt = new Date(Date.now()+24*60*60_000).toISOString();
   dbOk(await c.admin.from('signing_links').insert({sheet_id:sheet.id,token_hash:secretHash(raw,config().TOKEN_PEPPER),expires_at:expiresAt}));
-  await c.admin.from('audit_events').insert({organization_id:c.orgId,actor_id:c.userId,action:'SIGNING_LINK_CREATED',entity:'sheet',entity_id:sheet.id,detail:{expires_at:expiresAt}});
+  await audit(c,'SIGNING_LINK_CREATED','sheet',sheet.id,{expires_at:expiresAt});
   res.status(201).json({ url:`${config().APP_ORIGIN}/assinar/${raw}`, expiresAt, delivery:'Envie o link por canal diferente do e-mail do código.' });
 });
 
@@ -279,6 +315,13 @@ app.post('/api/sheets/:id/receipt', async (req,res) => {
   const body = z.object({ method:z.enum(['IN_PERSON','EMPLOYEE_DECLARATION']), note:required.max(500) }).parse(req.body);
   dbOk(await c.admin.rpc('confirm_receipt',{p_org:c.orgId,p_actor:c.userId,p_sheet:sheet.id,p_method:body.method,p_note:body.note}));
   res.json({ received:true });
+});
+app.post('/api/sheets/:id/manual-signature', async (req,res) => {
+  const c = await context(req,['ADMIN','RH','SEGURANCA']); const sheet = await getSheet(c,req.params.id);
+  if (sheet.signature_method !== 'MANUAL') throw error('Ficha configurada para assinatura eletrônica.');
+  const body = z.object({ note:required.max(500) }).parse(req.body);
+  dbOk(await c.admin.rpc('record_manual_signature',{p_org:c.orgId,p_actor:c.userId,p_sheet:sheet.id,p_note:body.note}));
+  res.json({ signed:true, received:false });
 });
 
 app.use((err: unknown, _req: Request, res: Response, _next: Function) => {

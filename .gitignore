@@ -7,3 +7,4 @@ dist/
 !.env.example
 coverage/
 *.log
+frontend/public/runtime-config.js

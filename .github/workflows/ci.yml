@@ -13,7 +13,7 @@ jobs:
           node-version: '24.15.0'
           cache: npm
       - name: Dependências
-        run: npm ci --install-strategy=nested --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Tipos
         run: npm run typecheck
       - name: Testes

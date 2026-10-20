@@ -1,6 +1,6 @@
 # Decisões e limites da versão 0.1
 
-O monorepo separa `frontend/` (Angular), `backend/` (API Node/TypeScript) e `database/` (migrations Supabase). O arquivo raiz `api/index.ts` é apenas o adaptador de função da Vercel. Mover uma migration não a aplica novamente nem modifica o banco remoto.
+O monorepo separa `frontend/` (Angular), `backend/` (API Node/TypeScript) e `database/` (migrations Supabase). O arquivo `backend/api/index.ts` é o adaptador serverless do projeto Vercel do backend. Mover uma migration não a aplica novamente nem modifica o banco remoto.
 
 ## Modelo e controles
 

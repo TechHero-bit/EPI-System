@@ -3,12 +3,15 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
+declare global { interface Window { EPI_ERP_CONFIG?: { apiBaseUrl?: string } } }
+
 type View = 'overview' | 'stock' | 'employees' | 'sheets' | 'history';
 const today = () => new Date().toISOString().slice(0,10);
 
 @Component({ selector:'epi-root', standalone:true, imports:[CommonModule,FormsModule], templateUrl:'./app.component.html' })
 export class AppComponent implements OnInit {
   client?: SupabaseClient;
+  private readonly apiBaseUrl = window.EPI_ERP_CONFIG?.apiBaseUrl?.replace(/\/$/, '') ?? '';
   config?: { supabaseUrl:string; publishableKey:string; faceMatchEnabled:boolean };
   userEmail = '';
   loginEmail = '';
@@ -23,7 +26,9 @@ export class AppComponent implements OnInit {
   signingSent = false;
   signingDone = false;
   termsAccepted = false;
-  data: any = { employees:[], products:[], variants:[], lots:[], sheets:[], states:[], movements:[] };
+  data: any = { employees:[], products:[], variants:[], lots:[], sheets:[], states:[], movements:[], audits:[] };
+  editingProductId = '';
+  editingEmployeeId = '';
   product: any = { category:'Botas',description:'',ca:'',brand:'',model:'',riskCode:'',caExpiresAt:null };
   variant: any = { productId:'',size:'Único',sku:'',minimumStock:2 };
   lot: any = { variantId:'',batchCode:'',supplier:'',receivedAt:today(),expiresAt:null };
@@ -80,11 +85,13 @@ export class AppComponent implements OnInit {
   async load() { this.data = await this.request('/api/bootstrap'); }
   select(view: View) { this.view=view; this.failure=''; this.message=''; }
 
-  async saveProduct() { await this.run(async () => { await this.request('/api/products','POST',{...this.product,ca:this.product.ca || null,caExpiresAt:this.product.caExpiresAt || null}); await this.load(); this.product={category:'Botas',description:'',ca:'',brand:'',model:'',riskCode:'',caExpiresAt:null}; },'EPI cadastrado. Cadastre o tamanho/modelo e o lote.'); }
+  editProduct(value:any) { this.editingProductId=value.id; this.product={category:value.category,description:value.description,ca:value.ca ?? '',brand:value.brand,model:value.model,riskCode:value.risk_code,caExpiresAt:value.ca_expires_at}; this.view='stock'; }
+  async saveProduct() { await this.run(async () => { await this.request(this.editingProductId ? `/api/products/${this.editingProductId}` : '/api/products',this.editingProductId ? 'PATCH' : 'POST',{...this.product,ca:this.product.ca || null,caExpiresAt:this.product.caExpiresAt || null}); await this.load(); this.editingProductId=''; this.product={category:'Botas',description:'',ca:'',brand:'',model:'',riskCode:'',caExpiresAt:null}; },this.editingProductId ? 'Equipamento atualizado.' : 'EPI cadastrado. Cadastre o tamanho/modelo e o lote.'); }
   async saveVariant() { await this.run(async () => { await this.request('/api/variants','POST',this.variant); await this.load(); this.variant={productId:'',size:'Único',sku:'',minimumStock:2}; },'Variação cadastrada.'); }
   async saveLot() { await this.run(async () => { await this.request('/api/lots','POST',{...this.lot,expiresAt:this.lot.expiresAt || null}); await this.load(); this.lot={variantId:'',batchCode:'',supplier:'',receivedAt:today(),expiresAt:null}; },'Lote cadastrado. Registre a entrada para disponibilizar estoque.'); }
   async receiveStock() { await this.run(async () => { await this.request(`/api/lots/${this.receive.lotId}/receive`,'POST',{quantity:Number(this.receive.quantity),reason:this.receive.reason}); await this.load(); this.receive={lotId:'',quantity:1,reason:''}; },'Entrada registrada no histórico.'); }
-  async saveEmployee() { await this.run(async () => { await this.request('/api/employees','POST',{...this.employee,personalEmail:this.employee.personalEmail || null,terminationDate:this.employee.terminationDate || null}); await this.load(); this.employee={name:'',registration:'',department:'',jobTitle:'',admissionDate:today(),terminationDate:null,personalEmail:null}; },'Colaborador cadastrado. Biometria é facultativa e ficará para a segunda etapa.'); }
+  editEmployee(value:any) { this.editingEmployeeId=value.id; this.employee={name:value.name,registration:value.registration,department:value.department,jobTitle:value.job_title,admissionDate:value.admission_date,terminationDate:value.termination_date,personalEmail:value.personal_email}; }
+  async saveEmployee() { await this.run(async () => { await this.request(this.editingEmployeeId ? `/api/employees/${this.editingEmployeeId}` : '/api/employees',this.editingEmployeeId ? 'PATCH' : 'POST',{...this.employee,personalEmail:this.employee.personalEmail || null,terminationDate:this.employee.terminationDate || null}); await this.load(); this.editingEmployeeId=''; this.employee={name:'',registration:'',department:'',jobTitle:'',admissionDate:today(),terminationDate:null,personalEmail:null}; },this.editingEmployeeId ? 'Colaborador atualizado.' : 'Colaborador cadastrado. Biometria é facultativa e ficará para a segunda etapa.'); }
   async sendVerification() { await this.run(async () => { await this.request(`/api/employees/${this.verifyEmployeeId}/send-verification`,'POST',{}); },'Código enviado ao e-mail pessoal cadastrado.'); }
   async verifyEmail() { await this.run(async () => { await this.request('/api/verify-email','POST',{employeeId:this.verifyEmployeeId,code:this.verifyCode},false); await this.load(); this.verifyCode=''; },'E-mail verificado.'); }
   addItem(v:any) {
@@ -106,10 +113,11 @@ export class AppComponent implements OnInit {
   }
   async copyLink() { if (this.lastLink) { await navigator.clipboard.writeText(this.lastLink); this.message='Link copiado.'; } }
   async confirmReceipt() { await this.run(async () => { await this.request(`/api/sheets/${this.receiptSheetId}/receipt`,'POST',{method:this.receiptMethod,note:this.receiptNote}); await this.load(); this.receiptNote=''; },'Recebimento físico registrado separadamente.'); }
+  async recordManualSignature(id:string) { const note=window.prompt('Confirme que a ficha impressa foi assinada presencialmente. Registre onde o original assinado está arquivado:'); if (!note?.trim()) return; await this.run(async () => { await this.request(`/api/sheets/${id}/manual-signature`,'POST',{note:note.trim()}); await this.load(); },'Assinatura presencial registrada. A confirmação da entrega física continua separada.'); }
   async download(id:string,kind:'pdf'|'xlsx') {
     await this.run(async () => {
       const session = (await this.client?.auth.getSession())?.data.session;
-      const response = await fetch(`/api/sheets/${id}/${kind}`,{headers:{Authorization:`Bearer ${session?.access_token}`}});
+      const response = await fetch(`${this.apiBaseUrl}/api/sheets/${id}/${kind}`,{headers:{Authorization:`Bearer ${session?.access_token}`}});
       if (!response.ok) throw new Error((await response.json()).error ?? 'Falha ao baixar.');
       const blob=await response.blob(); const url=URL.createObjectURL(blob);
       const link=document.createElement('a'); link.href=url; link.download=`ficha-${id}.${kind}`; link.click();
@@ -127,10 +135,10 @@ export class AppComponent implements OnInit {
     finally { this.busy=false; }
   }
   private textError(e:unknown) { return e instanceof Error ? e.message : 'Ocorreu uma falha. Tente novamente.'; }
-  private async get(path:string) { const response=await fetch(path); if (!response.ok) throw new Error('API indisponível. Inicie a API e confira a configuração.'); return response.json(); }
+  private async get(path:string) { const response=await fetch(`${this.apiBaseUrl}${path}`); if (!response.ok) throw new Error('API indisponível. Inicie a API e confira a configuração.'); return response.json(); }
   private async request(path:string,method='GET',body?:unknown,authenticated=true):Promise<any> {
     const session=authenticated ? (await this.client?.auth.getSession())?.data.session : null;
-    const response=await fetch(path,{method,headers:{'Content-Type':'application/json',...(authenticated ? {Authorization:`Bearer ${session?.access_token}`} : {})},body:body === undefined ? undefined : JSON.stringify(body)});
+    const response=await fetch(`${this.apiBaseUrl}${path}`,{method,headers:{'Content-Type':'application/json',...(authenticated ? {Authorization:`Bearer ${session?.access_token}`} : {})},body:body === undefined ? undefined : JSON.stringify(body)});
     const value=await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(value.error ?? `Falha ${response.status}`);
     return value;
