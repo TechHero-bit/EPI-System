@@ -38,13 +38,7 @@ O banco impede quantidade diferente de 1 na ficha e saída diferente de -1, e a 
 Requisitos: Node.js 24.15+, npm, um projeto **Supabase de desenvolvimento** e SMTP para verificação/assinatura remota.
 
 1. No Supabase de desenvolvimento, rode a migration `database/migrations/202610190001_init.sql` pelo SQL Editor. Confira primeiro o projeto selecionado; não rode em produção sem revisão e backup. Se ela já foi aplicada, **não execute novamente**: esta reorganização apenas move o arquivo.
-2. Crie o primeiro usuário em **Authentication > Users**. Crie uma organização e a associação desse usuário no SQL Editor:
-
-```sql
-insert into public.organizations(name) values ('Minha empresa') returning id;
-insert into public.memberships(organization_id,user_id,role)
-values ('UUID_DA_ORGANIZACAO','UUID_DO_USUARIO_AUTH','ADMIN');
-```
+2. Crie o primeiro usuário em **Authentication > Users**. Para dados de demonstração locais, substitua `v_admin` pelo UUID desse usuário em `database/seeds/development.sql` e execute o seed no SQL Editor do projeto Supabase de desenvolvimento. O seed cria uma organização de demonstração, vínculo administrador, colaborador fictício, um equipamento e uma entrada inicial de 10 unidades. Ele é idempotente e não deve ser usado em produção.
 
 3. Copie `.env.example` para `.env` e preencha com credenciais **do projeto de desenvolvimento**. Gere `TOKEN_PEPPER` e `CRON_SECRET` aleatórios, com no mínimo 32 caracteres. `SUPABASE_SERVICE_ROLE_KEY` nunca vai para o Angular. SMTP é obrigatório para verificar e-mail e assinar remotamente.
 4. No PowerShell, na raiz do repositório:
