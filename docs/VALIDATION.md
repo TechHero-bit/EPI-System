@@ -44,3 +44,9 @@ Não foram executadas migrations em banco remoto. A stack Supabase completa não
 Backup verificável de código, arquivos de configuração e histórico Git: `C:\Users\kevindesouza\Documents\Codex\2026-10-20\EPI-ERP-code-and-git-backup.tar`. A listagem foi conferida para .git/HEAD, backend/src/app.ts e package-lock.json. O backup anterior EPI-ERP-backup-20261020.zip também foi preservado. node_modules, dist e caches regeneráveis não fazem parte do TAR de código; uma tentativa de arquivar dependências encontrou arquivo bloqueado. Dependências são reconstituídas por npm ci.
 
 Os arquivos TypeScript, Angular, CSS e configurações foram formatados para revisão. A remoção dos componentes Angular antigos e a movimentação das migrations são recuperáveis pelo Git e pelos backups.
+
+## Git e publicação
+
+Commits locais desta entrega: `f918c28` (implementação, migrations e testes) e `a85984a` (integração dos históricos na main, preservando a licença oficial do EPI-System). O clone permanece no caminho original e o origin é `https://github.com/TechHero-bit/EPI-System.git`. Não foi criado repositório, fork ou Pull Request.
+
+A conta do conector GitHub tem somente leitura. A credencial Git do Windows passou no dry-run de push; porém a revisão automática bloqueou o push efetivo por exigir autorização explícita adicional diante da proibição anterior de publicar sem autorização. Nenhum commit foi publicado. A main local permanece à frente de origin/main; o envio depende dessa autorização. Nenhum deploy Vercel ou SQL remoto foi executado.
