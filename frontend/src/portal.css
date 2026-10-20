@@ -154,6 +154,15 @@ a {
   padding: 16px;
   gap: 9px;
 }
+.catalog .equipment-card > .secondary {
+  width: 100%;
+  margin-top: 6px;
+}
+#category {
+  cursor: pointer;
+  min-height: 43px;
+  background-color: #f6f9fe;
+}
 .catalog .equipment-visual {
   height: 130px;
 }

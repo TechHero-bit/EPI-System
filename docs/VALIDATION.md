@@ -1,5 +1,15 @@
 # Validação local — 20/10/2026
 
+## Atualização de interface na nova pasta
+
+O projeto passou a ser trabalhado em `C:\Dev\EPI-System`. O clone existente nessa pasta continha apenas a licença; a implementação anterior foi incorporada por fast-forward dos commits locais, preservando o histórico e sem push. O estado inicial do novo clone foi salvo em `C:\Users\kevindesouza\.codex\visualizations\2026\10\20\01a159cb-1307-7a03-8c3c-881314ab5367\EPI-System-before-ui-changes.tar`.
+
+Nesta atualização: login demonstrativo somente com RH e Almoxarifado; um Dashboard no menu com conteúdo específico de cada setor; assinaturas acessíveis como filtro das fichas; remoção dos campos de fotografia e prazo de utilização do cadastro; seleção de categoria com cadastro de novos nomes; cartões sem emotes ou espaços vazios de imagem. Dados antigos desses campos foram preservados.
+
+Validação no novo caminho: `npm run typecheck` e `npm run build` aprovados; 24 testes existentes aprovados e 7 testes Chromium aprovados (31 ao todo). Foi repetido o teste demonstrativo após acrescentar a verificação de preservação dos metadados antigos na edição. Capturas de desktop e celular foram conferidas. A suíte de navegador usa a porta 4211 e não reutiliza servidor de outra pasta.
+
+O restante deste relatório documenta a implementação anterior e seus limites de infraestrutura, que continuam aplicáveis.
+
 Projeto: `C:\Dev\EPI-ERP`. Node.js 24.15.0, Windows/PowerShell. Repositório oficial selecionado pelo usuário: TechHero-bit/EPI-System. O origin local foi atualizado após consulta do repositório; seu histórico inicial contém a licença.
 
 ## Resultados executados

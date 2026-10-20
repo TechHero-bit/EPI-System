@@ -39,10 +39,12 @@ export class PortalStore {
         localStorage.removeItem("epi-demo-v2");
       }
       const role = sessionStorage.getItem("epi-demo-role") as Role | null;
-      if (role && role in roleNames) {
+      if (role && ["RH", "ALMOXARIFADO"].includes(role)) {
         this.repository.data.role = role;
         this.user.set("visitante@example.invalid");
         this.data.set(structuredClone(this.repository.data));
+      } else {
+        sessionStorage.removeItem("epi-demo-role");
       }
       return;
     }

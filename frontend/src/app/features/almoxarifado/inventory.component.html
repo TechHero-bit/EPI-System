@@ -36,19 +36,33 @@
           />
         </div>
         <div class="field">
-          <label for="category">Categoria (permite novas categorias)</label
-          ><input
+          <label for="category">Categoria</label>
+          <select
             id="category"
             name="category"
-            list="category-list"
-            [(ngModel)]="product.category"
+            [(ngModel)]="categoryChoice"
             required
-          /><datalist id="category-list">
+          >
+            <option value="" disabled>Selecione uma categoria</option>
             @for (c of allCategories; track c) {
-              <option [value]="c"></option>
+              <option [value]="c">{{ c }}</option>
             }
-          </datalist>
+            <option value="__new__">+ Adicionar nova categoria</option>
+          </select>
         </div>
+        @if (categoryChoice === "__new__") {
+          <div class="field full">
+            <label for="new-category">Nome da nova categoria</label>
+            <input
+              id="new-category"
+              name="newCategory"
+              [(ngModel)]="newCategory"
+              required
+              maxlength="80"
+              placeholder="Ex.: Protetores auditivos"
+            />
+          </div>
+        }
         <div class="field">
           <label for="brand">Fabricante</label
           ><input id="brand" name="brand" [(ngModel)]="product.brand" />
@@ -70,30 +84,10 @@
             [(ngModel)]="product.caExpiresAt"
           />
         </div>
-        <div class="field">
-          <label for="life">Prazo de utilização (dias, quando definido)</label
-          ><input
-            id="life"
-            name="life"
-            type="number"
-            min="1"
-            [(ngModel)]="product.usefulLifeDays"
-          />
-        </div>
-        <div class="field">
-          <label for="photo">URL HTTPS da fotografia (opcional)</label
-          ><input
-            id="photo"
-            name="photo"
-            type="url"
-            [(ngModel)]="product.photoUrl"
-            placeholder="https://..."
-          />
-        </div>
       </div>
       <p class="note">
-        A validade do lote é cadastrada no estoque. Ela é independente da
-        validade do CA e do prazo de utilização.
+        Cadastre tamanhos, lotes e saldos na tela de estoque após salvar o
+        equipamento.
       </p>
       <button class="primary" [disabled]="s.busy()">Salvar equipamento</button>
       <a class="secondary button-link inline" routerLink="/almoxarifado/estoque"
@@ -130,26 +124,6 @@
       <div class="equipment-grid catalog">
         @for (p of products; track p.id) {
           <article class="equipment-card">
-            <div class="equipment-visual">
-              @if (p.photo_url) {
-                <img
-                  [src]="p.photo_url"
-                  [alt]="p.description"
-                  loading="lazy"
-                  referrerpolicy="no-referrer"
-                />
-              } @else {
-                <span aria-hidden="true">{{
-                  p.category.includes("Bota")
-                    ? "♧"
-                    : p.category.includes("Capacete")
-                      ? "◒"
-                      : p.category.includes("Luva")
-                        ? "✋"
-                        : "♜"
-                }}</span>
-              }
-            </div>
             <span class="chip">{{ p.category }}</span
             ><strong>{{ p.description }}</strong
             ><small>CA {{ p.ca || "Não informado" }} · {{ p.brand }}</small>

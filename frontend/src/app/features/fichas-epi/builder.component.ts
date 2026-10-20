@@ -91,18 +91,6 @@ import { today, type DraftItem } from "../../core/models";
                   [disabled]="!available(v.id)"
                   (click)="add(v)"
                 >
-                  <div class="equipment-visual">
-                    @if (s.product(v.product_id)?.photo_url) {
-                      <img
-                        [src]="s.product(v.product_id).photo_url"
-                        alt=""
-                        loading="lazy"
-                        referrerpolicy="no-referrer"
-                      />
-                    } @else {
-                      <span>▣</span>
-                    }
-                  </div>
                   <strong>{{ s.product(v.product_id)?.description }}</strong
                   ><small
                     >CA {{ s.product(v.product_id)?.ca || "N/A" }} · Tam.

@@ -13,7 +13,7 @@ Opcionalmente, em desenvolvimento, execute `supabase/seed.sql`: 10 colaboradores
 Requisitos: Docker ativo e Supabase CLI. No PowerShell:
 
 ```powershell
-Set-Location C:\Dev\EPI-ERP\database
+Set-Location C:\Dev\EPI-System\database
 npx supabase start
 npx supabase migration up --local
 ```

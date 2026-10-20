@@ -22,17 +22,17 @@ export class InventoryComponent {
   kind = "";
   categories = categories;
   editing = "";
+  categoryChoice = "";
+  newCategory = "";
   product: any = {
     description: "",
-    category: categories[0],
+    category: "",
     ca: "",
     brand: "",
     model: "",
     riskCode: "",
     caExpiresAt: null,
-    photoUrl: "",
     unit: "UN",
-    usefulLifeDays: null,
   };
   variant = { productId: "", size: "Único", sku: "", minimumStock: 5 };
   lot: any = {
@@ -100,22 +100,28 @@ export class InventoryComponent {
       const value = await this.s.saveProduct(
         {
           ...this.product,
+          category:
+            this.categoryChoice === "__new__"
+              ? this.newCategory.trim()
+              : this.categoryChoice,
           ca: this.product.ca || null,
           caExpiresAt: this.product.caExpiresAt || null,
         },
         this.editing || undefined,
       );
       this.variant.productId = value.id;
+      this.categoryChoice = value.category;
+      this.newCategory = "";
     }, "Equipamento salvo. Cadastre as variações e lotes na tela de estoque.");
   }
   edit(p: any) {
     this.editing = p.id;
+    this.categoryChoice = p.category;
+    this.newCategory = "";
     this.product = {
       ...p,
       caExpiresAt: p.ca_expires_at,
       riskCode: p.risk_code,
-      photoUrl: p.photo_url ?? "",
-      usefulLifeDays: p.useful_life_days,
     };
   }
   async addVariant() {

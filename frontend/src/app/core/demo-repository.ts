@@ -166,14 +166,21 @@ export class DemoRepository {
     this.require(STOCK);
     if (!body.description?.trim() || !body.category?.trim())
       throw new Error("Informe nome e categoria.");
+    const existing = this.data.products.find((p) => p.id === id);
     const value = {
       id: id ?? crypto.randomUUID(),
       ...body,
       ca_expires_at: body.caExpiresAt || null,
       risk_code: body.riskCode ?? "",
       active: body.active ?? true,
-      photo_url: body.photoUrl || null,
-      useful_life_days: body.usefulLifeDays || null,
+      photo_url:
+        body.photoUrl === undefined
+          ? (existing?.photo_url ?? null)
+          : body.photoUrl || null,
+      useful_life_days:
+        body.usefulLifeDays === undefined
+          ? (existing?.useful_life_days ?? null)
+          : body.usefulLifeDays || null,
     };
     if (id)
       Object.assign(this.data.products.find((p) => p.id === id) ?? {}, value);

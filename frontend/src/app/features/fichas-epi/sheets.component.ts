@@ -10,7 +10,7 @@ import { StatusComponent } from "../../components/status.component";
   template: ` <div class="page-head">
       <div>
         <span class="eyebrow">RH / SEGURANÇA DO TRABALHO</span>
-        <h1>{{ pendingOnly ? "Assinaturas pendentes" : "Fichas de EPI" }}</h1>
+        <h1>Fichas de EPI</h1>
         <p>
           Documentos versionados, assinaturas e entregas acompanhados
           separadamente.
@@ -106,10 +106,16 @@ export class SheetsComponent implements OnDestroy {
   route = inject(ActivatedRoute);
   query = "";
   status = "";
-  get pendingOnly() {
-    return this.route.snapshot.data["pending"] === true;
-  }
-  employee = this.route.snapshot.queryParamMap.get("employee");
+  employee: string | null = null;
+  private querySubscription = this.route.queryParamMap.subscribe((params) => {
+    const status = params.get("status") ?? "";
+    this.status = ["PENDING", "SIGNED_MANUAL", "SIGNED_ELECTRONIC"].includes(
+      status,
+    )
+      ? status
+      : "";
+    this.employee = params.get("employee");
+  });
   timer = setInterval(() => {
     if (!document.hidden && !this.s.busy())
       void this.s
@@ -126,12 +132,11 @@ export class SheetsComponent implements OnDestroy {
             .toLowerCase()
             .includes(this.query.toLowerCase()) &&
           (!this.status ||
-            this.s.state(f.id)?.signature_status === this.status) &&
-          (!this.pendingOnly ||
-            this.s.state(f.id)?.signature_status === "PENDING"),
+            this.s.state(f.id)?.signature_status === this.status),
       );
   }
   ngOnDestroy() {
     clearInterval(this.timer);
+    this.querySubscription.unsubscribe();
   }
 }

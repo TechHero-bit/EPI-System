@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 test.setTimeout(120000);
-async function login(page: any, role = "ADMIN") {
+async function login(page: any, role = "RH") {
   await page.goto("/login");
   await page.getByLabel("Explorar como").selectOption(role);
   await page.getByRole("button", { name: "Entrar na demonstração" }).click();
@@ -14,11 +14,6 @@ test("todas as rotas principais abrem diretamente, inclusive após refresh", asy
   await login(page);
   const paths = [
     "/dashboard",
-    "/almoxarifado",
-    "/almoxarifado/equipamentos",
-    "/almoxarifado/equipamentos/novo",
-    "/almoxarifado/movimentacoes",
-    "/almoxarifado/estoque",
     "/rh",
     "/rh/colaboradores",
     "/rh/colaboradores/novo",
@@ -27,7 +22,6 @@ test("todas as rotas principais abrem diretamente, inclusive após refresh", asy
     "/rh/fichas/sheet-0",
     "/rh/assinaturas",
     "/relatorios",
-    "/administracao",
   ];
   for (const path of paths) {
     await page.goto(path);
@@ -35,7 +29,21 @@ test("todas as rotas principais abrem diretamente, inclusive após refresh", asy
     await expect(page.locator("main")).toContainText("DEMONSTRAÇÃO");
   }
   await page.reload();
-  await expect(page.locator("h1")).toHaveText("Administração");
+  await expect(page.locator("h1")).toHaveText("Relatórios");
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
+  await login(page, "ALMOXARIFADO");
+  for (const path of [
+    "/dashboard",
+    "/almoxarifado",
+    "/almoxarifado/equipamentos",
+    "/almoxarifado/equipamentos/novo",
+    "/almoxarifado/movimentacoes",
+    "/almoxarifado/estoque",
+    "/relatorios",
+  ]) {
+    await page.goto(path);
+    await expect(page.locator("h1")).toBeVisible();
+  }
   expect(errors).toEqual([]);
 });
 test("assistente emite ficha, exporta PDF/Excel e mantém entrega separada", async ({
@@ -91,7 +99,7 @@ test("perfis restringem rotas e menu", async ({ page }) => {
 });
 test("busca e layout móvel funcionam", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await login(page);
+  await login(page, "ALMOXARIFADO");
   await page.goto("/almoxarifado/equipamentos");
   await page
     .getByRole("textbox", { name: "Buscar", exact: true })
@@ -101,7 +109,125 @@ test("busca e layout móvel funcionam", async ({ page }) => {
   ).toBeVisible();
   await page.getByRole("button", { name: "Abrir menu" }).click();
   await expect(
-    page.getByRole("navigation").getByText("Colaboradores", { exact: true }),
+    page.getByRole("navigation").getByText("Equipamentos", { exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("navigation")
+    .getByRole("link", { name: "Equipamentos", exact: true })
+    .click();
+  await page.getByRole("textbox", { name: "Buscar", exact: true }).fill("");
   await page.screenshot({ path: "dist/mobile-catalog.png", fullPage: true });
+});
+test("login oferece apenas RH e Almoxarifado com dashboards específicos", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  await expect(page.locator("#profile option")).toHaveText([
+    "RH",
+    "Almoxarifado",
+  ]);
+  await login(page);
+  await expect(
+    page.getByRole("heading", { name: "Dashboard do RH", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Status das assinaturas", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Atenção ao estoque", exact: true }),
+  ).toHaveCount(0);
+  const nav = page.getByRole("navigation");
+  await expect(
+    nav.getByRole("link", { name: "Dashboard", exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    nav.locator(
+      'a[href="/rh"],a[href="/almoxarifado"],a[href="/rh/assinaturas"]',
+    ),
+  ).toHaveCount(0);
+  await page.screenshot({ path: "dist/dashboard-rh.png", fullPage: true });
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
+  await login(page, "ALMOXARIFADO");
+  await expect(
+    page.getByRole("heading", {
+      name: "Dashboard do Almoxarifado",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Atenção ao estoque", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Status das assinaturas", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    nav.getByRole("link", { name: "Dashboard", exact: true }),
+  ).toHaveCount(1);
+  await page.screenshot({
+    path: "dist/dashboard-almoxarifado.png",
+    fullPage: true,
+  });
+});
+test("cadastro simplificado cria e filtra uma categoria sem emotes", async ({
+  page,
+}) => {
+  await login(page, "ALMOXARIFADO");
+  await page.goto("/almoxarifado/equipamentos/novo");
+  await expect(page.locator("#photo,#life")).toHaveCount(0);
+  await expect(
+    page.getByLabel("Validade do CA", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Nome do equipamento", { exact: true })
+    .fill("Protetor auditivo de teste");
+  await page.getByLabel("Categoria", { exact: true }).selectOption("__new__");
+  await page
+    .getByLabel("Nome da nova categoria", { exact: true })
+    .fill("Proteção auditiva");
+  await page
+    .getByRole("button", { name: "Salvar equipamento", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Equipamento salvo.");
+  await expect(page.getByLabel("Categoria", { exact: true })).toHaveValue(
+    "Proteção auditiva",
+  );
+  await expect(
+    page.getByLabel("Nome da nova categoria", { exact: true }),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: "dist/cadastro-equipamento.png",
+    fullPage: true,
+  });
+  await page.goto("/almoxarifado/equipamentos");
+  await expect(page.locator(".equipment-visual")).toHaveCount(0);
+  await page.getByLabel("Filtrar categoria").selectOption("Proteção auditiva");
+  await expect(page.locator(".catalog .equipment-card")).toHaveCount(1);
+  await expect(page.locator(".catalog")).toContainText(
+    "Protetor auditivo de teste",
+  );
+  await expect(page.locator(".catalog")).not.toContainText(/♧|◒|✋|♜/);
+});
+test("assinaturas ficam disponíveis como filtro da lista de fichas", async ({
+  page,
+}) => {
+  await login(page);
+  await expect(
+    page
+      .getByRole("navigation")
+      .getByRole("link", { name: "Assinaturas", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: /Pendentes Conferir fichas/ }).click();
+  await expect(page).toHaveURL(/rh\/fichas\?status=PENDING/);
+  await expect(
+    page.getByRole("combobox", { name: "Filtrar assinatura" }),
+  ).toHaveValue("PENDING");
+  await expect(page.locator("tbody tr")).toHaveCount(2);
+  await page
+    .getByRole("combobox", { name: "Filtrar assinatura" })
+    .selectOption("SIGNED_MANUAL");
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page
+    .getByRole("combobox", { name: "Filtrar assinatura" })
+    .selectOption("");
+  await expect(page.locator("tbody tr")).toHaveCount(4);
 });

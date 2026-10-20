@@ -1,18 +1,18 @@
 # EPI System
 
-ERP de gestão de EPIs em Angular, Express/TypeScript e Supabase. O clone local permanece em `C:\\Dev\\EPI-ERP`; o repositório oficial escolhido é [TechHero-bit/EPI-System](https://github.com/TechHero-bit/EPI-System).
+ERP de gestão de EPIs em Angular, Express/TypeScript e Supabase. O projeto local está em `C:\Dev\EPI-System`; o repositório oficial escolhido é [TechHero-bit/EPI-System](https://github.com/TechHero-bit/EPI-System).
 
 ## Experimentar no Windows
 
 Requisitos: Node.js 24.15+ e npm. A demonstração não precisa de Supabase, SMTP ou senhas.
 
 ```powershell
-Set-Location C:\\Dev\\EPI-ERP
+Set-Location C:\Dev\EPI-System
 npm ci
 npm run dev:web
 ```
 
-Abra http://localhost:4200 e clique em **Entrar na demonstração**. Escolha ADMIN, ALMOXARIFADO, RH ou SEGURANCA_TRABALHO. Existem 10 colaboradores fictícios, 8 equipamentos nas quatro categorias, estoques variados e fichas em diferentes estados. Os dados ficam no navegador; Administração permite restaurá-los. Todas as exportações demonstrativas são marcadas sem validade jurídica. Nenhuma mensagem ou biometria é enviada.
+Abra http://localhost:4200 e clique em **Entrar na demonstração**. Escolha RH ou Almoxarifado. Cada setor possui seu próprio Dashboard. Existem 10 colaboradores fictícios, 8 equipamentos nas quatro categorias, estoques variados e fichas em diferentes estados. Os dados ficam somente no navegador. Todas as exportações demonstrativas são marcadas sem validade jurídica. Nenhuma mensagem ou biometria é enviada.
 
 ## Organização
 
@@ -57,6 +57,8 @@ Não há `api/` na raiz. `backend/api/` contém o adaptador Vercel. `dist/`, `no
 Login: `/login`. Principal: `/dashboard`. Estoque: `/almoxarifado`, `/almoxarifado/equipamentos`, `/almoxarifado/equipamentos/novo`, `/almoxarifado/estoque`, `/almoxarifado/movimentacoes`. RH: `/rh`, `/rh/colaboradores`, `/rh/colaboradores/novo`, `/rh/fichas`, `/rh/fichas/nova`, `/rh/fichas/:id`, `/rh/assinaturas`. Externa: `/assinar/:token`. Também: `/relatorios` e `/administracao`.
 
 O assistente seleciona colaborador, cartões e tamanhos, permite escolher o lote e revisar a ficha. Cada linha contém exatamente **1 unidade**, sem campo de quantidade editável. As páginas de fichas consultam alterações a cada 15 segundos.
+
+O menu contém apenas um Dashboard, adaptado ao setor. Os endereços antigos `/rh` e `/almoxarifado` redirecionam para ele. Assinaturas são consultadas pelo filtro em Fichas de EPI; `/rh/assinaturas` redireciona para a lista filtrada por pendentes. O catálogo não usa emotes nem área de fotografia. No cadastro, a categoria é uma seleção com opção de adicionar um novo nome; fotografia e prazo de utilização não são solicitados.
 
 ## Modo real
 
@@ -127,4 +129,4 @@ Para testar apenas a interface na Vercel, publique o frontend com APP_MODE=demo;
 
 ## Limites da entrega
 
-Integrações remotas dependem de credenciais não presentes neste clone. O FaceMatch real exige provedor, prova de vida e avaliação de proteção de dados antes da ativação. O PDF original é necessário para validar o modelo definitivo. Categorias, fornecedores, departamentos e cargos são valores textuais nesta primeira versão; não há tabelas de referência artificiais sem integração. A fotografia aceita URL HTTPS; upload de fotografia ao Storage e edição de modelos pela administração ficam para evolução posterior.
+Integrações remotas dependem de credenciais não presentes neste clone. O FaceMatch real exige provedor, prova de vida e avaliação de proteção de dados antes da ativação. O PDF original é necessário para validar o modelo definitivo. Categorias, fornecedores, departamentos e cargos são valores textuais nesta primeira versão; não há tabelas de referência artificiais sem integração. Fotografia e prazo de utilização foram retirados do cadastro simplificado. Validade do CA e validade de lote são mantidas separadamente.

@@ -2,7 +2,7 @@ import { Component, inject } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { PortalStore } from "../../core/portal.store";
-import { roles, roleNames, type Role } from "../../core/models";
+import { type Role } from "../../core/models";
 @Component({
   standalone: true,
   imports: [FormsModule],
@@ -17,7 +17,7 @@ import { roles, roleNames, type Role } from "../../core/models";
           sua empresa acontecer.
         </p>
       </div>
-      <div class="art-footer">Almoxarifado · RH · Segurança do Trabalho</div>
+      <div class="art-footer">RH · Almoxarifado</div>
     </div>
     <div class="login-form">
       <div class="login-box">
@@ -121,9 +121,12 @@ import { roles, roleNames, type Role } from "../../core/models";
 export class LoginComponent {
   s = inject(PortalStore);
   router = inject(Router);
-  roles = roles;
-  names = roleNames;
-  role: Role = "ADMIN";
+  roles: Role[] = ["RH", "ALMOXARIFADO"];
+  names: Partial<Record<Role, string>> = {
+    RH: "RH",
+    ALMOXARIFADO: "Almoxarifado",
+  };
+  role: Role = "RH";
   email = "";
   password = "";
   recovery = new URLSearchParams(location.search).has("recovery");

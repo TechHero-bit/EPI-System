@@ -105,13 +105,7 @@ export class ShellComponent {
   router = inject(Router);
   menuOpen = false;
   menu = [
-    { path: "/dashboard", label: "Visão geral", icon: "◫" },
-    {
-      path: "/almoxarifado",
-      label: "Almoxarifado",
-      icon: "▣",
-      roles: ["ADMIN", "ALMOXARIFADO"],
-    },
+    { path: "/dashboard", label: "Dashboard", icon: "◫" },
     {
       path: "/almoxarifado/equipamentos",
       label: "Equipamentos",
@@ -131,12 +125,6 @@ export class ShellComponent {
       roles: ["ADMIN", "ALMOXARIFADO"],
     },
     {
-      path: "/rh",
-      label: "Recursos Humanos",
-      icon: "♙",
-      roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
-    },
-    {
       path: "/rh/colaboradores",
       label: "Colaboradores",
       icon: "♧",
@@ -146,12 +134,6 @@ export class ShellComponent {
       path: "/rh/fichas",
       label: "Fichas de EPI",
       icon: "▧",
-      roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
-    },
-    {
-      path: "/rh/assinaturas",
-      label: "Assinaturas",
-      icon: "✎",
       roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
     },
     { path: "/relatorios", label: "Relatórios", icon: "▦" },

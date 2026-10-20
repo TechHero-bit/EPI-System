@@ -23,8 +23,13 @@ test("cadastros de colaborador e produto funcionam e respeitam perfis", () => {
   const p = r.product({
     description: "EPI de teste",
     category: "Nova categoria",
+    photoUrl: "https://example.invalid/epi.png",
+    usefulLifeDays: 180,
   });
   assert.ok(r.data.products.includes(p));
+  r.product({ description: "EPI atualizado", category: "Nova categoria" }, p.id);
+  assert.equal(p.photo_url, "https://example.invalid/epi.png");
+  assert.equal(p.useful_life_days, 180);
   r.employee({
     name: "Pessoa Teste",
     registration: "NEW",

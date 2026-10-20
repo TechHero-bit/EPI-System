@@ -58,9 +58,8 @@ export const routes: Routes = [
       { path: "dashboard", loadComponent: dashboard },
       {
         path: "almoxarifado",
-        canActivate: [access],
-        data: { roles: STOCK },
-        loadComponent: dashboard,
+        pathMatch: "full",
+        redirectTo: "dashboard",
       },
       {
         path: "almoxarifado/equipamentos",
@@ -88,9 +87,8 @@ export const routes: Routes = [
       },
       {
         path: "rh",
-        canActivate: [access],
-        data: { roles: HR },
-        loadComponent: dashboard,
+        pathMatch: "full",
+        redirectTo: "dashboard",
       },
       {
         path: "rh/colaboradores",
@@ -112,9 +110,8 @@ export const routes: Routes = [
       },
       {
         path: "rh/assinaturas",
-        canActivate: [access],
-        data: { roles: HR, pending: true },
-        loadComponent: sheets,
+        pathMatch: "full",
+        redirectTo: "/rh/fichas?status=PENDING",
       },
       {
         path: "rh/fichas/nova",
