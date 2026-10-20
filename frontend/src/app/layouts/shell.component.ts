@@ -1,0 +1,169 @@
+import { Component, inject } from "@angular/core";
+import {
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from "@angular/router";
+import { PortalStore } from "../core/portal.store";
+@Component({
+  standalone: true,
+  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  template: ` <div class="app-shell" [class.nav-open]="menuOpen">
+    @if (menuOpen) {
+      <button
+        class="nav-scrim"
+        aria-label="Fechar menu"
+        (click)="menuOpen = false"
+      ></button>
+    }
+    <aside class="sidebar">
+      <a class="brand" routerLink="/dashboard"
+        ><span class="brand-icon">E</span
+        ><span>EPI<span class="brand-light">ERP</span></span></a
+      >
+      <div class="workspace-tag">ESPAÇO DE TRABALHO</div>
+      <div class="workspace-name">{{ s.data().organization.name }}</div>
+      <nav aria-label="Navegação principal">
+        @for (item of menu; track item.path) {
+          @if (!item.roles || item.roles.includes(s.role)) {
+            <a
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              (click)="menuOpen = false"
+              ><span aria-hidden="true">{{ item.icon }}</span
+              ><span>{{ item.label }}</span></a
+            >
+          }
+        }
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="avatar">{{ s.role.slice(0, 1) }}</div>
+        <div class="account">
+          <strong>{{ s.roleName }}</strong
+          ><small>{{ s.user() }}</small>
+        </div>
+        <button class="logout" aria-label="Sair" (click)="logout()">↗</button>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar">
+        <button
+          class="ghost mobile-menu"
+          aria-label="Abrir menu"
+          (click)="menuOpen = !menuOpen"
+        >
+          ☰
+        </button>
+        <div class="crumb">
+          Gestão de proteção <span>/</span> {{ s.roleName }}
+        </div>
+        <div class="top-right">
+          <span class="live-dot"></span
+          >{{ s.demo ? "Ambiente demonstrativo" : "Ambiente conectado"
+          }}<button
+            class="ghost refresh"
+            (click)="s.action(()=>s.load(),'Dados atualizados.')"
+          >
+            ↻ Atualizar
+          </button>
+        </div>
+      </header>
+      @if (s.demo) {
+        <div class="demo-banner">
+          DEMONSTRAÇÃO · Dados fictícios, sem mensagens, biometria ou alterações
+          de produção.
+        </div>
+      }
+      <div class="content">
+        @if (s.busy()) {
+          <div class="loading" role="status">Processando…</div>
+        }
+        @if (s.failure()) {
+          <div class="alert error" role="alert">
+            {{ s.failure()
+            }}<button
+              class="ghost"
+              (click)="s.failure.set('')"
+              aria-label="Fechar erro"
+            >
+              ×
+            </button>
+          </div>
+        }
+        @if (s.message()) {
+          <div class="alert success" role="status">{{ s.message() }}</div>
+        }
+        <router-outlet />
+      </div>
+    </main>
+  </div>`,
+})
+export class ShellComponent {
+  s = inject(PortalStore);
+  router = inject(Router);
+  menuOpen = false;
+  menu = [
+    { path: "/dashboard", label: "Visão geral", icon: "◫" },
+    {
+      path: "/almoxarifado",
+      label: "Almoxarifado",
+      icon: "▣",
+      roles: ["ADMIN", "ALMOXARIFADO"],
+    },
+    {
+      path: "/almoxarifado/equipamentos",
+      label: "Equipamentos",
+      icon: "▤",
+      roles: ["ADMIN", "ALMOXARIFADO"],
+    },
+    {
+      path: "/almoxarifado/estoque",
+      label: "Estoque e lotes",
+      icon: "▥",
+      roles: ["ADMIN", "ALMOXARIFADO"],
+    },
+    {
+      path: "/almoxarifado/movimentacoes",
+      label: "Movimentações",
+      icon: "⇄",
+      roles: ["ADMIN", "ALMOXARIFADO"],
+    },
+    {
+      path: "/rh",
+      label: "Recursos Humanos",
+      icon: "♙",
+      roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
+    },
+    {
+      path: "/rh/colaboradores",
+      label: "Colaboradores",
+      icon: "♧",
+      roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
+    },
+    {
+      path: "/rh/fichas",
+      label: "Fichas de EPI",
+      icon: "▧",
+      roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
+    },
+    {
+      path: "/rh/assinaturas",
+      label: "Assinaturas",
+      icon: "✎",
+      roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
+    },
+    { path: "/relatorios", label: "Relatórios", icon: "▦" },
+    {
+      path: "/administracao",
+      label: "Administração",
+      icon: "⚙",
+      roles: ["ADMIN"],
+    },
+  ];
+  async logout() {
+    await this.s.logout();
+    await this.router.navigateByUrl("/login");
+  }
+}

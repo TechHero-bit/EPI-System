@@ -16,17 +16,33 @@
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
+            "allowedCommonJsDependencies": ["exceljs", "pako"],
             "tsConfig": "tsconfig.app.json",
-            "styles": ["src/tailwind.css", "src/styles.css"],
+            "styles": ["src/tailwind.css", "src/styles.css", "src/portal.css"],
             "assets": [{ "glob": "**/*", "input": "public" }]
           },
           "configurations": {
-            "production": { "budgets": [{ "type": "initial", "maximumWarning": "1mb", "maximumError": "2mb" }], "outputHashing": "all" },
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1mb",
+                  "maximumError": "2mb"
+                }
+              ],
+              "outputHashing": "all"
+            },
             "development": { "optimization": false, "sourceMap": true }
           },
           "defaultConfiguration": "production"
         },
-        "serve": { "builder": "@angular/build:dev-server", "configurations": { "development": { "buildTarget": "web:build:development" } }, "defaultConfiguration": "development" }
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "development": { "buildTarget": "web:build:development" }
+          },
+          "defaultConfiguration": "development"
+        }
       }
     }
   }

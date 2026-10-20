@@ -1,5 +1,5 @@
 -- Execute somente em projeto Supabase de desenvolvimento. Produção exige revisão e backup.
-create extension if not exists pgcrypto;
+-- gen_random_uuid() é nativo no PostgreSQL 13+; não requer extensão.
 
 create table public.organizations (
   id uuid primary key default gen_random_uuid(),

@@ -1,0 +1,3 @@
+As políticas executáveis estão nas migrations em `../supabase/migrations/`, sua fonte única. Todas as tabelas de aplicação têm RLS; somente a API usa service_role. Usuários autenticados não têm INSERT/UPDATE/DELETE diretos. Dados biométricos, tokens, limites e chaves de idempotência não possuem SELECT para o cliente.
+
+`memberships` equivale ao perfil por organização; `products/variants/lots` a produtos, tamanhos e lotes; `sheet_state/receipts/stock_reservations` separam assinatura, entrega e reserva. Departamento, cargo, categoria e fornecedor são campos textuais nesta primeira versão. Eles aceitam novos valores sem criar tabelas de referência vazias. `inventory_balances` é uma view com security_invoker que herda RLS dos lotes.

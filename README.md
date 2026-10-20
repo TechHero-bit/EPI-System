@@ -1,85 +1,130 @@
-# EPI ERP
+# EPI System
 
-Primeira versão evolutiva de gestão de Equipamentos de Proteção Individual: estoque, colaboradores, montagem visual de ficha, emissão imutável e opção de assinatura presencial ou eletrônica simples. Interface em Angular/TypeScript, API Node/TypeScript e Supabase Postgres/Auth/Storage. A reorganização de pastas não aplica migrations nem altera dados no Supabase já configurado.
+ERP de gestão de EPIs em Angular, Express/TypeScript e Supabase. O clone local permanece em `C:\\Dev\\EPI-ERP`; o repositório oficial escolhido é [TechHero-bit/EPI-System](https://github.com/TechHero-bit/EPI-System).
 
-## Organização do monorepo
+## Experimentar no Windows
 
-```text
-backend/              API Node/TypeScript, regras e testes
-database/migrations/  SQL versionado para Supabase (não executado automaticamente)
-frontend/             Aplicação Angular/TypeScript
-backend/api/          Adaptador serverless usado pelo projeto Vercel do backend
-backend/vercel.json   Configuração do projeto Vercel do backend
-frontend/.postcssrc.json  Integração Tailwind CSS 4 / Angular
-docs/                 Arquitetura e contrato OpenAPI
-```
-
-Os pacotes `@epi/backend` e `@epi/frontend` são workspaces npm independentes, com scripts centralizados na raiz. O diretório `api/` não é um segundo backend: contém apenas a entrada serverless que aponta para `backend/`.
-
-> O repositório original continha apenas a licença. A fotografia fornecida orienta os campos, mas não equivale ao PDF original. A exportação atual traz o aviso **MODELO PROVISÓRIO** e precisa ser validada contra o documento fonte antes de uso oficial.
-
-## Arquitetura
-
-```mermaid
-flowchart LR
-  U[RH / Segurança] --> W[Angular]
-  A[Almoxarifado] --> W
-  W -->|JWT Supabase Auth| API[API Node na Vercel]
-  API -->|service role só no servidor| DB[(Postgres + RLS)]
-  API -->|arquivo imutável| S[(Storage privado)]
-  C[Colaborador remoto] -->|link + código por e-mail verificado| API
-  API --> E[SMTP]
-```
-
-O banco impede quantidade diferente de 1 na ficha e saída diferente de -1, e a função `issue_sheet` faz baixa e emissão na mesma transação. O PDF é gerado e guardado em bucket privado; seu hash SHA-256 fica na ficha imutável. A assinatura gera evidência destacada, sem reescrever o PDF. A confirmação de recebimento físico é independente. A API exige JWT e perfil por organização; links externos só expõem o documento após código enviado ao e-mail verificado. O link deve ser transmitido por outro canal.
-
-## Rodar no Windows / PowerShell
-
-Requisitos: Node.js 24.15+, npm, um projeto **Supabase de desenvolvimento** e SMTP para verificação/assinatura remota.
-
-1. No Supabase de desenvolvimento, rode a migration `database/migrations/202610190001_init.sql` pelo SQL Editor. Confira primeiro o projeto selecionado; não rode em produção sem revisão e backup. Se ela já foi aplicada, **não execute novamente**: esta reorganização apenas move o arquivo.
-2. Crie o primeiro usuário em **Authentication > Users**. Para dados de demonstração locais, substitua `v_admin` pelo UUID desse usuário em `database/seeds/development.sql` e execute o seed no SQL Editor do projeto Supabase de desenvolvimento. O seed cria uma organização de demonstração, vínculo administrador, colaborador fictício, um equipamento e uma entrada inicial de 10 unidades. Ele é idempotente e não deve ser usado em produção.
-
-3. Copie `.env.example` para `.env` e preencha com credenciais **do projeto de desenvolvimento**. Gere `TOKEN_PEPPER` e `CRON_SECRET` aleatórios, com no mínimo 32 caracteres. `SUPABASE_SERVICE_ROLE_KEY` nunca vai para o Angular. SMTP é obrigatório para verificar e-mail e assinar remotamente.
-4. No PowerShell, na raiz do repositório:
+Requisitos: Node.js 24.15+ e npm. A demonstração não precisa de Supabase, SMTP ou senhas.
 
 ```powershell
+Set-Location C:\\Dev\\EPI-ERP
 npm ci
-npm run dev:api
-```
-
-Abra outra janela PowerShell na mesma pasta:
-
-```powershell
 npm run dev:web
 ```
 
-O Angular abre em `http://localhost:4200`; a API em `http://localhost:3000`. O proxy local encaminha `/api` para a API. A API lê `.env` via `node --env-file=.env` (ver script de desenvolvimento). Os usuários comuns precisam de uma linha em `memberships` com papel `ALMOXARIFADO`, `RH` ou `SEGURANCA`.
+Abra http://localhost:4200 e clique em **Entrar na demonstração**. Escolha ADMIN, ALMOXARIFADO, RH ou SEGURANCA_TRABALHO. Existem 10 colaboradores fictícios, 8 equipamentos nas quatro categorias, estoques variados e fichas em diferentes estados. Os dados ficam no navegador; Administração permite restaurá-los. Todas as exportações demonstrativas são marcadas sem validade jurídica. Nenhuma mensagem ou biometria é enviada.
 
-## Fluxo funcional
+## Organização
 
-1. Almoxarifado: produto (categoria, CA quando aplicável, marca/modelo/risco), variação (tamanho/SKU), lote (fornecedor/datas) e entrada de estoque.
-2. RH/Segurança: colaborador (nome, registro, setor, cargo, admissão/demissão), depois escolha de cards de EPI e lote. Cada linha vale **1**. Escolha assinatura manual ou eletrônica. A emissão congela a versão e baixa 1 por linha.
-3. Manual: baixe/imprima a ficha e obtenha a assinatura presencial. Um operador de RH registra a assinatura no histórico e informa onde o original assinado está arquivado. Esse registro de operador não substitui o documento assinado e não confirma a entrega física; essa confirmação continua em uma ação separada.
-4. Eletrônica: verifique o e-mail pessoal do colaborador, gere link de 24 h e envie por canal diferente do e-mail. O colaborador solicita código de 6 dígitos, abre o PDF exato, aceita os termos e confirma. O link é consumido uma vez. Esta versão registra **assinatura eletrônica simples**, sem alegar nível avançado ou qualificado.
-   Antes de cadastrar/verificar o e-mail, o RH precisa conferir presencialmente ou por procedimento independente que o endereço pertence ao colaborador. O sistema sozinho não prova essa titularidade; quem controla o cadastro poderia cadastrar um endereço próprio. Não use o fluxo remoto em produção sem esse controle e validação jurídica.
-5. Após entrega real, um operador autorizado registra o recebimento físico em ação distinta. Assinatura remota não marca recebimento automaticamente.
+```text
+frontend/
+  src/app/
+    core/                  sessão, permissões, API e repositório demonstrativo
+    layouts/               navegação e estrutura responsiva
+    components/            componentes compartilhados
+    features/              auth, dashboard, almoxarifado, colaboradores,
+                           fichas-epi, assinaturas, relatorios, administracao
+    shared/                documentos demonstrativos PDF/Excel
+  e2e/                     testes no navegador
+  tests/                   testes das regras demonstrativas
+  vercel.json
+backend/
+  api/index.ts             entrada serverless Express
+  src/                     API, validação, documentos, segurança
+  src/modules/face-match/  contrato de integração facial 1:1
+  tests/                   testes HTTP
+  vercel.json
+database/
+  supabase/migrations/     fonte única das migrations
+  supabase/config.toml     Supabase CLI local
+  supabase/seed.sql        dados fictícios opcionais
+  setup.sql                instalação consolidada em projeto NOVO
+  functions/               provisionamento restrito
+  schemas/validate.sql     inspeção pós-instalação
+  policies/                decisões de acesso
+  tests/                   PostgreSQL/PLpgSQL/RLS em PGlite
+  scripts/                 geração mecânica do setup.sql
+.github/workflows/ci.yml
+package.json               npm workspaces
+.env.example
+README.md
+```
 
-## Verificação e publicação
+Não há `api/` na raiz. `backend/api/` contém o adaptador Vercel. `dist/`, `node_modules/` e caches são artefatos locais ignorados pelo Git.
+
+## Rotas disponíveis
+
+Login: `/login`. Principal: `/dashboard`. Estoque: `/almoxarifado`, `/almoxarifado/equipamentos`, `/almoxarifado/equipamentos/novo`, `/almoxarifado/estoque`, `/almoxarifado/movimentacoes`. RH: `/rh`, `/rh/colaboradores`, `/rh/colaboradores/novo`, `/rh/fichas`, `/rh/fichas/nova`, `/rh/fichas/:id`, `/rh/assinaturas`. Externa: `/assinar/:token`. Também: `/relatorios` e `/administracao`.
+
+O assistente seleciona colaborador, cartões e tamanhos, permite escolher o lote e revisar a ficha. Cada linha contém exatamente **1 unidade**, sem campo de quantidade editável. As páginas de fichas consultam alterações a cada 15 segundos.
+
+## Modo real
+
+1. Crie um projeto Supabase de desenvolvimento e instale o banco conforme [database/README.md](database/README.md). Não execute o setup completo em um banco que já possui o ERP.
+2. Crie a conta do administrador em Supabase Auth e use `database/functions/provision-first-admin.sql`. Para contas posteriores, use `provision-member.sql`. Os scripts exigem UUIDs explícitos e não criam senhas.
+3. Copie `.env.example` para `.env`. Preencha as chaves do projeto de desenvolvimento e use `APP_MODE=real`. Gere TOKEN_PEPPER e CRON_SECRET aleatórios com ao menos 32 caracteres. Os exemplos não são segredos utilizáveis.
+4. Configure SMTP para verificar o e-mail pessoal e assinar por link. No Supabase Auth, configure as URLs de recuperação, limite de tentativas e política de sessões.
+5. Execute os dois processos em terminais separados:
+
+```powershell
+npm run dev:api
+npm run dev:web
+```
+
+Frontend: http://localhost:4200. API: http://localhost:3000/api/health. OpenAPI: http://localhost:3000/api/openapi.json. No modo real, falhas de configuração são exibidas; não existe troca automática para dados fictícios.
+
+Os scripts leem o arquivo da raiz e, se houver, o `.env` do workspace. Variáveis públicas do frontend: somente APP_MODE e API_BASE_URL. A chave service role, TOKEN_PEPPER e SMTP pertencem exclusivamente ao backend.
+
+## Regras do fluxo
+
+- Emissão: documento imutável e reserva transacional, sem baixar estoque físico.
+- Assinatura eletrônica: token de 256 bits armazenado como HMAC, 24 horas de validade, OTP de 6 dígitos por e-mail verificado, 10 minutos e até cinco tentativas. O colaborador visualiza o PDF exato antes do aceite. O canal é vinculado ao link e uma mudança invalida sua utilização.
+- Entrega: operador confirma o recebimento presencial em ação independente; a transação baixa uma unidade por linha e consome as reservas uma única vez.
+- Cancelamento: libera as reservas pendentes e invalida links. Fichas antigas que já baixaram estoque permanecem identificadas como LEGACY_ISSUED para evitar nova baixa.
+- Presencial: impressão, registro do operador e local de arquivo; PDF digitalizado de até 5 MB pode ser anexado em bucket privado.
+- O cadastro facial é opcional. Nenhum dado biométrico é coletado; o endpoint informa indisponibilidade. Existe contrato 1:1 com prova de vida para integração futura.
+- RLS isola organizações e dados de RH. O cliente não altera perfis nem estoque diretamente. A API valida o JWT com Supabase Auth e confere permissões em cada operação.
+- CPF só é retornado ao RH, Segurança ou Administração. Documentos e anexos permanecem em buckets privados. Evidências de assinatura são imutáveis; IP/agente têm rotina de retenção.
+
+O modelo documental é **provisório** até receber o PDF original marcado. Rubrica individual por linha, data de devolução e M.D. não aparecem. Os campos amarelos exatos ainda precisam ser conferidos no documento fonte. A data indicada pelo RH é prevista; a entrega efetiva fica na evidência separada. A titularidade do e-mail exige conferência organizacional independente. Assinatura eletrônica simples não é apresentada como avançada ou qualificada.
+
+## Verificações
 
 ```powershell
 npm run typecheck
 npm test
+npm run db:check
 npm run build
+npx playwright install chromium
+npm run test:browser
 ```
 
-O repositório remoto único já está configurado como `origin`. As alterações locais ficam na branch atual; não há push automático. `.env` está ignorado. No Vercel, crie dois projetos ligados ao mesmo repositório: um com **Root Directory** `frontend` e outro com **Root Directory** `backend`. O primeiro publica o Angular; o segundo usa `backend/vercel.json` e `backend/api/index.ts` para encaminhar a API ao Express. No projeto frontend, configure a variável de build `API_BASE_URL` com a URL HTTPS pública do backend; a configuração gerada em build faz as chamadas entre os projetos. No backend, configure `APP_ORIGIN` com a URL do frontend e mantenha `SUPABASE_SERVICE_ROLE_KEY`, `TOKEN_PEPPER` e `CRON_SECRET` somente nesse projeto. A migration nova de auditoria de verificação de e-mail deve ser aplicada uma única vez no Supabase de desenvolvimento. A migration inicial já aplicada não deve ser executada novamente. Produção exige revisão de RLS, SMTP, PDF original, retenção e jurídico.
+`npm test` executa testes HTTP/documentos, regras demonstrativas e SQL real em PostgreSQL WASM (PGlite), com contratos locais mínimos Auth/Storage. Não conecta a banco remoto nem substitui testes com os serviços Supabase hospedados. A suíte de navegador cobre as rotas, perfis, busca, montagem, exportações e assinatura demonstrativa. Resultados e limites estão em [docs/VALIDATION.md](docs/VALIDATION.md).
 
-## Estado e pendências
+Após alterar migrations, execute `npm run db:setup` para atualizar o SQL consolidado. O CI verifica que os dois formatos correspondem.
 
-- Implementados: RBAC na API, RLS de leitura, cadastro/edição e desativação lógica de equipamentos, cadastro/edição de colaboradores e desligamento lógico, estoque transacional, ficha versionada e imutável, PDF/Excel provisórios, Storage privado, assinatura presencial registrada e assinatura remota por link/código, trilha de auditoria e confirmação de recebimento separada.
-- A fotografia indica nome, registro, função, admissão, demissão, data de emissão/entrega, descrição, CA, marca e risco como campos de montagem. Quantidade é fixa em 1. Rubrica por linha, data de devolução e M.D. não aparecem na montagem.
-- Faltam o PDF original e a marcação inequívoca dos campos vermelhos para ajustar o layout e o texto com fidelidade. Também faltam testes de integração contra Supabase de desenvolvimento e revisão jurídica/operacional antes de uso real. O FaceMatch não foi implementado: não há fornecedor de biometria configurado nem base legal, prova de vida ou política de retenção aprovadas. A integração facial permanece desligada até essa decisão. A assinatura presencial registra o responsável e local de arquivo, mas não faz upload do documento escaneado.
-- A rotina diária da Vercel limpa IP e agente de assinaturas após `IP_RETENTION_DAYS` (padrão 90). A retenção de logs, e-mails e PDFs, proteção antiautomação distribuída, captura da assinatura manual digitalizada, backups e testes RLS por papel precisam ser definidos antes de produção.
+## Vercel: dois projetos no mesmo GitHub
 
-Veja [arquitetura e decisões](docs/ARCHITECTURE.md) e [contrato OpenAPI](docs/openapi.yaml).
+Importe **TechHero-bit/EPI-System** duas vezes e selecione a branch `main`:
+
+| Projeto | Root Directory | Build | Output | Variáveis |
+|---|---|---|---|---|
+| epi-system-frontend | frontend | npm run build | dist/web/browser | APP_MODE=demo ou real; API_BASE_URL no modo real |
+| epi-system-backend | backend | npm run build | gerenciado por Functions | Supabase, APP_ORIGIN, TOKEN_PEPPER, SMTP, CRON_SECRET |
+
+Mantenha habilitada a inclusão de arquivos externos à Root Directory para o npm workspace e seu lockfile na raiz. O frontend usa fallback SPA para acesso direto às rotas. O backend encaminha `/api/*` ao Express e não mantém estado de negócio em memória. Use Node.js 24.x e configure APP_ORIGIN com a URL exata do frontend. API_BASE_URL deve ser a URL HTTPS do backend, sem `/api` no fim.
+
+Para testar apenas a interface na Vercel, publique o frontend com APP_MODE=demo; não precisa configurar o backend. Para o modo real, aplique o banco no projeto de desenvolvimento, configure ambos os projetos e teste health, login, reserva e entrega. O cron diário remove IP/agente após IP_RETENTION_DAYS. A infraestrutura Vercel/Supabase hospedada não é provisionada por scripts de build.
+
+## Erros comuns
+
+- Tela em modo real sem configuração: confira APP_MODE e o backend; para explorar sem serviços, use demo e reinicie o frontend.
+- Erro CORS: APP_ORIGIN precisa coincidir exatamente com a origem HTTPS do frontend. API_BASE_URL é configurada no build.
+- Sem acesso à organização: crie o vínculo em memberships usando o provisionamento restrito.
+- Ficha sem disponibilidade: confira reservas, validade, conservação e tamanho; assinatura pendente não libera reserva automaticamente.
+- Envio indisponível: confira SMTP e e-mail previamente verificado. O modo real nunca mostra um OTP fictício.
+- Docker indisponível: o modo demo e os testes PGlite funcionam sem Docker. A stack Supabase local completa exige Docker ativo.
+
+## Limites da entrega
+
+Integrações remotas dependem de credenciais não presentes neste clone. O FaceMatch real exige provedor, prova de vida e avaliação de proteção de dados antes da ativação. O PDF original é necessário para validar o modelo definitivo. Categorias, fornecedores, departamentos e cargos são valores textuais nesta primeira versão; não há tabelas de referência artificiais sem integração. A fotografia aceita URL HTTPS; upload de fotografia ao Storage e edição de modelos pela administração ficam para evolução posterior.

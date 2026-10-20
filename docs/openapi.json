@@ -1,0 +1,1634 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "EPI System API",
+    "version": "0.2.0",
+    "description": "Autenticação via Supabase Auth. Perfis por organização. Estoque físico só baixa na entrega."
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "security": [
+    {
+      "Bearer": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "SheetItem": {
+        "type": "object",
+        "required": [
+          "variantId",
+          "lotId"
+        ],
+        "properties": {
+          "variantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer",
+            "const": 1
+          },
+          "risk": {
+            "type": "string",
+            "maxLength": 30
+          }
+        }
+      },
+      "IssueSheet": {
+        "type": "object",
+        "required": [
+          "employeeId",
+          "documentDate",
+          "method",
+          "idempotencyKey",
+          "items"
+        ],
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "documentDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "method": {
+            "enum": [
+              "MANUAL",
+              "ELECTRONIC"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 15,
+            "items": {
+              "$ref": "#/components/schemas/SheetItem"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Saúde pública da API",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/config": {
+      "get": {
+        "summary": "Configuração pública, sem service role",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/auth/profile": {
+      "get": {
+        "summary": "Perfil da sessão Supabase",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/bootstrap": {
+      "get": {
+        "summary": "Dados operacionais filtrados pela organização",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/products": {
+      "post": {
+        "summary": "Cadastrar equipamento (ADMIN/ALMOXARIFADO)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/products/{id}": {
+      "patch": {
+        "summary": "Editar equipamento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desativar equipamento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "summary": "Categorias utilizadas na organização",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/variants": {
+      "post": {
+        "summary": "Cadastrar tamanho/SKU",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/lots": {
+      "post": {
+        "summary": "Cadastrar lote",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/lots/{id}/receive": {
+      "post": {
+        "summary": "Entrada idempotente, exige idempotencyKey UUID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/lots/{id}/adjust": {
+      "post": {
+        "summary": "Ajuste idempotente com justificativa",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/employees": {
+      "post": {
+        "summary": "Cadastrar colaborador (ADMIN/RH/SEGURANCA_TRABALHO)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/employees/{id}": {
+      "patch": {
+        "summary": "Editar colaborador",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Registrar desligamento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/employees/{id}/send-verification": {
+      "post": {
+        "summary": "Enviar código de verificação do e-mail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/verify-email": {
+      "post": {
+        "summary": "Validar código com tentativas limitadas",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets": {
+      "post": {
+        "summary": "Emitir ficha imutável e reservar EPIs, sem baixa física",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueSheet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}": {
+      "get": {
+        "summary": "Detalhes do documento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/pdf": {
+      "get": {
+        "summary": "PDF imutável com validação SHA-256",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/xlsx": {
+      "get": {
+        "summary": "Exportar Excel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/signature-status": {
+      "get": {
+        "summary": "Estado independente de assinatura, reserva e entrega",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/signing-links": {
+      "post": {
+        "summary": "Criar token aleatório de uso único, expiração de 24 horas",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/manual-signature": {
+      "post": {
+        "summary": "Atestar assinatura presencial e local de arquivo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/receipt": {
+      "post": {
+        "summary": "Confirmar entrega física e baixar reserva atomicamente",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/cancel": {
+      "post": {
+        "summary": "Cancelar reserva e invalidar links",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/attachment": {
+      "post": {
+        "summary": "Anexar PDF presencial base64, até 5 MB",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/attachments": {
+      "get": {
+        "summary": "Links autenticados temporários dos anexos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sign/{token}": {
+      "get": {
+        "summary": "Validar link público sem expor dados pessoais",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sign/{token}/code": {
+      "post": {
+        "summary": "Enviar OTP ao canal previamente verificado",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sign/{token}/preview": {
+      "post": {
+        "summary": "Verificar OTP e obter URL do PDF exato por 60 segundos",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sign/{token}/confirm": {
+      "post": {
+        "summary": "Confirmar OTP e aceite; assinatura não confirma entrega",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/reports": {
+      "get": {
+        "summary": "Indicadores da organização",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/audit": {
+      "get": {
+        "summary": "Auditoria paginada por offset e limit",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/admin/members": {
+      "get": {
+        "summary": "Listar perfis (ADMIN)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/admin/members/{id}": {
+      "patch": {
+        "summary": "Alterar perfil de outro usuário",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/face-match/capabilities": {
+      "get": {
+        "summary": "Contrato facial 1:1, indisponível sem provedor",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/face-match/verify": {
+      "post": {
+        "summary": "Retorna 503 enquanto não configurado",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    }
+  }
+}

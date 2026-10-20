@@ -1,0 +1,110 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  DemoRepository,
+  makeDemoData,
+} from "../src/app/core/demo-repository.ts";
+const item = {
+  variantId: "variant-0",
+  lotId: "lot-0",
+  quantity: 1 as const,
+  risk: "",
+};
+test("demonstração possui dez colaboradores e quatro categorias fictícias", () => {
+  const d = makeDemoData();
+  assert.equal(d.employees.length, 10);
+  assert.equal(new Set(d.products.map((p) => p.category)).size, 4);
+  assert.ok(
+    d.employees.every((e) => e.personal_email.endsWith("@example.invalid")),
+  );
+});
+test("cadastros de colaborador e produto funcionam e respeitam perfis", () => {
+  const r = new DemoRepository();
+  const p = r.product({
+    description: "EPI de teste",
+    category: "Nova categoria",
+  });
+  assert.ok(r.data.products.includes(p));
+  r.employee({
+    name: "Pessoa Teste",
+    registration: "NEW",
+    jobTitle: "Operador",
+    department: "Operações",
+    admissionDate: "2026-10-20",
+  });
+  r.data.role = "ALMOXARIFADO";
+  assert.throws(() => r.employee({}), /perfil/);
+  r.data.role = "RH";
+  assert.throws(() => r.product({}), /perfil/);
+});
+test("entrada e ajuste nunca geram saldo negativo", () => {
+  const r = new DemoRepository();
+  const l = r.data.lots[0];
+  const before = l.stock_quantity;
+  r.movement(l.id, 3, "Entrada");
+  assert.equal(l.stock_quantity, before + 3);
+  assert.throws(() => r.movement(l.id, -999, "Inventário", true), /Saldo/);
+});
+test("ficha com múltiplos EPIs reserva uma unidade por linha e é idempotente", () => {
+  const r = new DemoRepository();
+  const before = r.data.lots[0].stock_quantity;
+  const reserved = r.data.lots[0].reserved_quantity;
+  const f = r.issue(
+    "employee-0",
+    [item, { ...item, variantId: "variant-2", lotId: "lot-2" }],
+    "ELECTRONIC",
+    "2026-10-20",
+    "key",
+  );
+  assert.equal(r.data.lots[0].stock_quantity, before);
+  assert.equal(r.data.lots[0].reserved_quantity, reserved + 1);
+  assert.equal(
+    r.issue(
+      "employee-0",
+      [item, { ...item, variantId: "variant-2", lotId: "lot-2" }],
+      "ELECTRONIC",
+      "2026-10-20",
+      "key",
+    ).id,
+    f.id,
+  );
+  assert.ok(f.snapshot.items.every((i) => i.quantity === 1));
+  assert.throws(
+    () =>
+      r.issue(
+        "employee-0",
+        [{ ...item, quantity: 2 as 1 }],
+        "MANUAL",
+        "2026-10-20",
+        "bad",
+      ),
+    /Quantidade/,
+  );
+});
+test("assinatura simulada não confirma entrega nem baixa estoque", () => {
+  const r = new DemoRepository();
+  const before = r.data.lots[0].stock_quantity;
+  const f = r.issue("employee-0", [item], "ELECTRONIC", "2026-10-20", "k");
+  r.sign(f.id);
+  assert.equal(
+    r.data.states.find((s) => s.sheet_id === f.id).receipt_status,
+    "UNCONFIRMED",
+  );
+  assert.equal(r.data.lots[0].stock_quantity, before);
+  assert.throws(() => r.sign(f.id), /utilizada/);
+  r.receipt(f.id, "Entrega presencial demonstrativa");
+  assert.equal(r.data.lots[0].stock_quantity, before - 1);
+  r.receipt(f.id, "Repetição");
+  assert.equal(r.data.lots[0].stock_quantity, before - 1);
+});
+test("cancelar libera reserva e não altera estoque físico", () => {
+  const r = new DemoRepository();
+  const l = r.data.lots[0];
+  const initial = r.available(l);
+  const f = r.issue("employee-0", [item], "MANUAL", "2026-10-20", "k");
+  assert.equal(r.available(l), initial - 1);
+  r.cancel(f.id);
+  assert.equal(r.available(l), initial);
+  assert.throws(() => r.receipt(f.id, "Entrega"), /indisponível/);
+  assert.ok(r.data.audits.some((a) => a.action === "RESERVATION_CANCELLED"));
+});
