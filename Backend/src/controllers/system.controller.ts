@@ -101,14 +101,14 @@ export const getbootstrap: RequestHandler<{
       c.admin
         .from("sheets")
         .select(
-          "id,employee_id,version,record_number,issued_at,signature_method,pdf_sha256",
+          "id,employee_id,version,record_number,employee_registration,issued_at,signature_method,pdf_sha256",
         )
         .eq("organization_id", c.orgId)
         .order("issued_at", { ascending: false })
         .limit(100),
       c.admin
         .from("stock_movements")
-        .select("id,lot_id,type,quantity,created_at,reason")
+        .select("id,variant_id,type,quantity,created_at,reason")
         .eq("organization_id", c.orgId)
         .order("created_at", { ascending: false })
         .limit(100),
@@ -132,9 +132,13 @@ export const getbootstrap: RequestHandler<{
       )
     : [];
   const variantIds = variants.map((v: any) => v.id);
-  const lots = variantIds.length
+  const inventory = variantIds.length
     ? dbResult(
-        await c.admin.from("lots").select("*").in("variant_id", variantIds),
+        await c.admin
+          .from("inventory_stock")
+          .select("*")
+          .eq("organization_id", c.orgId)
+          .in("id", variantIds),
       )
     : [];
   const sheetIds = (sheets.data ?? []).map((s) => s.id);
@@ -149,7 +153,7 @@ export const getbootstrap: RequestHandler<{
     employees: employees.data,
     products: products.data,
     variants,
-    lots,
+    inventory,
     sheets: sheets.data,
     states,
     movements: movements.data,

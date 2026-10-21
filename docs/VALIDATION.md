@@ -1,6 +1,12 @@
 # Validação local
 
-## Atualização de 21/10/2026 — campos e organização
+## Atualização vigente — sem lotes e com modelo corporativo
+
+Esta atualização substitui a numeração sequencial descrita no histórico abaixo: o Nº de Registro das novas fichas é a matrícula textual do colaborador, inclusive zeros à esquerda. O arquivo original `MODELO FICHA DE EPI 2026.xlsx` foi fornecido, inspecionado e incorporado em cópia adaptada com logotipo, declaração e legendas. Não se trata mais do modelo provisório baseado na imagem.
+
+O fluxo ativo de estoque usa equipamento/tamanho e não usa lotes. Migrations aditivas preservam snapshots, hashes, reservas e dados históricos. Quantidades antigas vencidas ou avariadas permanecem bloqueadas. Detalhes, testes e limites da entrega atual: [NO-LOTS-COMPANY-MODEL.md](NO-LOTS-COMPANY-MODEL.md).
+
+## Histórico de 21/10/2026 — campos e organização
 
 Diretório de trabalho: `C:\Dev\EPI-System`. Estrutura comparada, somente por leitura, com `C:\Dev\GestaoDeChamados`. Backup anterior à mudança: `C:\Users\kevindesouza\.codex\visualizations\2026\10\20\01a159cb-1307-7a03-8c3c-881314ab5367\EPI-System-before-fields-reorganization-20261021.tar` (código, configurações e Git; dependências/caches regeneráveis excluídos).
 

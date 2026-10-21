@@ -25,7 +25,7 @@ export class ShellComponent {
     },
     {
       path: "/almoxarifado/estoque",
-      label: "Estoque e lotes",
+      label: "Estoque",
       icon: "▥",
       roles: ["ADMIN", "ALMOXARIFADO"],
     },

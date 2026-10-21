@@ -1,9 +1,8 @@
 const item = {
   type: "object",
-  required: ["variantId", "lotId"],
+  required: ["variantId"],
   properties: {
     variantId: { type: "string", format: "uuid" },
-    lotId: { type: "string", format: "uuid" },
     quantity: { type: "integer", const: 1 },
     risk: { type: "string", maxLength: 30 },
     deliveryDate: {
@@ -29,11 +28,12 @@ const methods: Record<string, Record<string, string>> = {
   },
   "/categories": { get: "Categorias utilizadas na organização" },
   "/variants": { post: "Cadastrar tamanho/SKU" },
-  "/lots": { post: "Cadastrar lote" },
-  "/lots/{id}/receive": {
+  "/inventory/{id}/receive": {
     post: "Entrada idempotente, exige idempotencyKey UUID",
   },
-  "/lots/{id}/adjust": { post: "Ajuste idempotente com justificativa" },
+  "/inventory/{id}/adjust": {
+    post: "Ajuste idempotente por equipamento/tamanho com justificativa",
+  },
   "/employees": { post: "Cadastrar colaborador (ADMIN/RH/SEGURANCA_TRABALHO)" },
   "/employees/{id}": {
     patch: "Editar colaborador",
@@ -112,7 +112,7 @@ export const openapi = {
             type: "string",
             format: "date",
             description:
-              "Data padrão da entrega; data de geração e Nº de Registro são automáticos no servidor",
+              "Data padrão da entrega; geração automática no servidor e Nº de Registro copiado da matrícula do colaborador",
           },
           method: { enum: ["MANUAL", "ELECTRONIC"] },
           idempotencyKey: { type: "string", format: "uuid" },

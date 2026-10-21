@@ -36,7 +36,7 @@ export class SheetsComponent implements OnDestroy {
       .sheets.filter(
         (f) =>
           (!this.employee || f.employee_id === this.employee) &&
-          `${this.s.employee(f.employee_id)?.name} ${f.id}`
+          `${this.s.employee(f.employee_id)?.name} ${f.employee_registration ?? f.snapshot?.employee?.registration ?? ""} ${f.id}`
             .toLowerCase()
             .includes(this.query.toLowerCase()) &&
           (!this.status ||

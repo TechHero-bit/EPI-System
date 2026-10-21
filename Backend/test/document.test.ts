@@ -9,6 +9,8 @@ import {
   type SheetSnapshot,
 } from "../src/services/document.service.js";
 import ExcelJS from "exceljs";
+import { companyModel } from "../src/assets/company-model.js";
+import { companyHeaders } from "../src/services/company-document.service.js";
 
 const snapshot: SheetSnapshot = {
   recordNumber: 546,
@@ -95,4 +97,97 @@ test("PDF pagina textos extensos sem remover dados e Excel expande as linhas", a
   assert.equal(ws.getCell("C14").value, long.items[0]!.description);
   assert.equal(ws.getCell("E14").value, long.items[0]!.brand);
   assert.ok(ws.getRow(14).height! > 25);
+});
+test("modelo da empresa preserva logo e declaração e usa matrícula textual no registro", async () => {
+  const input: SheetSnapshot = {
+    ...snapshot,
+    template: "COMPANY_EPI_2026_V3",
+    recordNumber: "IGNORAR-VALOR-ANTIGO",
+    employee: { ...snapshot.employee, registration: "000546" },
+  };
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load(Buffer.from(await renderXlsx(input)) as any);
+  const ws = book.getWorksheet("Ficha EPI")!;
+  assert.equal(ws.getImages().length, 1);
+  assert.equal(ws.getCell("D2").value, companyModel.safety);
+  assert.equal(ws.getCell("G2").value, companyModel.title);
+  assert.equal(ws.getCell("A14").text, companyModel.declaration);
+  assert.equal(ws.getCell("A15").text, companyModel.instructions);
+  assert.equal(ws.getCell("A7").value, "João da Silva");
+  assert.equal(ws.getCell("E7").value, "000546");
+  assert.equal(ws.getCell("E7").numFmt, "@");
+  assert.equal(ws.getCell("A8").value, "Função: Técnico");
+  assert.equal(
+    (ws.getCell("A11").value as Date).toISOString().slice(0, 10),
+    "2026-10-01",
+  );
+  assert.equal(ws.getCell("D11").value, null);
+  assert.equal(
+    (ws.getCell("E17").value as Date).toISOString().slice(0, 10),
+    "2026-10-20",
+  );
+  assert.equal(
+    (ws.getCell("A20").value as Date).toISOString().slice(0, 10),
+    "2026-10-25",
+  );
+  assert.equal(ws.getCell("B20").value, 1);
+  assert.equal(ws.getCell("C20").value, snapshot.items[0]!.description);
+  assert.equal(ws.getCell("G20").value, "27300");
+  assert.equal(ws.getCell("I20").value, "BRACOL");
+  assert.equal(ws.getCell("M20").value, "02");
+  assert.deepEqual(
+    ["A19", "B19", "C19", "G19", "I19", "M19"].map(
+      (cell) => ws.getCell(cell).value,
+    ),
+    companyHeaders,
+  );
+  const labels: string[] = [];
+  ws.eachRow((row) =>
+    row.eachCell((cell) => {
+      if (typeof cell.value === "string") labels.push(cell.value);
+    }),
+  );
+  assert.ok(
+    !labels.some((value) =>
+      /Assinatura \/ Rubrica|Data da Devolução|M\.D\./.test(value),
+    ),
+  );
+  assert.equal(
+    (await PDFDocument.load(await renderPdf(input))).getPageCount(),
+    1,
+  );
+});
+test("modelo corporativo pagina todos os itens e preserva datas e textos longos", async () => {
+  const input: SheetSnapshot = {
+    ...snapshot,
+    template: "COMPANY_EPI_2026_V3",
+    employee: { ...snapshot.employee, terminationDate: "2026-10-31" },
+    items: Array.from({ length: 15 }, (_, n) => ({
+      ...snapshot.items[0]!,
+      description: `${n + 1} EQUIPAMENTO COM DESCRIÇÃO LONGA `
+        .repeat(5)
+        .slice(0, 180),
+      brand: "MARCA COM NOME EXTENSO ".repeat(5).slice(0, 100),
+    })),
+  };
+  assert.ok(
+    (await PDFDocument.load(await renderPdf(input))).getPageCount() > 1,
+  );
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load(Buffer.from(await renderXlsx(input)) as any);
+  const ws = book.worksheets[0]!;
+  assert.equal(
+    (ws.getCell("D11").value as Date).toISOString().slice(0, 10),
+    "2026-10-31",
+  );
+  assert.equal(ws.getCell("C34").value, input.items[14]!.description);
+  assert.equal(ws.getCell("I34").value, input.items[14]!.brand);
+  assert.equal(ws.getCell("F34").master.address, "C34");
+  assert.equal(ws.getCell("L34").master.address, "I34");
+  assert.equal(ws.getCell("O34").master.address, "M34");
+  assert.equal(
+    ws.getCell("C34").border.bottom?.style,
+    ws.getCell("C20").border.bottom?.style,
+  );
+  assert.ok(ws.getRow(34).height! > 20);
 });

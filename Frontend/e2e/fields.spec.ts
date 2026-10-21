@@ -29,10 +29,11 @@ test("todas as listas do estoque e categorias seguem ordem alfabética", async (
 }) => {
   await login(page, "ALMOXARIFADO");
   await page.goto("/almoxarifado/estoque");
+  await expect(page.locator("main")).not.toContainText(/\blotes?\b/i);
   for (const select of await page.locator("select").all())
     await alphabetical(
       select,
-      !((await select.getAttribute("name")) === "condition"),
+      (await select.getAttribute("name")) !== "operation",
     );
   await page.goto("/almoxarifado/equipamentos/novo");
   await alphabetical(page.getByLabel("Categoria", { exact: true }));
@@ -42,6 +43,86 @@ test("todas as listas do estoque e categorias seguem ordem alfabética", async (
       select,
       (await select.getAttribute("name")) !== "operation",
     );
+});
+test("entrada de estoque funciona por equipamento e tamanho sem criar lote", async ({
+  page,
+}) => {
+  await login(page, "ALMOXARIFADO");
+  await page.goto("/almoxarifado/estoque");
+  await page
+    .getByRole("combobox", { name: "Equipamento", exact: true })
+    .selectOption("product-0");
+  await page.getByLabel("Tamanho", { exact: true }).fill("41");
+  await page
+    .getByLabel("SKU / código interno", { exact: true })
+    .fill("E2E-BOOT-41");
+  await page
+    .getByRole("button", { name: "Salvar tamanho", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Variação cadastrada");
+  const selector = page.getByRole("combobox", {
+    name: "Equipamento e tamanho",
+    exact: true,
+  });
+  const id = await selector
+    .locator("option")
+    .filter({ hasText: "Bota de segurança em couro · 41" })
+    .getAttribute("value");
+  await selector.selectOption(id!);
+  await page.getByLabel("Quantidade de entrada", { exact: true }).fill("5");
+  await page.getByRole("button", { name: "Registrar movimentação" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Movimentação registrada",
+  );
+  const row = page.locator("tbody tr").filter({ hasText: "E2E-BOOT-41" });
+  await expect(row.locator("td").nth(2)).toHaveText("5");
+  await expect(page.locator("main")).not.toContainText(/\blotes?\b/i);
+  await page.screenshot({ path: "dist/estoque-sem-lotes.png", fullPage: true });
+});
+test("matrícula manual aparece como registro em todas as fichas do funcionário", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/rh/colaboradores/novo");
+  await page
+    .getByLabel("Funcionário(a)", { exact: true })
+    .fill("Funcionário manual de teste");
+  await page
+    .getByLabel("Matrícula / Nº de Registro", { exact: true })
+    .fill("000546");
+  await page
+    .getByLabel("Função", { exact: true })
+    .fill("Técnico de telecomunicações");
+  await page
+    .getByRole("button", { name: "Salvar colaborador", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Colaborador salvo");
+  for (let i = 0; i < 2; i++) {
+    await page.goto("/rh/fichas/nova");
+    await page
+      .getByRole("button", { name: /Funcionário manual de teste/ })
+      .click();
+    await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+    await page
+      .getByRole("button", { name: /Bota de segurança em couro/ })
+      .click();
+    await expect(page.getByLabel("Selecionar lote")).toHaveCount(0);
+    await page.getByRole("button", { name: "Revisar seleção →" }).click();
+    await page
+      .getByRole("button", { name: "Gerar ficha demonstrativa" })
+      .click();
+    await expect(page).toHaveURL(/\/rh\/fichas\/[a-f0-9-]+$/);
+    await expect(page.locator(".count")).toContainText("Nº de Registro 000546");
+  }
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Baixar Excel", exact: true }).click();
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.readFile((await (await download).path())!);
+  expect(book.worksheets[0]!.getCell("E7").value).toBe("000546");
+  await page.screenshot({
+    path: "dist/matricula-registro.png",
+    fullPage: true,
+  });
 });
 test("ficha congela cadastro, permite campos do modelo e exporta datas distintas", async ({
   page,
@@ -76,7 +157,7 @@ test("ficha congela cadastro, permite campos do modelo e exporta datas distintas
   );
   await page.getByRole("button", { name: "Gerar ficha demonstrativa" }).click();
   await expect(page).toHaveURL(/\/rh\/fichas\/[a-f0-9-]+$/);
-  await expect(page.locator(".count")).toContainText("Nº de Registro 5");
+  await expect(page.locator(".count")).toContainText("Nº de Registro DEMO-001");
   await expect(page.locator("tbody")).toContainText("29/10/2026");
   await expect(page.locator("tbody")).toContainText("PAR DE BOTAS AJUSTADO");
   const pdfDownload = page.waitForEvent("download");
@@ -92,19 +173,20 @@ test("ficha congela cadastro, permite campos do modelo e exporta datas distintas
     book = new ExcelJS.Workbook();
   await book.xlsx.readFile((await excel.path())!);
   const ws = book.getWorksheet("Ficha EPI")!;
-  expect(ws.getCell("E3").value).toBe("Nº de Registro: 5");
-  expect((ws.getCell("A14").value as Date).toISOString().slice(0, 10)).toBe(
+  expect(ws.getImages()).toHaveLength(1);
+  expect(ws.getCell("E7").value).toBe("DEMO-001");
+  expect((ws.getCell("A20").value as Date).toISOString().slice(0, 10)).toBe(
     "2026-10-29",
   );
-  expect(ws.getCell("B14").value).toBe(1);
-  expect(ws.getCell("C14").value).toBe("PAR DE BOTAS AJUSTADO");
-  expect(ws.getCell("D14").value).toBe("27300");
-  expect(ws.getCell("E14").value).toBe("BRACOL");
-  expect(ws.getCell("F14").value).toBe("02");
+  expect(ws.getCell("B20").value).toBe(1);
+  expect(ws.getCell("C20").value).toBe("PAR DE BOTAS AJUSTADO");
+  expect(ws.getCell("G20").value).toBe("27300");
+  expect(ws.getCell("I20").value).toBe("BRACOL");
+  expect(ws.getCell("M20").value).toBe("02");
   const generatedDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
   }).format(new Date());
-  expect((ws.getCell("C11").value as Date).toISOString().slice(0, 10)).toBe(
+  expect((ws.getCell("E17").value as Date).toISOString().slice(0, 10)).toBe(
     generatedDate,
   );
   await page.screenshot({

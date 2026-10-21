@@ -41,7 +41,6 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
         .array(
           z.object({
             variantId: uuid,
-            lotId: uuid,
             quantity: z.literal(1).optional(),
             risk: z.string().trim().max(30).optional(),
             deliveryDate: isoDate.optional(),
@@ -61,11 +60,12 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
   const items: SheetSnapshot["items"] = [];
   for (const [index, item] of requested.entries()) {
     const fields = body.items[index]!;
-    const lot = dbResult(
+    const balance = dbResult(
       await c.admin
-        .from("lots")
-        .select("id,variant_id,batch_code,stock_quantity,expires_at")
-        .eq("id", item.lot_id)
+        .from("inventory_stock")
+        .select("id,stock_quantity,reserved_quantity,blocked_quantity")
+        .eq("id", item.variant_id)
+        .eq("organization_id", c.orgId)
         .single(),
     );
     const variant = dbResult(
@@ -77,13 +77,16 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
     );
     const product = await owned<any>(c, "products", variant.product_id);
     if (
-      lot.variant_id !== variant.id ||
-      lot.stock_quantity < 1 ||
-      (lot.expires_at && lot.expires_at < now.slice(0, 10)) ||
+      balance.stock_quantity -
+        balance.reserved_quantity -
+        balance.blocked_quantity <
+        1 ||
       (product.ca_expires_at && product.ca_expires_at < now.slice(0, 10)) ||
       !product.active
     )
-      throw error("Escolha um lote ativo com estoque e validade.");
+      throw error(
+        "Escolha um equipamento ativo com estoque disponível e C.A. válido.",
+      );
     items.push({
       date: fields.deliveryDate ?? body.documentDate,
       description: fields.description ?? product.description,
@@ -91,9 +94,7 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
       brand: fields.brand ?? product.brand,
       risk: fields.risk ?? product.risk_code ?? "",
       size: variant.size,
-      lot: lot.batch_code,
       variantId: variant.id,
-      lotId: lot.id,
       quantity: 1,
     });
   }
@@ -104,13 +105,7 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
       .eq("id", c.orgId)
       .single(),
   );
-  const recordNumber = dbResult(
-    await c.admin.rpc("reserve_sheet_number", {
-      p_org: c.orgId,
-      p_actor: c.userId,
-      p_key: body.idempotencyKey,
-    }),
-  );
+  const recordNumber = employee.registration;
   const snapshot: SheetSnapshot = {
     recordNumber,
     employee: {
@@ -125,7 +120,7 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
     documentDate: body.documentDate,
     method: body.method,
     items,
-    template: "EPI_RECEIPT_V2",
+    template: "COMPANY_EPI_2026_V3",
     requestKey: body.idempotencyKey,
     organizationName: organization.name,
   };

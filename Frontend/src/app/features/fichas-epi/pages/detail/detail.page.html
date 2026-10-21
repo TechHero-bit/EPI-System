@@ -19,7 +19,9 @@
       <span class="count"
         >Nº de Registro
         {{
-          sheet.record_number || sheet.snapshot?.recordNumber || "Histórico"
+          sheet.employee_registration ||
+            sheet.snapshot?.recordNumber ||
+            "Histórico"
         }}
         · Versão {{ sheet.version }}</span
       >
@@ -76,9 +78,7 @@
               </td>
               <td>1</td>
               <td>
-                {{ i.description }}<br /><small
-                  >Tam. {{ i.size }} · Lote {{ i.lot }}</small
-                >
+                {{ i.description }}<br /><small>Tam. {{ i.size }}</small>
               </td>
               <td>{{ i.ca || "N/A" }}</td>
               <td>{{ i.brand }}</td>
@@ -100,8 +100,13 @@
       </button>
     </div>
     <p class="note">
-      Modelo provisório. Fichas emitidas preservam o conteúdo e a versão exatos.
-      Retificações exigem uma nova emissão e um evento de auditoria.
+      {{
+        sheet.snapshot?.template === "COMPANY_EPI_2026_V3"
+          ? "Modelo corporativo Centauro."
+          : "Documento histórico preservado."
+      }}
+      Fichas emitidas preservam o conteúdo e a versão exatos. Retificações
+      exigem uma nova emissão e um evento de auditoria.
     </p>
     <small class="hash">SHA-256: {{ sheet.pdf_sha256 }}</small>
   </section>

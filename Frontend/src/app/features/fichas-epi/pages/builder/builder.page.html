@@ -126,6 +126,11 @@
         </div>
         <div class="form-grid spaced">
           <label class="field"
+            >Matrícula / Nº de Registro<input
+              [value]="s.employee(employeeId)?.registration || ''"
+              readonly
+          /></label>
+          <label class="field"
             >Funcionário(a)<input
               [value]="s.employee(employeeId)?.name || ''"
               readonly
@@ -149,9 +154,10 @@
           /></label>
         </div>
         <p class="note">
-          Nº de Registro atribuído automaticamente a cada ficha. A data de
-          geração será a data da emissão, no horário de Brasília. Para corrigir
-          os dados do funcionário, edite seu cadastro antes de emitir.
+          Nº de Registro: {{ s.employee(employeeId)?.registration }} (matrícula
+          do colaborador). A data de geração será a data da emissão, no horário
+          de Brasília. Para corrigir os dados do funcionário, edite seu cadastro
+          antes de emitir.
         </p>
         <button
           class="primary wide"
@@ -207,15 +213,6 @@
               >Em branco: usa a data padrão
               {{ date | date: "dd/MM/yyyy" }}.</small
             ></label
-          >
-          <label
-            >Lote<select [(ngModel)]="item.lotId" aria-label="Selecionar lote">
-              @for (l of validLots(item.variantId); track l.id) {
-                <option [value]="l.id">
-                  {{ l.batch_code }} · {{ s.available(l) }} disponíveis
-                </option>
-              }
-            </select></label
           >
         </div>
         <button

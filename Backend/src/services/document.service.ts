@@ -1,5 +1,9 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import ExcelJS from "exceljs";
+import {
+  renderCompanyPdf,
+  renderCompanyXlsx,
+} from "./company-document.service.js";
 
 // Portable renderer used by the API and the browser demo.
 export type SheetItem = {
@@ -9,9 +13,9 @@ export type SheetItem = {
   brand: string;
   risk: string;
   size: string;
-  lot: string;
+  lot?: string; // Historical snapshots only.
   variantId: string;
-  lotId: string;
+  lotId?: string; // Historical snapshots only.
   quantity: 1;
 };
 export type SheetSnapshot = {
@@ -23,12 +27,15 @@ export type SheetSnapshot = {
     admissionDate: string;
     terminationDate: string | null;
   };
-  recordNumber?: number;
+  recordNumber?: number | string;
   issuedAt: string;
   documentDate: string; // Default delivery date, not the generation date.
   method: "MANUAL" | "ELECTRONIC";
   items: SheetItem[];
-  template: "PROVISIONAL_FROM_IMAGE_V1" | "EPI_RECEIPT_V2";
+  template:
+    | "PROVISIONAL_FROM_IMAGE_V1"
+    | "EPI_RECEIPT_V2"
+    | "COMPANY_EPI_2026_V3";
   requestKey?: string;
   organizationName?: string;
   demonstration?: boolean;
@@ -54,6 +61,7 @@ export const sheetHeaders = [
 
 export async function renderPdf(s: SheetSnapshot): Promise<Uint8Array> {
   if (s.items.length > 15) throw new Error("Limite de 15 itens por ficha.");
+  if (s.template === "COMPANY_EPI_2026_V3") return renderCompanyPdf(s);
   const pdf = await PDFDocument.create();
   let page = pdf.addPage([842, 595]);
   const normal = await pdf.embedFont(StandardFonts.Helvetica);
@@ -232,6 +240,7 @@ export async function renderPdf(s: SheetSnapshot): Promise<Uint8Array> {
 
 export async function renderXlsx(s: SheetSnapshot): Promise<Uint8Array> {
   if (s.items.length > 15) throw new Error("Limite de 15 itens por ficha.");
+  if (s.template === "COMPANY_EPI_2026_V3") return renderCompanyXlsx(s);
   const book = new ExcelJS.Workbook();
   const ws = book.addWorksheet("Ficha EPI", {
     views: [{ showGridLines: false }],

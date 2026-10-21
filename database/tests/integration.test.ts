@@ -58,7 +58,7 @@ before(async () => {
   ).id;
   const lots = (
     await db.query<any>(
-      "select id,variant_id from public.lots order by batch_code",
+      "select id,id as variant_id from public.inventory_stock order by id",
     )
   ).rows;
   lot = lots[0].id;
@@ -69,36 +69,36 @@ before(async () => {
     "update public.employees set personal_email='person@example.invalid',email_verified_at=now()where id=$1",
     [employee],
   );
-  await db.query("update public.lots set stock_quantity=20 where id=$1", [lot]);
+  await db.query(
+    "update public.inventory_stock set stock_quantity=20 where id=$1",
+    [lot],
+  );
 });
 after(async () => {
   await db.close();
 });
-test("registro é sequencial por organização e idempotente, não por funcionário", async () => {
-  const firstKey = crypto.randomUUID(),
-    secondKey = crypto.randomUUID();
-  const reserve = (key: string, organization = org, actor = admin) =>
-    one("select public.reserve_sheet_number($1,$2,$3)as n", [
-      organization,
-      actor,
-      key,
+test("duas fichas do mesmo colaborador usam sua matrícula, preservando zeros", async () => {
+  await db.query("update employees set registration='000546' where id=$1", [
+    employee,
+  ]);
+  const a = await issue(),
+    b = await issue();
+  assert.notEqual(a, b);
+  for (const id of [a, b]) {
+    const row = await one(
+      "select employee_registration,record_number,snapshot from sheets where id=$1",
+      [id],
+    );
+    assert.equal(row.employee_registration, "000546");
+    assert.equal(row.record_number, null);
+    assert.equal(row.snapshot.recordNumber, "000546");
+    await one("select cancel_reservation($1,$2,$3,$4)", [
+      org,
+      admin,
+      id,
+      "Fim do teste",
     ]);
-  const first = await reserve(firstKey),
-    second = await reserve(secondKey);
-  assert.equal(Number(second.n), Number(first.n) + 1);
-  assert.equal((await reserve(firstKey)).n, first.n);
-  assert.equal(
-    Number((await reserve(crypto.randomUUID(), other, outsider)).n),
-    1,
-  );
-  await assert.rejects(
-    reserve(crypto.randomUUID(), org, stock),
-    /Acesso negado/,
-  );
-  await assert.rejects(
-    reserve(crypto.randomUUID(), org, outsider),
-    /Acesso negado/,
-  );
+  }
 });
 test("atualização preserva snapshot e hash das fichas já emitidas", async () => {
   const existing = new PGlite();
@@ -106,12 +106,14 @@ test("atualização preserva snapshot e hash das fichas já emitidas", async () 
     await existing.exec(prelude);
     const files = (await readdir("database/supabase/migrations")).sort();
     for (const file of files.filter(
-      (f) => f !== "202610210001_sheet_register.sql",
+      (f) => f < "202610210001_sheet_register.sql",
     ))
       await existing.exec(
         await readFile(`database/supabase/migrations/${file}`, "utf8"),
       );
-    await existing.exec(await readFile("database/supabase/seed.sql", "utf8"));
+    await existing.exec(
+      await readFile("database/tests/fixtures/legacy-seed.sql", "utf8"),
+    );
     await existing.query("insert into auth.users(id)values($1)", [admin]);
     await existing.query(
       "insert into memberships(organization_id,user_id,role)values($1,$2,'ADMIN')",
@@ -126,6 +128,10 @@ test("atualização preserva snapshot e hash das fichas já emitidas", async () 
     await existing.query(
       "update lots set stock_quantity=10,expires_at=null where id=$1",
       [batch.id],
+    );
+    await existing.query(
+      "insert into lots(variant_id,batch_code,stock_quantity,condition)values($1,'AVARIADO-LEGADO',4,'AVARIADO')",
+      [batch.variant_id],
     );
     const key = crypto.randomUUID(),
       items = [{ variant_id: batch.variant_id, lot_id: batch.id, quantity: 1 }],
@@ -152,6 +158,37 @@ test("atualização preserva snapshot e hash das fichas já emitidas", async () 
         "utf8",
       ),
     );
+    await existing.exec(
+      await readFile(
+        "database/supabase/migrations/202610210002_inventory_without_lots.sql",
+        "utf8",
+      ),
+    );
+    const consolidated = (
+      await existing.query<any>(
+        "select stock_quantity,reserved_quantity,blocked_quantity from inventory_stock where id=$1",
+        [batch.variant_id],
+      )
+    ).rows[0];
+    assert.equal(consolidated.stock_quantity, 14);
+    assert.equal(consolidated.reserved_quantity, 1);
+    assert.equal(consolidated.blocked_quantity, 4);
+    await existing.query("select confirm_receipt($1,$2,$3,$4,$5)", [
+      org,
+      admin,
+      id,
+      "IN_PERSON",
+      "Entrega após migração",
+    ]);
+    assert.equal(
+      (
+        await existing.query<any>(
+          "select stock_quantity from inventory_stock where id=$1",
+          [batch.variant_id],
+        )
+      ).rows[0].stock_quantity,
+      13,
+    );
     const saved = (
       await existing.query<any>(
         "select snapshot,pdf_sha256,record_number from sheets where id=$1",
@@ -171,12 +208,8 @@ test("atualização preserva snapshot e hash das fichas já emitidas", async () 
 test("banco recusa número de registro forjado e não permite reescrever ficha", async () => {
   const key = crypto.randomUUID();
   const n = (
-    await one("select public.reserve_sheet_number($1,$2,$3)as n", [
-      org,
-      admin,
-      key,
-    ])
-  ).n;
+    await one("select registration from employees where id=$1", [employee])
+  ).registration;
   await assert.rejects(
     one("select public.issue_sheet($1,$2,$3,$4,$5,$6,$7,$8,$9)as id", [
       org,
@@ -184,7 +217,8 @@ test("banco recusa número de registro forjado e não permite reescrever ficha",
       employee,
       JSON.stringify({
         requestKey: key,
-        recordNumber: Number(n) + 100,
+        recordNumber: "FORJADO",
+        employee: { registration: n },
         items: [],
         documentDate: "2026-10-25",
       }),
@@ -192,17 +226,17 @@ test("banco recusa número de registro forjado e não permite reescrever ficha",
       "b".repeat(64),
       `${key}.pdf`,
       "MANUAL",
-      JSON.stringify([{ variant_id: variant, lot_id: lot, quantity: 1 }]),
+      JSON.stringify([{ variant_id: variant, quantity: 1 }]),
     ]),
-    /registro não reservado ou divergente/,
+    /registro deve ser a matrícula/,
   );
   const id = await issue(admin, undefined, "MANUAL", key);
   const saved = await one(
-    "select record_number,snapshot from public.sheets where id=$1",
+    "select employee_registration,snapshot from public.sheets where id=$1",
     [id],
   );
-  assert.equal(Number(saved.record_number), Number(n));
-  assert.equal(Number(saved.snapshot.recordNumber), Number(n));
+  assert.equal(saved.employee_registration, n);
+  assert.equal(saved.snapshot.recordNumber, n);
   await assert.rejects(
     one(
       "update public.sheets set record_number=999999 where id=$1 returning id",
@@ -218,20 +252,17 @@ test("banco recusa número de registro forjado e não permite reescrever ficha",
 });
 async function issue(
   actor = admin,
-  items = [{ variant_id: variant, lot_id: lot, quantity: 1 }],
+  items = [{ variant_id: variant, quantity: 1 }],
   method = "ELECTRONIC",
   key = crypto.randomUUID(),
 ) {
   const recordNumber = (
-    await one("select public.reserve_sheet_number($1,$2,$3)as n", [
-      org,
-      actor,
-      key,
-    ])
-  ).n;
+    await one("select registration from employees where id=$1", [employee])
+  ).registration;
   const snapshot = {
     requestKey: key,
     recordNumber,
+    employee: { registration: recordNumber },
     documentDate: "2026-10-20",
     items,
   };
@@ -272,6 +303,84 @@ test("migrations criam tabelas com RLS, buckets privados e seed idempotente", as
     10,
   );
 });
+test("matrículas duplicadas e vazias são recusadas no banco", async () => {
+  const enrollment = (
+    await one("select registration from employees where id=$1", [employee])
+  ).registration;
+  for (const registration of [enrollment, "   "])
+    await assert.rejects(
+      one(
+        "insert into employees(organization_id,name,registration,department,job_title,admission_date)values($1,'Teste',$2,'RH','Técnico',current_date)returning id",
+        [org, registration],
+      ),
+    );
+});
+test("lotes antigos e numeração sequencial não podem receber novas operações", async () => {
+  await assert.rejects(
+    one(
+      "insert into lots(variant_id,batch_code,stock_quantity)values($1,'NOVO-LOTE',1)returning id",
+      [variant],
+    ),
+    /Lotes foram desativados/,
+  );
+  await db.exec("set role service_role");
+  try {
+    await assert.rejects(
+      one("select reserve_sheet_number($1,$2,$3)", [
+        org,
+        admin,
+        crypto.randomUUID(),
+      ]),
+      /permission denied/,
+    );
+    await assert.rejects(
+      one("select operate_stock($1,$2,$3,$4,$5,$6,$7)", [
+        org,
+        stock,
+        variant,
+        1,
+        "Não deve ocorrer",
+        false,
+        crypto.randomUUID(),
+      ]),
+      /permission denied/,
+    );
+  } finally {
+    await db.exec("reset role");
+  }
+});
+test("unidades bloqueadas não podem ser reservadas nem consumidas por ajuste", async () => {
+  const row = await one(
+    "select * from inventory_stock order by id offset 2 limit 1",
+  );
+  await db.query(
+    "update inventory_stock set stock_quantity=5,reserved_quantity=0,blocked_quantity=5 where id=$1",
+    [row.id],
+  );
+  try {
+    await assert.rejects(
+      issue(admin, [{ variant_id: row.id, quantity: 1 }]),
+      /Sem estoque válido/,
+    );
+    await assert.rejects(
+      one("select operate_inventory($1,$2,$3,$4,$5,$6,$7)", [
+        org,
+        stock,
+        row.id,
+        -1,
+        "Inventário de teste",
+        true,
+        crypto.randomUUID(),
+      ]),
+      /insuficiente/,
+    );
+  } finally {
+    await db.query(
+      "update inventory_stock set stock_quantity=$2,reserved_quantity=$3,blocked_quantity=$4 where id=$1",
+      [row.id, row.stock_quantity, row.reserved_quantity, row.blocked_quantity],
+    );
+  }
+});
 test("setup consolidado instala em banco limpo e recusa instalação duplicada", async () => {
   const clean = new PGlite();
   try {
@@ -299,11 +408,17 @@ test("setup consolidado instala em banco limpo e recusa instalação duplicada",
 test("entrada idempotente e ajuste com justificativa protegem saldo", async () => {
   const key = crypto.randomUUID();
   const params = [org, stock, lot, 2, "Entrada de teste", false, key];
-  const a = await one("select operate_stock($1,$2,$3,$4,$5,$6,$7)as n", params);
-  const b = await one("select operate_stock($1,$2,$3,$4,$5,$6,$7)as n", params);
+  const a = await one(
+    "select operate_inventory($1,$2,$3,$4,$5,$6,$7)as n",
+    params,
+  );
+  const b = await one(
+    "select operate_inventory($1,$2,$3,$4,$5,$6,$7)as n",
+    params,
+  );
   assert.equal(a.n, b.n);
   await assert.rejects(
-    one("select operate_stock($1,$2,$3,$4,$5,$6,$7)", [
+    one("select operate_inventory($1,$2,$3,$4,$5,$6,$7)", [
       org,
       rh,
       lot,
@@ -315,7 +430,7 @@ test("entrada idempotente e ajuste com justificativa protegem saldo", async () =
     /negado/,
   );
   await assert.rejects(
-    one("select operate_stock($1,$2,$3,$4,$5,$6,$7)", [
+    one("select operate_inventory($1,$2,$3,$4,$5,$6,$7)", [
       org,
       stock,
       lot,
@@ -327,7 +442,7 @@ test("entrada idempotente e ajuste com justificativa protegem saldo", async () =
     /insuficiente/,
   );
   await assert.rejects(
-    one("select operate_stock($1,$2,$3,$4,$5,$6,$7)", [
+    one("select operate_inventory($1,$2,$3,$4,$5,$6,$7)", [
       org,
       stock,
       lot,
@@ -341,22 +456,22 @@ test("entrada idempotente e ajuste com justificativa protegem saldo", async () =
 });
 test("quantidade 2, perfil de estoque e organização diferente não podem emitir ficha", async () => {
   await assert.rejects(
-    issue(admin, [{ variant_id: variant, lot_id: lot, quantity: 2 }]),
+    issue(admin, [{ variant_id: variant, quantity: 2 }]),
     /sempre 1/,
   );
   await assert.rejects(issue(stock), /negado/);
   await assert.rejects(issue(outsider), /negado/);
 });
 test("reserva múltiplos EPIs sem baixar o saldo físico e reemissão é idempotente", async () => {
-  const before = await one("select * from lots where id=$1", [lot]);
+  const before = await one("select * from inventory_stock where id=$1", [lot]);
   const key = crypto.randomUUID();
   const items = [
-    { variant_id: variant, lot_id: lot, quantity: 1 },
-    { variant_id: variant2, lot_id: lot2, quantity: 1 },
+    { variant_id: variant, quantity: 1 },
+    { variant_id: variant2, quantity: 1 },
   ];
   const id = await issue(rh, items, "MANUAL", key);
   assert.equal(await issue(rh, items, "MANUAL", key), id);
-  const after = await one("select * from lots where id=$1", [lot]);
+  const after = await one("select * from inventory_stock where id=$1", [lot]);
   assert.equal(after.stock_quantity, before.stock_quantity);
   assert.equal(after.reserved_quantity, before.reserved_quantity + 1);
   await assert.rejects(
@@ -365,20 +480,19 @@ test("reserva múltiplos EPIs sem baixar o saldo físico e reemissão é idempot
   );
 });
 test("estoque disponível não pode ser excedido nem consumido por ajuste", async () => {
-  const l = await one("select * from lots where id=$1", [lot]);
+  const l = await one("select * from inventory_stock where id=$1", [lot]);
   await assert.rejects(
     issue(
       admin,
       Array.from({ length: 15 }, () => ({
         variant_id: variant2,
-        lot_id: lot2,
         quantity: 1,
       })),
     ),
     /estoque válido/,
   );
   await assert.rejects(
-    one("select operate_stock($1,$2,$3,$4,$5,$6,$7)", [
+    one("select operate_inventory($1,$2,$3,$4,$5,$6,$7)", [
       org,
       stock,
       lot,
@@ -392,7 +506,7 @@ test("estoque disponível não pode ser excedido nem consumido por ajuste", asyn
 });
 test("cancelamento libera reserva uma vez e preserva estoque físico", async () => {
   const id = await issue();
-  const before = await one("select * from lots where id=$1", [lot]);
+  const before = await one("select * from inventory_stock where id=$1", [lot]);
   await one("select cancel_reservation($1,$2,$3,$4)", [
     org,
     rh,
@@ -405,7 +519,7 @@ test("cancelamento libera reserva uma vez e preserva estoque físico", async () 
     id,
     "Repetição de teste",
   ]);
-  const after = await one("select * from lots where id=$1", [lot]);
+  const after = await one("select * from inventory_stock where id=$1", [lot]);
   assert.equal(after.stock_quantity, before.stock_quantity);
   assert.equal(after.reserved_quantity, before.reserved_quantity - 1);
   await assert.rejects(
@@ -440,7 +554,7 @@ test("link com hash, OTP, expiração e uso único mantém entrega física pende
     (await one("select verify_signing_code($1,$2)as ok", [link, code])).ok,
     true,
   );
-  const before = await one("select * from lots where id=$1", [lot]);
+  const before = await one("select * from inventory_stock where id=$1", [lot]);
   await one("select complete_signature($1,$2,$3,$4)", [
     link,
     code,
@@ -451,7 +565,7 @@ test("link com hash, OTP, expiração e uso único mantém entrega física pende
   assert.equal(state.signature_status, "SIGNED_ELECTRONIC");
   assert.equal(state.receipt_status, "UNCONFIRMED");
   assert.equal(
-    (await one("select stock_quantity from lots where id=$1", [lot]))
+    (await one("select stock_quantity from inventory_stock where id=$1", [lot]))
       .stock_quantity,
     before.stock_quantity,
   );
@@ -512,9 +626,10 @@ test("registro presencial exige perfil RH; entrega baixa uma unidade uma vez", a
     id,
     "Arquivo físico",
   ]);
-  const before = await one("select stock_quantity from lots where id=$1", [
-    lot,
-  ]);
+  const before = await one(
+    "select stock_quantity from inventory_stock where id=$1",
+    [lot],
+  );
   await one("select confirm_receipt($1,$2,$3,$4,$5)", [
     org,
     stock,
@@ -530,7 +645,7 @@ test("registro presencial exige perfil RH; entrega baixa uma unidade uma vez", a
     "Repetição",
   ]);
   assert.equal(
-    (await one("select stock_quantity from lots where id=$1", [lot]))
+    (await one("select stock_quantity from inventory_stock where id=$1", [lot]))
       .stock_quantity,
     before.stock_quantity - 1,
   );
@@ -563,6 +678,10 @@ test("RLS bloqueia outras organizações, dados pessoais e alterações de perfi
       0,
     );
     assert.equal((await one("select count(*)::integer as n from sheets")).n, 0);
+    assert.equal(
+      (await one("select count(*)::integer as n from inventory_stock")).n,
+      0,
+    );
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [
       stock,
     ]);
@@ -576,7 +695,7 @@ test("RLS bloqueia outras organizações, dados pessoais e alterações de perfi
       /permission denied/,
     );
     await assert.rejects(
-      one("select operate_stock($1,$2,$3,$4,$5,$6,$7)", [
+      one("select operate_inventory($1,$2,$3,$4,$5,$6,$7)", [
         org,
         stock,
         lot,

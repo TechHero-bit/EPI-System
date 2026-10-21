@@ -22,7 +22,7 @@
             required
             maxlength="160" /></label
         ><label class="field"
-          >Matrícula interna do funcionário<input
+          >Matrícula / Nº de Registro<input
             name="registration"
             [(ngModel)]="form.registration"
             required
@@ -69,6 +69,11 @@
             [(ngModel)]="form.terminationDate"
         /></label>
       </div>
+      <p class="note">
+        A matrícula é exclusiva deste colaborador na empresa e será o Nº de
+        Registro de suas fichas. Informe o código completo, incluindo zeros à
+        esquerda.
+      </p>
       <fieldset class="facial-choice">
         <legend>Cadastrar reconhecimento facial?</legend>
         <label

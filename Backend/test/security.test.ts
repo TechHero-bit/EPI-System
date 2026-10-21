@@ -8,11 +8,8 @@ import {
 } from "../src/services/security.service.js";
 
 test("rejeita quantidade diferente de um e fixa um no resultado", () => {
-  assert.equal(unitItems([{ variantId: "v", lotId: "l" }])[0]?.quantity, 1);
-  assert.throws(
-    () => unitItems([{ variantId: "v", lotId: "l", quantity: 2 }]),
-    /1/,
-  );
+  assert.equal(unitItems([{ variantId: "v" }])[0]?.quantity, 1);
+  assert.throws(() => unitItems([{ variantId: "v", quantity: 2 }]), /1/);
 });
 
 test("gera token aleatorio e confere hash secreto", () => {

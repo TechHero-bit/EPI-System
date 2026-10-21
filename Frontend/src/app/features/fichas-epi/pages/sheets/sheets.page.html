@@ -13,7 +13,7 @@
     <input
       aria-label="Buscar ficha"
       [(ngModel)]="query"
-      placeholder="Buscar colaborador ou identificador…"
+      placeholder="Buscar colaborador, matrícula ou ficha…"
     /><select aria-label="Filtrar assinatura" [(ngModel)]="status">
       <option value="">Todos os estados</option>
       <option value="SIGNED_ELECTRONIC">Assinada eletronicamente</option>
@@ -49,8 +49,12 @@
             </td>
             <td>{{ f.issued_at | date: "dd/MM/yyyy HH:mm" }}</td>
             <td>
-              {{ f.record_number || f.snapshot?.recordNumber || "Histórico" }} ·
-              v{{ f.version }}
+              {{
+                f.employee_registration ||
+                  f.snapshot?.recordNumber ||
+                  "Histórico"
+              }}
+              · v{{ f.version }}
             </td>
             <td>
               <epi-status

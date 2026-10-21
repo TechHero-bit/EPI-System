@@ -140,52 +140,7 @@ export const postvariants: RequestHandler<{
   res.status(201).json(data);
 };
 
-export const postlots: RequestHandler<{ id: string; token: string }> = async (
-  req,
-  res,
-) => {
-  const c = await context(req, ["ADMIN", "ALMOXARIFADO"]);
-  const body = z
-    .object({
-      variantId: uuid,
-      batchCode: required.max(80),
-      supplier: z.string().trim().max(160).default(""),
-      receivedAt: isoDate,
-      expiresAt: isoDate.nullable().optional(),
-      unitCost: z.number().nonnegative().max(9999999999).default(0),
-      location: z.string().trim().max(120).default(""),
-      condition: z.enum(["NOVO", "BOM", "AVARIADO"]).default("NOVO"),
-    })
-    .parse(req.body);
-  const variant = dbResult(
-    await c.admin
-      .from("variants")
-      .select("product_id")
-      .eq("id", body.variantId)
-      .single(),
-  );
-  await owned(c, "products", variant.product_id);
-  const data = dbResult(
-    await c.admin
-      .from("lots")
-      .insert({
-        variant_id: body.variantId,
-        batch_code: body.batchCode,
-        supplier: body.supplier,
-        received_at: body.receivedAt,
-        expires_at: body.expiresAt || null,
-        unit_cost: body.unitCost,
-        location: body.location,
-        condition: body.condition,
-      })
-      .select()
-      .single(),
-  );
-  await audit(c, "LOT_CREATED", "lot", data.id);
-  res.status(201).json(data);
-};
-
-export const postlotsIdReceive: RequestHandler<{
+export const postInventoryReceive: RequestHandler<{
   id: string;
   token: string;
 }> = async (req, res) => {
@@ -198,10 +153,10 @@ export const postlotsIdReceive: RequestHandler<{
     })
     .parse(req.body);
   const data = dbResult(
-    await c.admin.rpc("operate_stock", {
+    await c.admin.rpc("operate_inventory", {
       p_org: c.orgId,
       p_actor: c.userId,
-      p_lot: uuid.parse(req.params.id),
+      p_variant: uuid.parse(req.params.id),
       p_quantity: body.quantity,
       p_reason: body.reason,
       p_adjust: false,
@@ -211,7 +166,7 @@ export const postlotsIdReceive: RequestHandler<{
   res.json({ stockQuantity: data });
 };
 
-export const postlotsIdAdjust: RequestHandler<{
+export const postInventoryAdjust: RequestHandler<{
   id: string;
   token: string;
 }> = async (req, res) => {
@@ -229,10 +184,10 @@ export const postlotsIdAdjust: RequestHandler<{
     })
     .parse(req.body);
   const stock = dbResult(
-    await c.admin.rpc("operate_stock", {
+    await c.admin.rpc("operate_inventory", {
       p_org: c.orgId,
       p_actor: c.userId,
-      p_lot: uuid.parse(req.params.id),
+      p_variant: uuid.parse(req.params.id),
       p_quantity: b.quantity,
       p_reason: b.reason,
       p_adjust: true,

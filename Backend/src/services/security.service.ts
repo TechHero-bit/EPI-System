@@ -22,7 +22,6 @@ export function secretEquals(value: string, expected: string, pepper: string) {
 export function unitItems(
   items: Array<{
     variantId: string;
-    lotId: string;
     quantity?: number;
     risk?: string;
   }>,
@@ -31,9 +30,8 @@ export function unitItems(
   for (const item of items)
     if (item.quantity !== undefined && item.quantity !== 1)
       throw new Error("Quantidade por item deve ser 1.");
-  return items.map(({ variantId, lotId, risk }) => ({
+  return items.map(({ variantId, risk }) => ({
     variant_id: variantId,
-    lot_id: lotId,
     risk: risk ?? "",
     quantity: UNIT_QUANTITY,
   }));

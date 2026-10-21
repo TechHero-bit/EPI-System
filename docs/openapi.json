@@ -26,15 +26,10 @@
       "SheetItem": {
         "type": "object",
         "required": [
-          "variantId",
-          "lotId"
+          "variantId"
         ],
         "properties": {
           "variantId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "lotId": {
             "type": "string",
             "format": "uuid"
           },
@@ -83,7 +78,7 @@
           "documentDate": {
             "type": "string",
             "format": "date",
-            "description": "Data padrão da entrega; data de geração e Nº de Registro são automáticos no servidor"
+            "description": "Data padrão da entrega; geração automática no servidor e Nº de Registro copiado da matrícula do colaborador"
           },
           "method": {
             "enum": [
@@ -441,42 +436,7 @@
         }
       }
     },
-    "/lots": {
-      "post": {
-        "summary": "Cadastrar lote",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Operação concluída"
-          },
-          "201": {
-            "description": "Registro criado"
-          },
-          "400": {
-            "description": "Dados inválidos"
-          },
-          "401": {
-            "description": "Sessão ou código inválido"
-          },
-          "403": {
-            "description": "Perfil não autorizado"
-          },
-          "409": {
-            "description": "Conflito de estado ou saldo"
-          },
-          "410": {
-            "description": "Link expirado ou consumido"
-          },
-          "429": {
-            "description": "Limite de tentativas"
-          },
-          "503": {
-            "description": "Integração indisponível"
-          }
-        }
-      }
-    },
-    "/lots/{id}/receive": {
+    "/inventory/{id}/receive": {
       "post": {
         "summary": "Entrada idempotente, exige idempotencyKey UUID",
         "parameters": [
@@ -520,9 +480,9 @@
         }
       }
     },
-    "/lots/{id}/adjust": {
+    "/inventory/{id}/adjust": {
       "post": {
-        "summary": "Ajuste idempotente com justificativa",
+        "summary": "Ajuste idempotente por equipamento/tamanho com justificativa",
         "parameters": [
           {
             "name": "id",

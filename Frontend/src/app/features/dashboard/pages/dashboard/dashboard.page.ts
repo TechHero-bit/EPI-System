@@ -29,14 +29,14 @@ export class DashboardComponent {
           label: "Saldo disponível",
           value: this.s
             .data()
-            .lots.reduce((n, l) => n + this.s.available(l), 0),
+            .inventory.reduce((n, l) => n + this.s.available(l), 0),
           caption: "Unidades livres de reserva",
         },
         {
           label: "Unidades reservadas",
           value: this.s
             .data()
-            .lots.reduce((n, l) => n + (l.reserved_quantity ?? 0), 0),
+            .inventory.reduce((n, l) => n + (l.reserved_quantity ?? 0), 0),
           caption: "Separadas para entrega",
         },
         {
@@ -94,10 +94,10 @@ export class DashboardComponent {
   get expiring() {
     return this.s
       .data()
-      .lots.filter(
+      .products.filter(
         (l) =>
-          l.expires_at &&
-          new Date(l.expires_at).getTime() < Date.now() + 30 * 86400000,
+          l.ca_expires_at &&
+          new Date(l.ca_expires_at).getTime() < Date.now() + 30 * 86400000,
       ).length;
   }
   get categoryCounts() {

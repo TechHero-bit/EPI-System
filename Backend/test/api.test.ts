@@ -24,11 +24,20 @@ test("endpoints administrativos exigem sessão antes de acessar o banco", async 
     "/api/products",
     "/api/employees",
     "/api/sheets",
-    "/api/lots",
+    "/api/inventory/11111111-1111-4111-8111-111111111111/receive",
+    "/api/inventory/11111111-1111-4111-8111-111111111111/adjust",
     "/api/variants",
     "/api/face-match/verify",
   ])
     assert.equal((await request(app).post(path).send({})).status, 401, path);
+});
+test("cadastro e movimentação por lotes não existem mais na API", async () => {
+  for (const path of [
+    "/api/lots",
+    "/api/lots/11111111-1111-4111-8111-111111111111/receive",
+    "/api/lots/11111111-1111-4111-8111-111111111111/adjust",
+  ])
+    assert.equal((await request(app).post(path).send({})).status, 404);
 });
 test("CORS só autoriza a origem configurada e erros são JSON", async () => {
   const allowed = await request(app)

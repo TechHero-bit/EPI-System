@@ -57,27 +57,12 @@ export class BuilderComponent {
       (v) => `${this.s.product(v.product_id)?.description} · ${v.size}`,
     );
   }
-  validLots(id: string) {
-    return this.s
-      .data()
-      .lots.filter(
-        (l) =>
-          l.variant_id === id &&
-          this.s.available(l) > 0 &&
-          (!l.expires_at || l.expires_at >= today()) &&
-          l.condition !== "AVARIADO",
-      )
-      .sort((a, b) => compareLabels(a.batch_code, b.batch_code));
-  }
   available(id: string) {
     const p = this.s.product(this.s.variant(id)?.product_id);
     if (p?.ca_expires_at && p.ca_expires_at < today()) return 0;
-    return this.validLots(id).reduce(
-      (n, l) =>
-        n +
-        this.s.available(l) -
-        this.draft.filter((i) => i.lotId === l.id).length,
-      0,
+    return (
+      this.s.stock(id) -
+      this.draft.filter((item) => item.variantId === id).length
     );
   }
   add(v: any) {
@@ -85,14 +70,9 @@ export class BuilderComponent {
       this.s.failure.set("Limite de 15 itens por ficha.");
       return;
     }
-    const l = this.validLots(v.id).find(
-      (l) =>
-        this.s.available(l) > this.draft.filter((i) => i.lotId === l.id).length,
-    );
-    if (!l) return;
+    if (this.available(v.id) < 1) return;
     this.draft.push({
       variantId: v.id,
-      lotId: l.id,
       quantity: 1,
       risk: this.s.product(v.product_id)?.risk_code ?? "",
       description: this.s.product(v.product_id)?.description,

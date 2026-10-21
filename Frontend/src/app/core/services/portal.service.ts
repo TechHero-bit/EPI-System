@@ -38,10 +38,20 @@ export class PortalStore {
   private async initialize() {
     if (this.demo) {
       try {
-        const raw = localStorage.getItem("epi-demo-v2");
+        const current = localStorage.getItem("epi-demo-v3");
+        const legacy = localStorage.getItem("epi-demo-v2");
+        if (
+          !current &&
+          legacy &&
+          !localStorage.getItem("epi-demo-v2-backup-before-no-lots")
+        )
+          localStorage.setItem("epi-demo-v2-backup-before-no-lots", legacy);
+        const raw = current ?? legacy;
         if (raw) this.repository = new DemoRepository(JSON.parse(raw));
       } catch {
-        localStorage.removeItem("epi-demo-v2");
+        this.failure.set(
+          "Não foi possível carregar os dados salvos. O backup anterior foi preservado.",
+        );
       }
       const role = sessionStorage.getItem("epi-demo-role") as Role | null;
       if (role && ["RH", "ALMOXARIFADO"].includes(role)) {
@@ -116,7 +126,7 @@ export class PortalStore {
     this.data.set(data);
   }
   private persist() {
-    localStorage.setItem("epi-demo-v2", JSON.stringify(this.repository.data));
+    localStorage.setItem("epi-demo-v3", JSON.stringify(this.repository.data));
     this.data.set(structuredClone(this.repository.data));
   }
   resetDemo() {
@@ -157,13 +167,16 @@ export class PortalStore {
   state(id: string) {
     return this.data().states.find((s) => s.sheet_id === id);
   }
-  available(lot: any) {
-    return lot.stock_quantity - (lot.reserved_quantity ?? 0);
+  available(balance: any) {
+    return (
+      balance.stock_quantity -
+      (balance.reserved_quantity ?? 0) -
+      (balance.blocked_quantity ?? 0)
+    );
   }
   stock(id: string) {
-    return this.data()
-      .lots.filter((l) => l.variant_id === id)
-      .reduce((n, l) => n + this.available(l), 0);
+    const row = this.data().inventory.find((row) => row.id === id);
+    return row ? this.available(row) : 0;
   }
   async saveProduct(body: any, id?: string) {
     let product: any;
@@ -199,39 +212,22 @@ export class PortalStore {
         throw new Error("Acesso negado.");
       if (this.repository.data.variants.some((v) => v.sku === body.sku))
         throw new Error("SKU já cadastrado.");
+      const id = crypto.randomUUID();
       this.repository.data.variants.push({
-        id: crypto.randomUUID(),
+        id,
         product_id: body.productId,
         size: body.size,
         sku: body.sku,
         minimum_stock: body.minimumStock,
       });
-      this.persist();
-    } else {
-      await this.request("/api/variants", "POST", body);
-      await this.load();
-    }
-  }
-  async addLot(body: any) {
-    if (this.demo) {
-      if (!["ADMIN", "ALMOXARIFADO"].includes(this.role))
-        throw new Error("Acesso negado.");
-      this.repository.data.lots.push({
-        id: crypto.randomUUID(),
-        variant_id: body.variantId,
-        batch_code: body.batchCode,
-        supplier: body.supplier,
-        received_at: body.receivedAt,
-        expires_at: body.expiresAt || null,
+      this.repository.data.inventory.push({
+        id,
         stock_quantity: 0,
         reserved_quantity: 0,
-        location: body.location,
-        unit_cost: body.unitCost,
-        condition: body.condition,
       });
       this.persist();
     } else {
-      await this.request("/api/lots", "POST", body);
+      await this.request("/api/variants", "POST", body);
       await this.load();
     }
   }
@@ -247,7 +243,7 @@ export class PortalStore {
       this.persist();
     } else {
       await this.request(
-        `/api/lots/${id}/${adjust ? "adjust" : "receive"}`,
+        `/api/inventory/${id}/${adjust ? "adjust" : "receive"}`,
         "POST",
         { quantity, reason, idempotencyKey: key },
       );

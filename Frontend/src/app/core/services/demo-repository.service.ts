@@ -70,22 +70,14 @@ export function makeDemoData(): PortalData {
     sku: `DEMO-EPI-${i + 1}`,
     minimum_stock: 5,
   }));
-  data.lots = data.variants.map((v, i) => ({
-    id: `lot-${i}`,
-    variant_id: v.id,
-    batch_code: `DEMO-2026-${i + 1}`,
-    supplier: "Fornecedor fictício",
-    received_at: today(),
-    expires_at: i === 2 ? "2026-11-10" : "2028-10-20",
+  data.inventory = data.variants.map((v, i) => ({
+    id: v.id,
     stock_quantity: [24, 3, 15, 8, 0, 18, 4, 12][i],
     reserved_quantity: 0,
-    unit_cost: [89, 28, 15, 220, 110, 35, 12, 280][i],
-    location: `A-${i + 1}`,
-    condition: "NOVO",
   }));
-  data.movements = data.lots.map((l, i) => ({
+  data.movements = data.inventory.map((l, i) => ({
     id: `movement-${i}`,
-    lot_id: l.id,
+    variant_id: l.id,
     type: "RECEIPT",
     quantity: l.stock_quantity,
     created_at: new Date(Date.now() - i * 86400000).toISOString(),
@@ -99,7 +91,8 @@ export function makeDemoData(): PortalData {
   ];
   for (let i = 0; i < 4; i++) {
     const snapshot = {
-      recordNumber: i + 1,
+      recordNumber: data.employees[i].registration,
+      template: "COMPANY_EPI_2026_V3",
       issuedAt: new Date(Date.now() - i * 86400000).toISOString(),
       organizationName: data.organization.name,
       employee: structuredClone(data.employees[i]),
@@ -111,7 +104,6 @@ export function makeDemoData(): PortalData {
           brand: data.products[i].brand,
           risk: data.products[i].risk_code,
           size: data.variants[i].size,
-          lot: data.lots[i].batch_code,
           quantity: 1,
         },
       ],
@@ -122,16 +114,14 @@ export function makeDemoData(): PortalData {
       id: `sheet-${i}`,
       employee_id: `employee-${i}`,
       version: 1,
-      record_number: i + 1,
+      employee_registration: data.employees[i].registration,
       issued_at: new Date(Date.now() - i * 86400000).toISOString(),
       signature_method: snapshot.method,
       snapshot,
-      items: [
-        { variantId: `variant-${i}`, lotId: `lot-${i}`, quantity: 1, risk: "" },
-      ],
+      items: [{ variantId: `variant-${i}`, quantity: 1, risk: "" }],
       pdf_sha256: "Documento fictício — sem validade jurídica",
     });
-    if (i !== 2) data.lots[i].reserved_quantity++;
+    if (i !== 2) data.inventory[i].reserved_quantity++;
     data.states.push({
       sheet_id: `sheet-${i}`,
       signature_status: signatures[i],
@@ -148,12 +138,41 @@ export function makeDemoData(): PortalData {
       detail: { synthetic: true },
     },
   ];
-  data.lastRecordNumber = 4;
   return data;
 }
 
 export class DemoRepository {
-  constructor(public data: PortalData = makeDemoData()) {}
+  constructor(public data: PortalData = makeDemoData()) {
+    // One-time migration of browser v2 data. Original storage is separately backed up.
+    const legacy = (data as any).lots as any[] | undefined;
+    if (!data.inventory) {
+      data.inventory = data.variants.map((v) => {
+        const rows = (legacy ?? []).filter((l) => l.variant_id === v.id);
+        return {
+          id: v.id,
+          stock_quantity: rows.reduce((n, l) => n + l.stock_quantity, 0),
+          reserved_quantity: rows.reduce(
+            (n, l) => n + (l.reserved_quantity ?? 0),
+            0,
+          ),
+          blocked_quantity: rows
+            .filter(
+              (l) =>
+                l.condition === "AVARIADO" ||
+                (l.expires_at && l.expires_at < today()),
+            )
+            .reduce(
+              (n, l) => n + l.stock_quantity - (l.reserved_quantity ?? 0),
+              0,
+            ),
+        };
+      });
+      for (const movement of data.movements)
+        movement.variant_id ??= legacy?.find(
+          (l) => l.id === movement.lot_id,
+        )?.variant_id;
+    }
+  }
   private require(allowed: Role[]) {
     if (!allowed.includes(this.data.role))
       throw new Error("Seu perfil não permite esta ação.");
@@ -167,8 +186,12 @@ export class DemoRepository {
       detail: { demo: true },
     });
   }
-  available(lot: any): number {
-    return lot.stock_quantity - (lot.reserved_quantity ?? 0);
+  available(balance: any): number {
+    return (
+      balance.stock_quantity -
+      (balance.reserved_quantity ?? 0) -
+      (balance.blocked_quantity ?? 0)
+    );
   }
   product(body: any, id?: string) {
     this.require(STOCK);
@@ -206,14 +229,14 @@ export class DemoRepository {
       throw new Error("Informe nome, matrícula e cargo.");
     if (
       this.data.employees.some(
-        (e) => e.registration === body.registration && e.id !== id,
+        (e) => e.registration === body.registration.trim() && e.id !== id,
       )
     )
       throw new Error("Matrícula já cadastrada.");
     const value = {
       id: id ?? crypto.randomUUID(),
       name: body.name,
-      registration: body.registration,
+      registration: body.registration.trim(),
       department: body.department,
       job_title: body.jobTitle,
       admission_date: body.admissionDate,
@@ -230,31 +253,38 @@ export class DemoRepository {
     this.event("EMPLOYEE_SAVED", value.id);
     return value;
   }
-  movement(lotId: string, quantity: number, reason: string, adjust = false) {
+  movement(
+    variantId: string,
+    quantity: number,
+    reason: string,
+    adjust = false,
+  ) {
     this.require(STOCK);
-    const lot = this.data.lots.find((l) => l.id === lotId);
+    const balance = this.data.inventory.find((l) => l.id === variantId);
     if (
-      !lot ||
+      !balance ||
       !Number.isInteger(quantity) ||
       quantity === 0 ||
       Math.abs(quantity) > 100000 ||
       (!adjust && quantity < 1)
     )
-      throw new Error("Selecione lote e quantidade válidos.");
+      throw new Error("Selecione equipamento e quantidade válidos.");
     if (adjust && reason.trim().length < 5)
       throw new Error("Informe uma justificativa de ao menos 5 caracteres.");
-    if (this.available(lot) + quantity < 0)
-      throw new Error("Saldo insuficiente. Existem unidades reservadas.");
-    lot.stock_quantity += quantity;
+    if (this.available(balance) + quantity < 0)
+      throw new Error(
+        "Saldo insuficiente. Existem unidades reservadas ou bloqueadas.",
+      );
+    balance.stock_quantity += quantity;
     this.data.movements.unshift({
       id: crypto.randomUUID(),
-      lot_id: lot.id,
+      variant_id: balance.id,
       type: adjust ? "ADJUSTMENT" : "RECEIPT",
       quantity,
       reason,
       created_at: new Date().toISOString(),
     });
-    this.event(adjust ? "STOCK_ADJUSTED" : "STOCK_RECEIVED", lot.id);
+    this.event(adjust ? "STOCK_ADJUSTED" : "STOCK_RECEIVED", balance.id);
   }
   issue(
     employeeId: string,
@@ -286,35 +316,26 @@ export class DemoRepository {
         throw new Error("Quantidade por item deve ser 1.");
       if (item.deliveryDate && !/^\d{4}-\d{2}-\d{2}$/.test(item.deliveryDate))
         throw new Error("Data da entrega inválida.");
-      const lot = this.data.lots.find(
-        (l) => l.id === item.lotId && l.variant_id === item.variantId,
-      );
+      const balance = this.data.inventory.find((l) => l.id === item.variantId);
       const variant = this.data.variants.find((v) => v.id === item.variantId);
       const product = this.data.products.find(
         (p) => p.id === variant?.product_id && p.active,
       );
-      const count = (demand.get(item.lotId) ?? 0) + 1;
+      const count = (demand.get(item.variantId) ?? 0) + 1;
       if (
-        !lot ||
+        !balance ||
         !product ||
-        this.available(lot) < count ||
-        (lot.expires_at && lot.expires_at < today())
+        this.available(balance) < count ||
+        (product.ca_expires_at && product.ca_expires_at < today())
       )
-        throw new Error("Estoque insuficiente ou lote vencido.");
-      demand.set(item.lotId, count);
+        throw new Error("Estoque insuficiente ou C.A. vencido.");
+      demand.set(item.variantId, count);
     }
-    const recordNumber =
-      Math.max(
-        this.data.lastRecordNumber ?? 0,
-        ...this.data.sheets.map(
-          (s) => s.record_number ?? s.snapshot?.recordNumber ?? 0,
-        ),
-      ) + 1;
-    this.data.lastRecordNumber = recordNumber;
+    const recordNumber = employee.registration;
     const issuedAt = new Date().toISOString();
     const sheet = {
       id: crypto.randomUUID(),
-      record_number: recordNumber,
+      employee_registration: recordNumber,
       employee_id: employeeId,
       version:
         this.data.sheets.filter((s) => s.employee_id === employeeId).length + 1,
@@ -323,6 +344,7 @@ export class DemoRepository {
       request_key: key,
       items: structuredClone(items),
       snapshot: {
+        template: "COMPANY_EPI_2026_V3",
         recordNumber,
         issuedAt,
         organizationName: this.data.organization.name,
@@ -339,7 +361,6 @@ export class DemoRepository {
             risk: i.risk ?? p.risk_code ?? "",
             date: i.deliveryDate ?? date,
             size: v.size,
-            lot: this.data.lots.find((l) => l.id === i.lotId).batch_code,
             quantity: 1,
           };
         }),
@@ -347,8 +368,8 @@ export class DemoRepository {
       pdf_sha256: "DEMONSTRAÇÃO — sem assinatura válida",
     };
     for (const [id, n] of demand) {
-      const lot = this.data.lots.find((l) => l.id === id);
-      lot.reserved_quantity = (lot.reserved_quantity ?? 0) + n;
+      const balance = this.data.inventory.find((l) => l.id === id);
+      balance.reserved_quantity = (balance.reserved_quantity ?? 0) + n;
     }
     this.data.sheets.unshift(sheet);
     this.data.states.unshift({
@@ -369,12 +390,12 @@ export class DemoRepository {
     if (!note.trim()) throw new Error("Informe a evidência da entrega.");
     if (state.receipt_status === "CONFIRMED") return;
     for (const item of sheet.items ?? []) {
-      const lot = this.data.lots.find((l) => l.id === item.lotId);
-      lot.stock_quantity--;
-      lot.reserved_quantity--;
+      const balance = this.data.inventory.find((l) => l.id === item.variantId);
+      balance.stock_quantity--;
+      balance.reserved_quantity--;
       this.data.movements.unshift({
         id: crypto.randomUUID(),
-        lot_id: lot.id,
+        variant_id: balance.id,
         type: "ISSUE",
         quantity: -1,
         created_at: new Date().toISOString(),
@@ -393,7 +414,8 @@ export class DemoRepository {
     if (!sheet || !state || state.reservation_status !== "RESERVED")
       throw new Error("Apenas reservas pendentes podem ser canceladas.");
     for (const item of sheet.items ?? [])
-      this.data.lots.find((l) => l.id === item.lotId).reserved_quantity--;
+      this.data.inventory.find((l) => l.id === item.variantId)
+        .reserved_quantity--;
     state.reservation_status = "CANCELLED";
     this.event("RESERVATION_CANCELLED", id);
   }
