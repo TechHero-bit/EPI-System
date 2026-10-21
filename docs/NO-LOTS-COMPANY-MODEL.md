@@ -33,7 +33,7 @@ EPI-System/
     src/app/layout/app-shell/            menu Estoque
     test/ e e2e/                         fluxo e exportação no navegador
   database/
-    supabase/migrations/202610210002_inventory_without_lots.sql
+    supabase/migrations/006_inventory_without_lots.sql
     supabase/seed.sql                    seed atual sem lotes
     schemas/validate.sql
     setup.sql                            consolidado para banco NOVO
@@ -51,11 +51,11 @@ Backup de código, configurações e Git antes das mudanças: `C:\Users\kevindes
 
 O Excel original em Downloads não foi modificado. Hash e adaptação estão em `Backend/src/assets/README.md`.
 
-A migration consolida saldo físico/reservado por variante, migra movimentos e reservas e mantém vínculos históricos. Unidades não reservadas de antigos lotes vencidos/avariados passam a bloqueadas, sem liberação automática. Não foi implementado um fluxo administrativo de desbloqueio nesta tarefa. Lotes antigos permanecem somente leitura para auditoria; os endpoints antigos retornam 404. Funções antigas de movimentação e contador não são executáveis pelo serviço.
+A migration consolida saldo físico/reservado por variante, migra movimentos e reservas e mantém vínculos históricos. Unidades não reservadas de antigos lotes vencidos/avariados passam a bloqueadas, sem liberação automática. Não foi implementado um fluxo administrativo de desbloqueio nesta tarefa. Lotes antigos permanecem somente leitura para auditoria; os endpoints antigos retornam 404. Funções antigas de movimentação não são executáveis pelo serviço. Após a renumeração pré-instalação, a função de contador não é mais criada.
 
 O modo demo lê os dados v2, salva uma cópia de segurança no navegador e grava a nova versão em `epi-demo-v3`; não apaga os dados v2. Fichas antigas não recebem matrícula retroativa nem têm seus hashes alterados.
 
-Banco existente: conferir histórico e aplicar somente migrations pendentes em ordem (a `202610210001_sheet_register.sql` deve preceder a nova `202610210002_inventory_without_lots.sql`). Nunca executar `setup.sql` sobre banco existente. Banco novo: usar o consolidado ou migrations, não ambos. A aplicação no Supabase hospedado continua pendente de revisão/autorização.
+Atualização posterior: o usuário confirmou que nenhuma migration havia sido aplicada. Os arquivos foram renumerados de 001 a 006, removendo a antiga migration de contador e corrigindo as dependências. Banco novo: usar o consolidado ou as seis migrations em ordem, não ambos. Não aplicar os novos nomes sobre um histórico antigo já registrado e nunca executar `setup.sql` sobre banco existente. A aplicação no Supabase hospedado continua pendente de revisão/autorização.
 
 ## Execução no Windows
 

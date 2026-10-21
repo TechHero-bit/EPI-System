@@ -77,6 +77,28 @@ before(async () => {
 after(async () => {
   await db.close();
 });
+test("arquivos de migrations são numerados de 001 a 006 sem lacunas", async () => {
+  const files = (await readdir("database/supabase/migrations"))
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+  assert.deepEqual(files, [
+    "001_init.sql",
+    "002_audit_email_verification.sql",
+    "003_manual_signature.sql",
+    "004_reservations_and_access.sql",
+    "005_signing_identity.sql",
+    "006_inventory_without_lots.sql",
+  ]);
+  for (const [index, file] of files.entries()) {
+    const source = await readFile(
+      `database/supabase/migrations/${file}`,
+      "utf8",
+    );
+    assert.ok(
+      source.startsWith(`-- MIGRATION ${String(index + 1).padStart(3, "0")} -`),
+    );
+  }
+});
 test("duas fichas do mesmo colaborador usam sua matrícula, preservando zeros", async () => {
   await db.query("update employees set registration='000546' where id=$1", [
     employee,
@@ -86,11 +108,10 @@ test("duas fichas do mesmo colaborador usam sua matrícula, preservando zeros", 
   assert.notEqual(a, b);
   for (const id of [a, b]) {
     const row = await one(
-      "select employee_registration,record_number,snapshot from sheets where id=$1",
+      "select employee_registration,snapshot from sheets where id=$1",
       [id],
     );
     assert.equal(row.employee_registration, "000546");
-    assert.equal(row.record_number, null);
     assert.equal(row.snapshot.recordNumber, "000546");
     await one("select cancel_reservation($1,$2,$3,$4)", [
       org,
@@ -106,7 +127,7 @@ test("atualização preserva snapshot e hash das fichas já emitidas", async () 
     await existing.exec(prelude);
     const files = (await readdir("database/supabase/migrations")).sort();
     for (const file of files.filter(
-      (f) => f < "202610210001_sheet_register.sql",
+      (f) => f < "006_inventory_without_lots.sql",
     ))
       await existing.exec(
         await readFile(`database/supabase/migrations/${file}`, "utf8"),
@@ -154,13 +175,7 @@ test("atualização preserva snapshot e hash das fichas já emitidas", async () 
     ).rows[0].id;
     await existing.exec(
       await readFile(
-        "database/supabase/migrations/202610210001_sheet_register.sql",
-        "utf8",
-      ),
-    );
-    await existing.exec(
-      await readFile(
-        "database/supabase/migrations/202610210002_inventory_without_lots.sql",
+        "database/supabase/migrations/006_inventory_without_lots.sql",
         "utf8",
       ),
     );
@@ -191,15 +206,18 @@ test("atualização preserva snapshot e hash das fichas já emitidas", async () 
     );
     const saved = (
       await existing.query<any>(
-        "select snapshot,pdf_sha256,record_number from sheets where id=$1",
+        "select snapshot,pdf_sha256,employee_registration from sheets where id=$1",
         [id],
       )
     ).rows[0];
     assert.deepEqual(saved.snapshot, snapshot);
     assert.equal(saved.pdf_sha256, "b".repeat(64));
-    assert.equal(saved.record_number, null);
+    assert.equal(saved.employee_registration, null);
     await assert.rejects(
-      existing.query("update sheets set record_number=1 where id=$1", [id]),
+      existing.query(
+        "update sheets set employee_registration='ALTERADA' where id=$1",
+        [id],
+      ),
     );
   } finally {
     await existing.close();
@@ -239,7 +257,7 @@ test("banco recusa número de registro forjado e não permite reescrever ficha",
   assert.equal(saved.snapshot.recordNumber, n);
   await assert.rejects(
     one(
-      "update public.sheets set record_number=999999 where id=$1 returning id",
+      "update public.sheets set employee_registration='FORJADA' where id=$1 returning id",
       [id],
     ),
   );
@@ -315,7 +333,23 @@ test("matrículas duplicadas e vazias são recusadas no banco", async () => {
       ),
     );
 });
-test("lotes antigos e numeração sequencial não podem receber novas operações", async () => {
+test("lotes antigos não recebem operações e o contador por ficha não existe", async () => {
+  const removed = await one(
+    "select to_regclass('public.sheet_number_counters')as counter,to_regclass('public.sheet_number_allocations')as allocations,to_regprocedure('public.reserve_sheet_number(uuid,uuid,uuid)')as reserve",
+  );
+  assert.deepEqual(removed, {
+    counter: null,
+    allocations: null,
+    reserve: null,
+  });
+  assert.equal(
+    (
+      await one(
+        "select count(*)::integer as n from information_schema.columns where table_schema='public' and table_name='sheets' and column_name='record_number'",
+      )
+    ).n,
+    0,
+  );
   await assert.rejects(
     one(
       "insert into lots(variant_id,batch_code,stock_quantity)values($1,'NOVO-LOTE',1)returning id",
@@ -325,14 +359,6 @@ test("lotes antigos e numeração sequencial não podem receber novas operaçõe
   );
   await db.exec("set role service_role");
   try {
-    await assert.rejects(
-      one("select reserve_sheet_number($1,$2,$3)", [
-        org,
-        admin,
-        crypto.randomUUID(),
-      ]),
-      /permission denied/,
-    );
     await assert.rejects(
       one("select operate_stock($1,$2,$3,$4,$5,$6,$7)", [
         org,

@@ -1,4 +1,5 @@
 -- MIGRATION 004 - Reservas de estoque, idempotência, evidências e controle de acesso.
+-- Requer as migrations anteriores.
 -- Evolução aditiva: fichas históricas já baixadas são preservadas como LEGACY_ISSUED.
 alter table public.memberships drop constraint memberships_role_check;
 update public.memberships set role='SEGURANCA_TRABALHO' where role='SEGURANCA';

@@ -1,4 +1,5 @@
 -- MIGRATION 002 - Auditoria da confirmação do e-mail do colaborador.
+-- Requer 001_init.sql.
 -- Registra a validação de e-mail sem guardar o código ou o endereço no log.
 create or replace function public.verify_employee_email(p_employee uuid, p_code_hash text)
 returns boolean language plpgsql security definer set search_path = '' as $$

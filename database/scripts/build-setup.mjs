@@ -6,6 +6,14 @@ const directory = resolve(root, "supabase/migrations");
 const files = (await readdir(directory))
   .filter((f) => f.endsWith(".sql"))
   .sort();
+if (!files.length) throw new Error("Nenhuma migration SQL encontrada.");
+for (const [index, file] of files.entries()) {
+  const match = /^(\d{3,})_[a-z0-9_]+\.sql$/.exec(file);
+  if (!match || Number(match[1]) !== index + 1)
+    throw new Error(
+      `Sequência inválida em ${file}. Use 001, 002, 003… sem lacunas.`,
+    );
+}
 const parts = await Promise.all(
   files.map(
     async (file) =>

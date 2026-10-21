@@ -1,4 +1,5 @@
--- MIGRATION 007 - Estoque sem lotes e Nº de Registro igual à matrícula do colaborador.
+-- MIGRATION 006 - Estoque sem lotes e Nº de Registro igual à matrícula do colaborador.
+-- Requer 001 a 005; não cria contador nem numeração sequencial por ficha.
 -- Additive transition. Old lots, documents, hashes and movements are retained as history.
 -- Active stock is now per equipment size (variant), not per lot.
 create table public.inventory_stock(
@@ -39,8 +40,8 @@ create index reservations_variant_status on public.stock_reservations(variant_id
 alter table public.sheets add column employee_registration text;
 alter table public.employees add constraint employee_registration_nonblank check(length(trim(registration))>0) not valid;
 
--- Historical numeric registers remain untouched; new documents use the employee's enrollment.
-create or replace function public.enforce_sheet_register()returns trigger language plpgsql security definer set search_path='' as $$
+-- New documents use the employee's enrollment; old snapshots remain untouched.
+create function public.enforce_sheet_register()returns trigger language plpgsql security definer set search_path='' as $$
 declare v_registration text;
 begin
  select registration into v_registration from public.employees where id=new.employee_id and organization_id=new.organization_id for update;
@@ -48,9 +49,10 @@ begin
   raise exception 'O número de registro deve ser a matrícula do colaborador';
  end if;
  new.employee_registration:=v_registration;
- new.record_number:=null;
  return new;
 end $$;
+revoke all on function public.enforce_sheet_register()from public,anon,authenticated;
+create trigger sheets_register before insert on public.sheets for each row execute function public.enforce_sheet_register();
 
 create function public.operate_inventory(p_org uuid,p_actor uuid,p_variant uuid,p_quantity integer,p_reason text,p_adjust boolean,p_key uuid)
 returns integer language plpgsql security definer set search_path='' as $$
@@ -150,10 +152,9 @@ begin
  insert into public.audit_events(organization_id,actor_id,action,entity,entity_id,detail)values(p_org,p_actor,'RESERVATION_CANCELLED','sheet',p_sheet,jsonb_build_object('reason',p_note));
 end $$;
 
--- Legacy data is readable for auditing, but no new active flow can mutate lots or allocate sequential registers.
+-- Legacy data is readable for auditing, but no new active flow can mutate lots.
 revoke execute on function public.operate_stock(uuid,uuid,uuid,integer,text,boolean,uuid)from service_role;
 revoke execute on function public.receive_stock(uuid,uuid,uuid,integer,text)from service_role;
-revoke execute on function public.reserve_sheet_number(uuid,uuid,uuid)from service_role;
 create function public.reject_legacy_lot_change()returns trigger language plpgsql set search_path='' as $$
 begin raise exception 'Lotes foram desativados; use o estoque por equipamento e tamanho';end $$;
 revoke all on function public.reject_legacy_lot_change()from public,anon,authenticated;

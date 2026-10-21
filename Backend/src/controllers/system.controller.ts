@@ -101,7 +101,7 @@ export const getbootstrap: RequestHandler<{
       c.admin
         .from("sheets")
         .select(
-          "id,employee_id,version,record_number,employee_registration,issued_at,signature_method,pdf_sha256",
+          "id,employee_id,version,employee_registration,issued_at,signature_method,pdf_sha256",
         )
         .eq("organization_id", c.orgId)
         .order("issued_at", { ascending: false })

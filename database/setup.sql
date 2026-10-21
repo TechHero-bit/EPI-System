@@ -3,8 +3,9 @@
 begin;
 do $$begin if to_regclass('public.organizations') is not null then raise exception 'Estrutura EPI já existe. Use somente as migrations pendentes.';end if;end $$;
 
--- MIGRATION: 202610190001_init.sql
+-- MIGRATION: 001_init.sql
 -- MIGRATION 001 - Estrutura inicial do ERP, integridade, permissões e RLS.
+-- Aplicar antes de 002_audit_email_verification.sql.
 -- Execute somente em projeto Supabase de desenvolvimento. Produção exige revisão e backup.
 -- gen_random_uuid() é nativo no PostgreSQL 13+; não requer extensão.
 
@@ -346,8 +347,9 @@ revoke all on function public.purge_signature_ips(integer) from public, anon, au
 grant execute on function public.purge_signature_ips(integer) to service_role;
 
 
--- MIGRATION: 202610200001_audit_email_verification.sql
+-- MIGRATION: 002_audit_email_verification.sql
 -- MIGRATION 002 - Auditoria da confirmação do e-mail do colaborador.
+-- Requer 001_init.sql.
 -- Registra a validação de e-mail sem guardar o código ou o endereço no log.
 create or replace function public.verify_employee_email(p_employee uuid, p_code_hash text)
 returns boolean language plpgsql security definer set search_path = '' as $$
@@ -373,8 +375,9 @@ begin
 end $$;
 
 
--- MIGRATION: 202610200002_manual_signature.sql
+-- MIGRATION: 003_manual_signature.sql
 -- MIGRATION 003 - Registro de assinatura presencial, independente da entrega física.
+-- Requer as migrations anteriores.
 create function public.record_manual_signature(p_org uuid, p_actor uuid, p_sheet uuid, p_note text)
 returns void language plpgsql security definer set search_path = '' as $$
 declare v_sheet public.sheets%rowtype;
@@ -397,8 +400,9 @@ revoke all on function public.record_manual_signature(uuid,uuid,uuid,text) from 
 grant execute on function public.record_manual_signature(uuid,uuid,uuid,text) to service_role;
 
 
--- MIGRATION: 20261020120000_reservations_and_access.sql
+-- MIGRATION: 004_reservations_and_access.sql
 -- MIGRATION 004 - Reservas de estoque, idempotência, evidências e controle de acesso.
+-- Requer as migrations anteriores.
 -- Evolução aditiva: fichas históricas já baixadas são preservadas como LEGACY_ISSUED.
 alter table public.memberships drop constraint memberships_role_check;
 update public.memberships set role='SEGURANCA_TRABALHO' where role='SEGURANCA';
@@ -563,8 +567,9 @@ grant all on all tables in schema public to service_role;
 grant usage,select on all sequences in schema public to service_role;
 
 
--- MIGRATION: 20261020130000_signing_identity.sql
+-- MIGRATION: 005_signing_identity.sql
 -- MIGRATION 005 - Identidade do signatário, evidências imutáveis e auditoria dos cadastros.
+-- Requer as migrations anteriores.
 -- Vincula cada desafio ao canal verificado no momento da criação do link.
 alter table public.signing_links add column recipient_email text, add column recipient_verified_at timestamptz;
 create or replace function public.complete_signature(p_link uuid,p_otp_hash text,p_ip inet,p_agent text)returns uuid language plpgsql security definer set search_path=''as $$
@@ -605,66 +610,9 @@ create trigger variants_audit after insert or update on public.variants for each
 create trigger lots_created_audit after insert on public.lots for each row execute function public.audit_catalog_write();
 
 
--- MIGRATION: 202610210001_sheet_register.sql
--- MIGRATION 006 - Numeração sequencial por ficha (regra histórica substituída pela 007).
--- Register is per document and per organization, never the employee's enrollment.
--- Numbers reserved for failed/cancelled emissions are not reused (gaps are intentional).
-alter table public.sheets add column record_number bigint;
--- Historical signed records stay untouched. They have no retroactive register.
-create unique index sheets_record_number on public.sheets(organization_id,record_number);
-
-create table public.sheet_number_counters(
- organization_id uuid primary key references public.organizations(id),
- last_number bigint not null check(last_number>0)
-);
-create table public.sheet_number_allocations(
- organization_id uuid not null references public.organizations(id),
- request_key uuid not null,
- record_number bigint not null check(record_number>0),
- allocated_by uuid not null references auth.users(id),
- created_at timestamptz not null default now(),
- primary key(organization_id,request_key),unique(organization_id,record_number)
-);
-alter table public.sheet_number_counters enable row level security;
-alter table public.sheet_number_allocations enable row level security;
-revoke all on public.sheet_number_counters,public.sheet_number_allocations from anon,authenticated;
-
-create function public.reserve_sheet_number(p_org uuid,p_actor uuid,p_key uuid)
-returns bigint language plpgsql security definer set search_path='' as $$
-declare v_number bigint;
-begin
- if not exists(select 1 from public.memberships where organization_id=p_org and user_id=p_actor and role in('ADMIN','RH','SEGURANCA_TRABALHO'))then raise exception 'Acesso negado';end if;
- if p_key is null then raise exception 'Chave de idempotência obrigatória';end if;
- perform pg_advisory_xact_lock(hashtextextended(p_org::text||p_key::text,0));
- select record_number into v_number from public.sheet_number_allocations where organization_id=p_org and request_key=p_key;
- if found then return v_number;end if;
- -- Historical retries retain their number without changing their signed snapshot.
- select record_number into v_number from public.sheets where organization_id=p_org and request_key=p_key;
- if found and v_number is not null then return v_number;end if;
- insert into public.sheet_number_counters as c(organization_id,last_number)values(p_org,1)
- on conflict(organization_id)do update set last_number=c.last_number+1 returning last_number into v_number;
- insert into public.sheet_number_allocations(organization_id,request_key,record_number,allocated_by)values(p_org,p_key,v_number,p_actor);
- insert into public.audit_events(organization_id,actor_id,action,entity,entity_id,detail)
- values(p_org,p_actor,'SHEET_NUMBER_RESERVED','sheet_request',p_key,jsonb_build_object('recordNumber',v_number));
- return v_number;
-end $$;
-revoke all on function public.reserve_sheet_number(uuid,uuid,uuid)from public,anon,authenticated;
-grant execute on function public.reserve_sheet_number(uuid,uuid,uuid)to service_role;
-
-create function public.enforce_sheet_register()returns trigger language plpgsql security definer set search_path='' as $$
-declare v_number bigint;
-begin
- select record_number into v_number from public.sheet_number_allocations where organization_id=new.organization_id and request_key=new.request_key;
- if v_number is null or (new.snapshot->>'recordNumber')::bigint is distinct from v_number then raise exception 'Número de registro não reservado ou divergente';end if;
- new.record_number:=v_number;
- return new;
-end $$;
-revoke all on function public.enforce_sheet_register()from public,anon,authenticated;
-create trigger sheets_register before insert on public.sheets for each row execute function public.enforce_sheet_register();
-
-
--- MIGRATION: 202610210002_inventory_without_lots.sql
--- MIGRATION 007 - Estoque sem lotes e Nº de Registro igual à matrícula do colaborador.
+-- MIGRATION: 006_inventory_without_lots.sql
+-- MIGRATION 006 - Estoque sem lotes e Nº de Registro igual à matrícula do colaborador.
+-- Requer 001 a 005; não cria contador nem numeração sequencial por ficha.
 -- Additive transition. Old lots, documents, hashes and movements are retained as history.
 -- Active stock is now per equipment size (variant), not per lot.
 create table public.inventory_stock(
@@ -705,8 +653,8 @@ create index reservations_variant_status on public.stock_reservations(variant_id
 alter table public.sheets add column employee_registration text;
 alter table public.employees add constraint employee_registration_nonblank check(length(trim(registration))>0) not valid;
 
--- Historical numeric registers remain untouched; new documents use the employee's enrollment.
-create or replace function public.enforce_sheet_register()returns trigger language plpgsql security definer set search_path='' as $$
+-- New documents use the employee's enrollment; old snapshots remain untouched.
+create function public.enforce_sheet_register()returns trigger language plpgsql security definer set search_path='' as $$
 declare v_registration text;
 begin
  select registration into v_registration from public.employees where id=new.employee_id and organization_id=new.organization_id for update;
@@ -714,9 +662,10 @@ begin
   raise exception 'O número de registro deve ser a matrícula do colaborador';
  end if;
  new.employee_registration:=v_registration;
- new.record_number:=null;
  return new;
 end $$;
+revoke all on function public.enforce_sheet_register()from public,anon,authenticated;
+create trigger sheets_register before insert on public.sheets for each row execute function public.enforce_sheet_register();
 
 create function public.operate_inventory(p_org uuid,p_actor uuid,p_variant uuid,p_quantity integer,p_reason text,p_adjust boolean,p_key uuid)
 returns integer language plpgsql security definer set search_path='' as $$
@@ -816,10 +765,9 @@ begin
  insert into public.audit_events(organization_id,actor_id,action,entity,entity_id,detail)values(p_org,p_actor,'RESERVATION_CANCELLED','sheet',p_sheet,jsonb_build_object('reason',p_note));
 end $$;
 
--- Legacy data is readable for auditing, but no new active flow can mutate lots or allocate sequential registers.
+-- Legacy data is readable for auditing, but no new active flow can mutate lots.
 revoke execute on function public.operate_stock(uuid,uuid,uuid,integer,text,boolean,uuid)from service_role;
 revoke execute on function public.receive_stock(uuid,uuid,uuid,integer,text)from service_role;
-revoke execute on function public.reserve_sheet_number(uuid,uuid,uuid)from service_role;
 create function public.reject_legacy_lot_change()returns trigger language plpgsql set search_path='' as $$
 begin raise exception 'Lotes foram desativados; use o estoque por equipamento e tamanho';end $$;
 revoke all on function public.reject_legacy_lot_change()from public,anon,authenticated;

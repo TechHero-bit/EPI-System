@@ -1,5 +1,11 @@
 # Validação local
 
+## Renumeração pré-instalação — vigente
+
+Após o usuário confirmar que nenhuma migration foi executada, os arquivos passaram a se chamar `001_init.sql` a `006_inventory_without_lots.sql`. A antiga migration de contador por ficha foi removida e a atual 006 passou a criar diretamente o trigger de matrícula, sem tabelas, função ou coluna de numeração sequencial. Nomes antigos citados nos relatórios históricos abaixo não são instruções de instalação atuais. Correspondência e detalhes em [MIGRATION-RENUMBERING.md](MIGRATION-RENUMBERING.md).
+
+Nesta rodada, `npm test` passou com 40 testes: 11 de API/documentos, 10 de demonstração e 19 de banco. O consolidado foi regenerado e conferido por `npm run db:check`. A aplicação das seis migrations e do setup foi testada somente em bancos locais PGlite, sem SQL remoto. A suíte de navegador descrita abaixo pertence à rodada anterior e não foi repetida nesta mudança de migrations.
+
 ## Atualização vigente — sem lotes e com modelo corporativo
 
 Esta atualização substitui a numeração sequencial descrita no histórico abaixo: o Nº de Registro das novas fichas é a matrícula textual do colaborador, inclusive zeros à esquerda. O arquivo original `MODELO FICHA DE EPI 2026.xlsx` foi fornecido, inspecionado e incorporado em cópia adaptada com logotipo, declaração e legendas. Não se trata mais do modelo provisório baseado na imagem.
