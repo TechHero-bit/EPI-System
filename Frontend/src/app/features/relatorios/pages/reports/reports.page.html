@@ -1,0 +1,61 @@
+<div class="page-head">
+  <div>
+    <span class="eyebrow">INDICADORES E EVIDÊNCIAS</span>
+    <h1>Relatórios</h1>
+    <p>Consulte as movimentações e a trilha de auditoria da organização.</p>
+  </div>
+  <button class="primary" (click)="exportCsv()">Exportar consulta CSV</button>
+</div>
+<section class="panel">
+  <div class="toolbar">
+    <input
+      aria-label="Buscar evento"
+      [(ngModel)]="query"
+      placeholder="Buscar ação ou entidade…"
+    /><label>De<input type="date" [(ngModel)]="from" /></label
+    ><label>Até<input type="date" [(ngModel)]="to" /></label>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Data / hora</th>
+          <th>Evento</th>
+          <th>Entidade</th>
+          <th>Responsável</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (a of audits; track a.id) {
+          <tr>
+            <td>{{ a.created_at | date: "dd/MM/yyyy HH:mm:ss" }}</td>
+            <td>
+              <strong>{{ a.action }}</strong>
+            </td>
+            <td>
+              {{ a.entity || "Ficha" }}<br /><small>{{ a.entity_id }}</small>
+            </td>
+            <td>
+              {{
+                a.actor_id ||
+                  (s.demo
+                    ? "Pessoa demonstradora"
+                    : "Evento do
+            sistema")
+              }}
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="4" class="empty">Nenhum evento encontrado.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="note">
+    Consulta operacional dos últimos 100 eventos carregados. Use a API de
+    auditoria paginada para períodos maiores. Exportações de documentos
+    individuais estão nos detalhes de cada ficha.
+  </p>
+</section>

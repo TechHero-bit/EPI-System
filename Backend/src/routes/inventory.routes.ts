@@ -1,0 +1,12 @@
+import { Router } from "express";
+import * as controller from "../controllers/inventory.controller.js";
+const router = Router();
+router.post("/products", controller.postproducts);
+router.patch("/products/:id", controller.patchproductsId);
+router.delete("/products/:id", controller.deleteproductsId);
+router.post("/variants", controller.postvariants);
+router.post("/lots", controller.postlots);
+router.post("/lots/:id/receive", controller.postlotsIdReceive);
+router.post("/lots/:id/adjust", controller.postlotsIdAdjust);
+router.get("/categories", controller.getcategories);
+export default router;

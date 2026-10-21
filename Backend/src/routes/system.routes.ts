@@ -1,0 +1,11 @@
+import { Router } from "express";
+import * as controller from "../controllers/system.controller.js";
+const router = Router();
+router.get("/health", controller.gethealth);
+router.get("/config", controller.getconfig);
+router.get("/openapi.json", controller.getopenapiJson);
+router.get("/face-match/capabilities", controller.getfaceMatchCapabilities);
+router.post("/face-match/verify", controller.postfaceMatchVerify);
+router.get("/jobs/retention", controller.getjobsRetention);
+router.get("/bootstrap", controller.getbootstrap);
+export default router;

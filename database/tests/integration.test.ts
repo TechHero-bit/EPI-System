@@ -2,7 +2,10 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
-import { token, secretHash } from "../../backend/src/security.ts";
+import {
+  token,
+  secretHash,
+} from "../../Backend/src/services/security.service.ts";
 const db = new PGlite();
 const org = "10000000-0000-4000-8000-000000000001",
   other = "20000000-0000-4000-8000-000000000001";
@@ -71,13 +74,167 @@ before(async () => {
 after(async () => {
   await db.close();
 });
+test("registro é sequencial por organização e idempotente, não por funcionário", async () => {
+  const firstKey = crypto.randomUUID(),
+    secondKey = crypto.randomUUID();
+  const reserve = (key: string, organization = org, actor = admin) =>
+    one("select public.reserve_sheet_number($1,$2,$3)as n", [
+      organization,
+      actor,
+      key,
+    ]);
+  const first = await reserve(firstKey),
+    second = await reserve(secondKey);
+  assert.equal(Number(second.n), Number(first.n) + 1);
+  assert.equal((await reserve(firstKey)).n, first.n);
+  assert.equal(
+    Number((await reserve(crypto.randomUUID(), other, outsider)).n),
+    1,
+  );
+  await assert.rejects(
+    reserve(crypto.randomUUID(), org, stock),
+    /Acesso negado/,
+  );
+  await assert.rejects(
+    reserve(crypto.randomUUID(), org, outsider),
+    /Acesso negado/,
+  );
+});
+test("atualização preserva snapshot e hash das fichas já emitidas", async () => {
+  const existing = new PGlite();
+  try {
+    await existing.exec(prelude);
+    const files = (await readdir("database/supabase/migrations")).sort();
+    for (const file of files.filter(
+      (f) => f !== "202610210001_sheet_register.sql",
+    ))
+      await existing.exec(
+        await readFile(`database/supabase/migrations/${file}`, "utf8"),
+      );
+    await existing.exec(await readFile("database/supabase/seed.sql", "utf8"));
+    await existing.query("insert into auth.users(id)values($1)", [admin]);
+    await existing.query(
+      "insert into memberships(organization_id,user_id,role)values($1,$2,'ADMIN')",
+      [org, admin],
+    );
+    const person = (
+      await existing.query<any>("select id from employees limit 1")
+    ).rows[0].id;
+    const batch = (
+      await existing.query<any>("select id,variant_id from lots limit 1")
+    ).rows[0];
+    await existing.query(
+      "update lots set stock_quantity=10,expires_at=null where id=$1",
+      [batch.id],
+    );
+    const key = crypto.randomUUID(),
+      items = [{ variant_id: batch.variant_id, lot_id: batch.id, quantity: 1 }],
+      snapshot = { requestKey: key, documentDate: "2026-10-21", items };
+    const id = (
+      await existing.query<any>(
+        "select issue_sheet($1,$2,$3,$4,$5,$6,$7,$8,$9)as id",
+        [
+          org,
+          admin,
+          person,
+          JSON.stringify(snapshot),
+          "a".repeat(64),
+          "b".repeat(64),
+          `${key}.pdf`,
+          "MANUAL",
+          JSON.stringify(items),
+        ],
+      )
+    ).rows[0].id;
+    await existing.exec(
+      await readFile(
+        "database/supabase/migrations/202610210001_sheet_register.sql",
+        "utf8",
+      ),
+    );
+    const saved = (
+      await existing.query<any>(
+        "select snapshot,pdf_sha256,record_number from sheets where id=$1",
+        [id],
+      )
+    ).rows[0];
+    assert.deepEqual(saved.snapshot, snapshot);
+    assert.equal(saved.pdf_sha256, "b".repeat(64));
+    assert.equal(saved.record_number, null);
+    await assert.rejects(
+      existing.query("update sheets set record_number=1 where id=$1", [id]),
+    );
+  } finally {
+    await existing.close();
+  }
+});
+test("banco recusa número de registro forjado e não permite reescrever ficha", async () => {
+  const key = crypto.randomUUID();
+  const n = (
+    await one("select public.reserve_sheet_number($1,$2,$3)as n", [
+      org,
+      admin,
+      key,
+    ])
+  ).n;
+  await assert.rejects(
+    one("select public.issue_sheet($1,$2,$3,$4,$5,$6,$7,$8,$9)as id", [
+      org,
+      admin,
+      employee,
+      JSON.stringify({
+        requestKey: key,
+        recordNumber: Number(n) + 100,
+        items: [],
+        documentDate: "2026-10-25",
+      }),
+      "a".repeat(64),
+      "b".repeat(64),
+      `${key}.pdf`,
+      "MANUAL",
+      JSON.stringify([{ variant_id: variant, lot_id: lot, quantity: 1 }]),
+    ]),
+    /registro não reservado ou divergente/,
+  );
+  const id = await issue(admin, undefined, "MANUAL", key);
+  const saved = await one(
+    "select record_number,snapshot from public.sheets where id=$1",
+    [id],
+  );
+  assert.equal(Number(saved.record_number), Number(n));
+  assert.equal(Number(saved.snapshot.recordNumber), Number(n));
+  await assert.rejects(
+    one(
+      "update public.sheets set record_number=999999 where id=$1 returning id",
+      [id],
+    ),
+  );
+  await one("select public.cancel_reservation($1,$2,$3,$4)", [
+    org,
+    admin,
+    id,
+    "Teste de numeração",
+  ]);
+});
 async function issue(
   actor = admin,
   items = [{ variant_id: variant, lot_id: lot, quantity: 1 }],
   method = "ELECTRONIC",
   key = crypto.randomUUID(),
 ) {
-  const snapshot = { requestKey: key, documentDate: "2026-10-20", items };
+  const recordNumber = (
+    await one("select public.reserve_sheet_number($1,$2,$3)as n", [
+      org,
+      actor,
+      key,
+    ])
+  ).n;
+  const snapshot = {
+    requestKey: key,
+    recordNumber,
+    documentDate: "2026-10-20",
+    items,
+  };
   return (
     await one("select public.issue_sheet($1,$2,$3,$4,$5,$6,$7,$8,$9)as id", [
       org,

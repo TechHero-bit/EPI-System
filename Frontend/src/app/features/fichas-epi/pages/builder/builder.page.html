@@ -1,0 +1,240 @@
+<div class="page-head">
+  <div>
+    <span class="eyebrow">FICHAS DE EPI</span>
+    <h1>Uma ficha. Cada proteção.</h1>
+    <p>
+      Selecione os equipamentos por cartões. Cada seleção adiciona uma unidade.
+    </p>
+  </div>
+  <span class="date-pill">Etapa {{ step }} de 3</span>
+</div>
+<div class="stepper">
+  <button [class.active]="step === 1" (click)="step = 1">1 · Colaborador</button
+  ><button
+    [class.active]="step === 2"
+    [disabled]="!employeeId"
+    (click)="step = 2"
+  >
+    2 · Equipamentos</button
+  ><button
+    [class.active]="step === 3"
+    [disabled]="!draft.length"
+    (click)="step = 3"
+  >
+    3 · Revisão e emissão
+  </button>
+</div>
+<div class="builder">
+  <div>
+    @if (step === 1) {
+      <section class="panel">
+        <h2>Para quem vamos preparar a ficha?</h2>
+        <input
+          aria-label="Buscar colaborador"
+          [(ngModel)]="employeeQuery"
+          placeholder="Buscar por nome ou matrícula…"
+        />
+        <div class="people-picker">
+          @for (e of employees; track e.id) {
+            <button
+              class="person-option"
+              [class.selected]="employeeId === e.id"
+              (click)="employeeId = e.id"
+            >
+              <span class="avatar">{{ e.name.slice(0, 1) }}</span
+              ><span
+                ><strong>{{ e.name }}</strong
+                ><small
+                  >{{ e.registration }} · {{ e.job_title }} ·
+                  {{ e.department }}</small
+                ></span
+              ><span>{{ employeeId === e.id ? "✓" : "+" }}</span>
+            </button>
+          } @empty {
+            <div class="empty">Nenhum colaborador ativo encontrado.</div>
+          }
+        </div>
+        <button class="primary" [disabled]="!employeeId" (click)="step = 2">
+          Escolher equipamentos →
+        </button>
+      </section>
+    }
+    @if (step === 2) {
+      <section class="panel">
+        <h2>Escolha os equipamentos e tamanhos</h2>
+        <div class="toolbar">
+          <input
+            aria-label="Buscar equipamento"
+            [(ngModel)]="query"
+            placeholder="Buscar nome, CA ou tamanho…"
+          /><select aria-label="Categoria" [(ngModel)]="category">
+            <option value="">Todas as categorias</option>
+            @for (c of categories; track c) {
+              <option>{{ c }}</option>
+            }
+          </select>
+        </div>
+        <div class="equipment-grid">
+          @for (v of variants; track v.id) {
+            <button
+              class="equipment-card"
+              [disabled]="!available(v.id)"
+              (click)="add(v)"
+            >
+              <strong>{{ s.product(v.product_id)?.description }}</strong
+              ><small
+                >CA {{ s.product(v.product_id)?.ca || "N/A" }} · Tam.
+                {{ v.size }}</small
+              ><span class="stock-tag" [class.out]="!available(v.id)"
+                >{{ available(v.id) }} disponíveis · + 1 un.</span
+              >
+            </button>
+          } @empty {
+            <div class="empty">Nenhum equipamento encontrado.</div>
+          }
+        </div>
+        <button
+          class="primary spaced"
+          [disabled]="!draft.length"
+          (click)="step = 3"
+        >
+          Revisar seleção →
+        </button>
+      </section>
+    }
+    @if (step === 3) {
+      <section class="panel">
+        <h2>Revisar e gerar ficha</h2>
+        <p>
+          <strong>{{ s.employee(employeeId)?.name }}</strong
+          ><br />{{ s.employee(employeeId)?.job_title }} ·
+          {{ s.employee(employeeId)?.department }}
+        </p>
+        <label class="field"
+          >Data da entrega (padrão dos itens)<input
+            type="date"
+            [(ngModel)]="date" /></label
+        ><label class="field"
+          >Método de assinatura<select [(ngModel)]="method">
+            <option value="ELECTRONIC">Eletrônica por link + código</option>
+            <option value="MANUAL">Presencial / documento impresso</option>
+          </select></label
+        >
+        <div class="note">
+          A emissão reserva os equipamentos. A assinatura remota mantém a
+          entrega física pendente; a baixa ocorre na confirmação presencial.
+        </div>
+        <div class="form-grid spaced">
+          <label class="field"
+            >Funcionário(a)<input
+              [value]="s.employee(employeeId)?.name || ''"
+              readonly
+          /></label>
+          <label class="field"
+            >Função<input
+              [value]="s.employee(employeeId)?.job_title || ''"
+              readonly
+          /></label>
+          <label class="field"
+            >Data da Admissão<input
+              type="date"
+              [value]="s.employee(employeeId)?.admission_date || ''"
+              readonly
+          /></label>
+          <label class="field"
+            >Data da Demissão<input
+              type="date"
+              [value]="s.employee(employeeId)?.termination_date || ''"
+              readonly
+          /></label>
+        </div>
+        <p class="note">
+          Nº de Registro atribuído automaticamente a cada ficha. A data de
+          geração será a data da emissão, no horário de Brasília. Para corrigir
+          os dados do funcionário, edite seu cadastro antes de emitir.
+        </p>
+        <button
+          class="primary wide"
+          [disabled]="s.busy() || !draft.length || !employeeId || !date"
+          (click)="issue()"
+        >
+          {{
+            s.busy()
+              ? "Gerando…"
+              : s.demo
+                ? "Gerar ficha demonstrativa"
+                : "Gerar
+        ficha e reservar EPIs"
+          }}
+        </button>
+      </section>
+    }
+  </div>
+  <aside class="panel builder-summary">
+    <div class="panel-title">
+      <h2>Seleção da ficha</h2>
+      <span class="count">{{ draft.length }} itens</span>
+    </div>
+    @for (item of draft; track $index) {
+      <div class="draft-item">
+        <div>
+          <strong>{{
+            s.product(s.variant(item.variantId)?.product_id)?.description
+          }}</strong
+          ><small
+            >Tamanho {{ s.variant(item.variantId)?.size }} · 1 unidade</small
+          ><label class="field"
+            >Descrição de E.P.I.<input
+              [(ngModel)]="item.description"
+              maxlength="180"
+              required
+          /></label>
+          <label class="field"
+            >C.A.<input [(ngModel)]="item.ca" maxlength="50"
+          /></label>
+          <label class="field"
+            >Marca<input [(ngModel)]="item.brand" maxlength="100"
+          /></label>
+          <label class="field"
+            >Risco<input [(ngModel)]="item.risk" maxlength="30"
+          /></label>
+          <label class="field"
+            >Data da entrega do item<input
+              type="date"
+              [(ngModel)]="item.deliveryDate"
+              [placeholder]="date"
+            /><small
+              >Em branco: usa a data padrão
+              {{ date | date: "dd/MM/yyyy" }}.</small
+            ></label
+          >
+          <label
+            >Lote<select [(ngModel)]="item.lotId" aria-label="Selecionar lote">
+              @for (l of validLots(item.variantId); track l.id) {
+                <option [value]="l.id">
+                  {{ l.batch_code }} · {{ s.available(l) }} disponíveis
+                </option>
+              }
+            </select></label
+          >
+        </div>
+        <button
+          class="remove"
+          (click)="draft.splice($index, 1)"
+          aria-label="Remover item"
+        >
+          ×
+        </button>
+      </div>
+    } @empty {
+      <div class="empty">Os equipamentos selecionados aparecerão aqui.</div>
+    }
+    <div class="summary-footer">
+      <span>Quantidade fixa: 1 unidade por linha</span
+      ><small
+        >Os campos vermelhos do documento original não fazem parte da
+        montagem.</small
+      >
+    </div>
+  </aside>
+</div>

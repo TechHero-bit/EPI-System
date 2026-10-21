@@ -17,22 +17,28 @@ Abra http://localhost:4200 e clique em **Entrar na demonstração**. Escolha RH 
 ## Organização
 
 ```text
-frontend/
+Frontend/
   src/app/
-    core/                  sessão, permissões, API e repositório demonstrativo
-    layouts/               navegação e estrutura responsiva
-    components/            componentes compartilhados
-    features/              auth, dashboard, almoxarifado, colaboradores,
-                           fichas-epi, assinaturas, relatorios, administracao
-    shared/                documentos demonstrativos PDF/Excel
+    core/models/           contratos e modelos
+    core/services/         sessão, API e repositório demonstrativo
+    core/guards/           proteção das rotas por perfil
+    layout/app-shell/      navegação e estrutura responsiva
+    shared/components/     componentes compartilhados
+    shared/utils/          ordenação e adaptação documental da demonstração
+    features/*/pages/*/    páginas .page.ts com templates .page.html separados
   e2e/                     testes no navegador
-  tests/                   testes das regras demonstrativas
+  test/                    testes das regras demonstrativas
   vercel.json
-backend/
+Backend/
   api/index.ts             entrada serverless Express
-  src/                     API, validação, documentos, segurança
+  src/config/              ambiente e OpenAPI
+  src/routes/              rotas por domínio
+  src/controllers/         tratamento HTTP por domínio
+  src/schemas/             validação de entradas
+  src/services/            documentos, segurança, acesso e persistência
+  src/middlewares/         erros e limitação de requisições
   src/modules/face-match/  contrato de integração facial 1:1
-  tests/                   testes HTTP
+  test/                    testes HTTP e serviços
   vercel.json
 database/
   supabase/migrations/     fonte única das migrations
@@ -50,7 +56,7 @@ package.json               npm workspaces
 README.md
 ```
 
-Não há `api/` na raiz. `backend/api/` contém o adaptador Vercel. `dist/`, `node_modules/` e caches são artefatos locais ignorados pelo Git.
+Não há `api/` na raiz. `Backend/api/` contém o adaptador Vercel. `dist/`, `node_modules/` e caches são artefatos locais ignorados pelo Git.
 
 ## Rotas disponíveis
 
@@ -88,7 +94,11 @@ Os scripts leem o arquivo da raiz e, se houver, o `.env` do workspace. Variávei
 - RLS isola organizações e dados de RH. O cliente não altera perfis nem estoque diretamente. A API valida o JWT com Supabase Auth e confere permissões em cada operação.
 - CPF só é retornado ao RH, Segurança ou Administração. Documentos e anexos permanecem em buckets privados. Evidências de assinatura são imutáveis; IP/agente têm rotina de retenção.
 
-O modelo documental é **provisório** até receber o PDF original marcado. Rubrica individual por linha, data de devolução e M.D. não aparecem. Os campos amarelos exatos ainda precisam ser conferidos no documento fonte. A data indicada pelo RH é prevista; a entrega efetiva fica na evidência separada. A titularidade do e-mail exige conferência organizacional independente. Assinatura eletrônica simples não é apresentada como avançada ou qualificada.
+O PDF e o Excel usam o mesmo gerador portátil em `Backend/src/services/document.service.ts`, importado também pela demonstração. Os campos seguem a imagem fornecida: funcionário, função, admissão, demissão, registro da ficha e tabela de data da entrega, quantidade 1, descrição, C.A., marca e risco. Tamanho/lote continuam na rastreabilidade, fora da tabela impressa. Rubrica por linha, devolução e M.D. não aparecem. A reprodução não inclui a assinatura nem dados pessoais da foto; o arquivo Excel original ainda é necessário para validar fidelidade exata, logotipo e texto corporativo.
+
+A data de geração é automática na emissão (America/Sao_Paulo) e fica congelada no documento; a data da entrega é editável, com padrão geral e ajuste por item. Isso não confirma o recebimento físico, que continua exigindo uma ação separada. O Nº de Registro cresce por ficha e organização, com alocação transacional e repetição idempotente; números reservados em falhas/cancelamentos não são reutilizados e podem deixar lacunas. A matrícula do funcionário é outro campo. Documentos históricos assinados não são reescritos nem recebem numeração retroativa. Em banco existente, aplique somente a nova migration `202610210001_sheet_register.sql` (não o setup integral).
+
+A organização de diretórios acompanha `C:\Dev\GestaoDeChamados`, preservando TypeScript e Supabase. As pastas agora são `Backend/` e `Frontend/`, inclusive em sistemas sensíveis a maiúsculas. Atualize os Root Directories da Vercel para esses nomes e habilite a inclusão de arquivos fora da raiz do projeto no frontend para o gerador compartilhado. Nenhum deploy é feito pelos comandos locais. A titularidade do e-mail exige conferência organizacional independente. Assinatura eletrônica simples não é apresentada como avançada ou qualificada.
 
 ## Verificações
 
@@ -109,10 +119,10 @@ Após alterar migrations, execute `npm run db:setup` para atualizar o SQL consol
 
 Importe **TechHero-bit/EPI-System** duas vezes e selecione a branch `main`:
 
-| Projeto | Root Directory | Build | Output | Variáveis |
-|---|---|---|---|---|
-| epi-system-frontend | frontend | npm run build | dist/web/browser | APP_MODE=demo ou real; API_BASE_URL no modo real |
-| epi-system-backend | backend | npm run build | gerenciado por Functions | Supabase, APP_ORIGIN, TOKEN_PEPPER, SMTP, CRON_SECRET |
+| Projeto             | Root Directory | Build         | Output                   | Variáveis                                             |
+| ------------------- | -------------- | ------------- | ------------------------ | ----------------------------------------------------- |
+| epi-system-frontend | frontend       | npm run build | dist/web/browser         | APP_MODE=demo ou real; API_BASE_URL no modo real      |
+| epi-system-backend  | backend        | npm run build | gerenciado por Functions | Supabase, APP_ORIGIN, TOKEN_PEPPER, SMTP, CRON_SECRET |
 
 Mantenha habilitada a inclusão de arquivos externos à Root Directory para o npm workspace e seu lockfile na raiz. O frontend usa fallback SPA para acesso direto às rotas. O backend encaminha `/api/*` ao Express e não mantém estado de negócio em memória. Use Node.js 24.x e configure APP_ORIGIN com a URL exata do frontend. API_BASE_URL deve ser a URL HTTPS do backend, sem `/api` no fim.
 

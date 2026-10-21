@@ -24,6 +24,12 @@ No projeto hospedado, confira o project-ref e liste o histórico antes de aplica
 
 ## Modelo
 
+### Atualização de 21/10/2026
+
+Em instalação existente com todas as migrations anteriores, aplique somente `supabase/migrations/202610210001_sheet_register.sql`. Ela adiciona o registro sequencial por ficha/organização, reserva idempotente e validação entre número reservado e snapshot. Não atualiza PDFs nem snapshots históricos. Não execute `setup.sql` em banco existente. A aplicação dessa migration em Supabase hospedado ainda depende de revisão e autorização; nesta tarefa os testes executam bancos locais PGlite.
+
+O contador usa UPSERT com bloqueio de linha e alocação única por organização/chave. Emissões canceladas ou tentativas com falha não reutilizam números. As duas tabelas de controle têm RLS e não são acessíveis diretamente ao cliente; apenas o serviço autorizado pode reservar números. A matrícula do funcionário não participa da sequência.
+
 `memberships` representa perfil por organização. `products`, `variants` e `lots` representam equipamento, tamanho/SKU e lote. `stock_reservations` contém uma unidade por linha; `inventory_balances` é uma view com security_invoker. `sheets/sheet_items` preservam documentos; `sheet_state` separa estados; `receipts` registra entrega; `signatures/signature_evidences` guardam evidências. `operation_keys` garante idempotência e `request_limits` funciona entre instâncias serverless.
 
 Departamento, cargo, categoria e fornecedor são valores textuais nesta versão. `employee_biometrics` contém somente referência contratual para provedor futuro, sem imagens ou embeddings. Não há coleta biométrica habilitada.

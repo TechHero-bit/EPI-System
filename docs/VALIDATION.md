@@ -1,4 +1,18 @@
-# Validação local — 20/10/2026
+# Validação local
+
+## Atualização de 21/10/2026 — campos e organização
+
+Diretório de trabalho: `C:\Dev\EPI-System`. Estrutura comparada, somente por leitura, com `C:\Dev\GestaoDeChamados`. Backup anterior à mudança: `C:\Users\kevindesouza\.codex\visualizations\2026\10\20\01a159cb-1307-7a03-8c3c-881314ab5367\EPI-System-before-fields-reorganization-20261021.tar` (código, configurações e Git; dependências/caches regeneráveis excluídos).
+
+Separados Backend/Frontend, controllers/routes/schemas/services/middlewares, guards/services/models, páginas TypeScript e HTML. Um único gerador produz PDF e Excel na API e na demonstração. O Nº de Registro pertence à ficha (sequência por organização, idempotente), não à matrícula. Os campos do modelo, as datas de entrega editáveis e a geração automática em America/Sao_Paulo têm testes específicos.
+
+PDF de amostra renderizado com Poppler e Excel importado/renderizado com o motor de planilhas. Inspeção visual dos campos, datas, grade, rodapé de demonstração e ausência das colunas removidas; datas/quantidade/tipos e códigos com zeros são também conferidos com ExcelJS. Descrições longas geram paginação PDF e linhas Excel com altura expandida.
+
+Comandos: `npm run typecheck`, `npm test`, `npm run test:browser`, `npm run build`, `npm run db:check`. Os números e resultados finais estão no relatório de reestruturação desta data. A suíte Chromium precisou de encerramento autorizado do próprio servidor de teste na porta 4211, pois o sandbox do Windows bloqueou a limpeza automática; os nove cenários concluíram e o processo retornou código 0. Nenhum servidor de outro projeto foi encerrado.
+
+Sem integração remota: a nova migration foi testada em PostgreSQL PGlite, não aplicada no Supabase hospedado. Auth/Storage/SMTP hospedados e Vercel continuam pendentes de credenciais/autorização. A imagem foi usada como referência de campos; não foi fornecido o arquivo Excel original, logotipo ou texto corporativo editável para conferência de fidelidade exata. Não houve push/deploy/PR.
+
+## Histórico de 20/10/2026
 
 ## Atualização de interface na nova pasta
 
@@ -14,14 +28,14 @@ Projeto: `C:\Dev\EPI-ERP`. Node.js 24.15.0, Windows/PowerShell. Repositório ofi
 
 ## Resultados executados
 
-| Comando | Resultado |
-|---|---|
-| npm run typecheck | Backend e frontend aprovados |
-| npm test | 24 testes aprovados: 6 backend/HTTP/documentos, 6 demonstração, 12 SQL/RLS |
-| npm run test:browser | 4 testes Chromium aprovados |
-| npm run build | Angular e TypeScript aprovados |
-| npm run db:check | SQL consolidado corresponde às migrations |
-| git diff --check | Sem erros de whitespace |
+| Comando              | Resultado                                                                  |
+| -------------------- | -------------------------------------------------------------------------- |
+| npm run typecheck    | Backend e frontend aprovados                                               |
+| npm test             | 24 testes aprovados: 6 Backend/HTTP/documentos, 6 demonstração, 12 SQL/RLS |
+| npm run test:browser | 4 testes Chromium aprovados                                                |
+| npm run build        | Angular e TypeScript aprovados                                             |
+| npm run db:check     | SQL consolidado corresponde às migrations                                  |
+| git diff --check     | Sem erros de whitespace                                                    |
 
 O navegador abriu diretamente as 15 páginas internas pedidas e validou refresh, login demonstrativo, montagem com dois EPIs, download PDF e Excel, assinatura externa simulada, separação da entrega, perfil ALMOXARIFADO, busca e viewport móvel. A suíte detecta erros JavaScript nas páginas. O limite inicial de 30 segundos para a sequência inteira de navegação foi insuficiente em compilação local fria; o prazo dessa suíte foi ajustado e a nova execução passou.
 
@@ -51,7 +65,7 @@ Não foram executadas migrations em banco remoto. A stack Supabase completa não
 
 ## Backup
 
-Backup verificável de código, arquivos de configuração e histórico Git: `C:\Users\kevindesouza\Documents\Codex\2026-10-20\EPI-ERP-code-and-git-backup.tar`. A listagem foi conferida para .git/HEAD, backend/src/app.ts e package-lock.json. O backup anterior EPI-ERP-backup-20261020.zip também foi preservado. node_modules, dist e caches regeneráveis não fazem parte do TAR de código; uma tentativa de arquivar dependências encontrou arquivo bloqueado. Dependências são reconstituídas por npm ci.
+Backup verificável de código, arquivos de configuração e histórico Git: `C:\Users\kevindesouza\Documents\Codex\2026-10-20\EPI-ERP-code-and-git-backup.tar`. A listagem foi conferida para .git/HEAD, Backend/src/app.ts e package-lock.json. O backup anterior EPI-ERP-backup-20261020.zip também foi preservado. node_modules, dist e caches regeneráveis não fazem parte do TAR de código; uma tentativa de arquivar dependências encontrou arquivo bloqueado. Dependências são reconstituídas por npm ci.
 
 Os arquivos TypeScript, Angular, CSS e configurações foram formatados para revisão. A remoção dos componentes Angular antigos e a movimentação das migrations são recuperáveis pelo Git e pelos backups.
 

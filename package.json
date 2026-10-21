@@ -3,20 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "backend",
-    "frontend"
+    "Backend",
+    "Frontend"
   ],
   "scripts": {
     "dev:web": "npm run start -w @epi/frontend",
     "dev:api": "npm run dev -w @epi/backend",
     "build": "npm run build -w @epi/frontend && npm run build -w @epi/backend",
     "test": "npm run test -w @epi/backend && npm run test:demo && npm run test:db",
-    "test:demo": "node --import tsx --test frontend/tests/*.test.ts",
+    "test:demo": "node --import tsx --test Frontend/test/*.test.ts",
     "test:db": "node --import tsx --test database/tests/*.test.ts",
-    "test:browser": "playwright test --config frontend/playwright.config.ts",
+    "test:browser": "playwright test --config Frontend/playwright.config.ts",
     "db:setup": "node database/scripts/build-setup.mjs",
     "db:check": "node database/scripts/build-setup.mjs --check",
-    "api:docs": "node --import tsx backend/scripts/write-openapi.ts",
+    "api:docs": "node --import tsx Backend/scripts/write-openapi.ts",
+    "documents:preview": "node --import tsx Backend/scripts/preview-document.ts",
     "typecheck": "npm run typecheck -w @epi/backend && npm run typecheck -w @epi/frontend"
   },
   "engines": {

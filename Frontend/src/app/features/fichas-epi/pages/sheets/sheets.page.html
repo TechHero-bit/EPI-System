@@ -1,0 +1,91 @@
+<div class="page-head">
+  <div>
+    <span class="eyebrow">RH / SEGURANÇA DO TRABALHO</span>
+    <h1>Fichas de EPI</h1>
+    <p>
+      Documentos versionados, assinaturas e entregas acompanhados separadamente.
+    </p>
+  </div>
+  <a class="primary button-link" routerLink="/rh/fichas/nova">+ Montar ficha</a>
+</div>
+<section class="panel">
+  <div class="toolbar">
+    <input
+      aria-label="Buscar ficha"
+      [(ngModel)]="query"
+      placeholder="Buscar colaborador ou identificador…"
+    /><select aria-label="Filtrar assinatura" [(ngModel)]="status">
+      <option value="">Todos os estados</option>
+      <option value="SIGNED_ELECTRONIC">Assinada eletronicamente</option>
+      <option value="SIGNED_MANUAL">Assinada presencialmente</option>
+      <option value="PENDING">Pendente</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Colaborador / ficha</th>
+          <th>Emissão</th>
+          <th>Nº de Registro / Versão</th>
+          <th>Assinatura</th>
+          <th>Entrega física</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (f of sheets; track f.id) {
+          <tr>
+            <td>
+              <strong>{{
+                s.employee(f.employee_id)?.name || "Colaborador"
+              }}</strong
+              ><br /><small
+                >{{ f.id.slice(0, 12) }} ·
+                {{
+                  f.signature_method === "MANUAL" ? "Presencial" : "Por link"
+                }}</small
+              >
+            </td>
+            <td>{{ f.issued_at | date: "dd/MM/yyyy HH:mm" }}</td>
+            <td>
+              {{ f.record_number || f.snapshot?.recordNumber || "Histórico" }} ·
+              v{{ f.version }}
+            </td>
+            <td>
+              <epi-status
+                [value]="s.state(f.id)?.signature_status || 'PENDING'"
+              />
+            </td>
+            <td>
+              <epi-status
+                [value]="
+                  s.state(f.id)?.reservation_status === 'CANCELLED'
+                    ? 'CANCELLED'
+                    : s.state(f.id)?.receipt_status || 'UNCONFIRMED'
+                "
+              />
+            </td>
+            <td>
+              <a
+                class="secondary button-link"
+                [routerLink]="['/rh/fichas', f.id]"
+                >Ver detalhes</a
+              >
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="empty">
+              Nenhuma ficha encontrada para esses filtros.
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="muted small spaced">
+    Atualização automática a cada 15 segundos enquanto esta página estiver
+    aberta.
+  </p>
+</section>

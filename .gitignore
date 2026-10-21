@@ -11,4 +11,4 @@ playwright-report/
 database/supabase/.temp/
 database/supabase/.branches/
 *.log
-frontend/public/runtime-config.js
+Frontend/public/runtime-config.js

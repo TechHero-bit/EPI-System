@@ -1,0 +1,8 @@
+<span
+  class="status"
+  [class.ok]="
+    value === 'CONFIRMED' || value === 'DELIVERED' || value.startsWith('SIGNED')
+  "
+  [class.danger]="value === 'CANCELLED'"
+  >{{ labels[value] || value }}</span
+>

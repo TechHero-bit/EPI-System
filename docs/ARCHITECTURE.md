@@ -14,4 +14,4 @@ FaceMatch tem contrato desacoplado 1:1 com prova de vida. Sem provedor, informa 
 
 Dois projetos Vercel compartilham o mesmo repositório. O frontend pode ser publicado sozinho em modo demo. O backend guarda estado em Postgres/Storage; pode reutilizar o cliente Supabase em memória, mas nenhum saldo, sessão, token ou limite depende da memória da função.
 
-Testes SQL usam PostgreSQL WASM real com contratos mínimos Auth/Storage. Isso valida PLpgSQL, constraints e RLS, mas não comprova funcionamento dos serviços Supabase hospedados. O relatório VALIDATION distingue testes locais e integrações externas pendentes. O contrato OpenAPI fica em backend/src/openapi.ts, é servido em /api/openapi.json e gera docs/openapi.json por npm run api:docs.
+Testes SQL usam PostgreSQL WASM real com contratos mínimos Auth/Storage. Isso valida PLpgSQL, constraints e RLS, mas não comprova funcionamento dos serviços Supabase hospedados. O relatório VALIDATION distingue testes locais e integrações externas pendentes. O contrato OpenAPI fica em Backend/src/openapi.ts, é servido em /api/openapi.json e gera docs/openapi.json por npm run api:docs.
