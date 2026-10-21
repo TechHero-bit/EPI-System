@@ -1,3 +1,4 @@
+-- MIGRATION 001 - Estrutura inicial do ERP, integridade, permissões e RLS.
 -- Execute somente em projeto Supabase de desenvolvimento. Produção exige revisão e backup.
 -- gen_random_uuid() é nativo no PostgreSQL 13+; não requer extensão.
 

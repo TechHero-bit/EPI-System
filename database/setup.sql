@@ -4,6 +4,7 @@ begin;
 do $$begin if to_regclass('public.organizations') is not null then raise exception 'Estrutura EPI já existe. Use somente as migrations pendentes.';end if;end $$;
 
 -- MIGRATION: 202610190001_init.sql
+-- MIGRATION 001 - Estrutura inicial do ERP, integridade, permissões e RLS.
 -- Execute somente em projeto Supabase de desenvolvimento. Produção exige revisão e backup.
 -- gen_random_uuid() é nativo no PostgreSQL 13+; não requer extensão.
 
@@ -346,6 +347,7 @@ grant execute on function public.purge_signature_ips(integer) to service_role;
 
 
 -- MIGRATION: 202610200001_audit_email_verification.sql
+-- MIGRATION 002 - Auditoria da confirmação do e-mail do colaborador.
 -- Registra a validação de e-mail sem guardar o código ou o endereço no log.
 create or replace function public.verify_employee_email(p_employee uuid, p_code_hash text)
 returns boolean language plpgsql security definer set search_path = '' as $$
@@ -372,6 +374,7 @@ end $$;
 
 
 -- MIGRATION: 202610200002_manual_signature.sql
+-- MIGRATION 003 - Registro de assinatura presencial, independente da entrega física.
 create function public.record_manual_signature(p_org uuid, p_actor uuid, p_sheet uuid, p_note text)
 returns void language plpgsql security definer set search_path = '' as $$
 declare v_sheet public.sheets%rowtype;
@@ -395,6 +398,7 @@ grant execute on function public.record_manual_signature(uuid,uuid,uuid,text) to
 
 
 -- MIGRATION: 20261020120000_reservations_and_access.sql
+-- MIGRATION 004 - Reservas de estoque, idempotência, evidências e controle de acesso.
 -- Evolução aditiva: fichas históricas já baixadas são preservadas como LEGACY_ISSUED.
 alter table public.memberships drop constraint memberships_role_check;
 update public.memberships set role='SEGURANCA_TRABALHO' where role='SEGURANCA';
@@ -560,6 +564,7 @@ grant usage,select on all sequences in schema public to service_role;
 
 
 -- MIGRATION: 20261020130000_signing_identity.sql
+-- MIGRATION 005 - Identidade do signatário, evidências imutáveis e auditoria dos cadastros.
 -- Vincula cada desafio ao canal verificado no momento da criação do link.
 alter table public.signing_links add column recipient_email text, add column recipient_verified_at timestamptz;
 create or replace function public.complete_signature(p_link uuid,p_otp_hash text,p_ip inet,p_agent text)returns uuid language plpgsql security definer set search_path=''as $$
@@ -601,6 +606,7 @@ create trigger lots_created_audit after insert on public.lots for each row execu
 
 
 -- MIGRATION: 202610210001_sheet_register.sql
+-- MIGRATION 006 - Numeração sequencial por ficha (regra histórica substituída pela 007).
 -- Register is per document and per organization, never the employee's enrollment.
 -- Numbers reserved for failed/cancelled emissions are not reused (gaps are intentional).
 alter table public.sheets add column record_number bigint;
@@ -658,6 +664,7 @@ create trigger sheets_register before insert on public.sheets for each row execu
 
 
 -- MIGRATION: 202610210002_inventory_without_lots.sql
+-- MIGRATION 007 - Estoque sem lotes e Nº de Registro igual à matrícula do colaborador.
 -- Additive transition. Old lots, documents, hashes and movements are retained as history.
 -- Active stock is now per equipment size (variant), not per lot.
 create table public.inventory_stock(

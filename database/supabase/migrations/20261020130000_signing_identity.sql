@@ -1,3 +1,4 @@
+-- MIGRATION 005 - Identidade do signatário, evidências imutáveis e auditoria dos cadastros.
 -- Vincula cada desafio ao canal verificado no momento da criação do link.
 alter table public.signing_links add column recipient_email text, add column recipient_verified_at timestamptz;
 create or replace function public.complete_signature(p_link uuid,p_otp_hash text,p_ip inet,p_agent text)returns uuid language plpgsql security definer set search_path=''as $$

@@ -1,3 +1,4 @@
+-- MIGRATION 006 - Numeração sequencial por ficha (regra histórica substituída pela 007).
 -- Register is per document and per organization, never the employee's enrollment.
 -- Numbers reserved for failed/cancelled emissions are not reused (gaps are intentional).
 alter table public.sheets add column record_number bigint;

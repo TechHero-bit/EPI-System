@@ -1,3 +1,4 @@
+-- MIGRATION 003 - Registro de assinatura presencial, independente da entrega física.
 create function public.record_manual_signature(p_org uuid, p_actor uuid, p_sheet uuid, p_note text)
 returns void language plpgsql security definer set search_path = '' as $$
 declare v_sheet public.sheets%rowtype;

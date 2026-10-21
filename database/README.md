@@ -2,6 +2,26 @@
 
 A fonte SQL está em `supabase/migrations/`. Escolha uma forma de instalação; não execute migrations históricas e setup consolidado no mesmo banco.
 
+## Índice numerado das migrations
+
+A numeração **001–007** facilita a leitura e está no cabeçalho de cada arquivo. Os nomes e identificadores técnicos existentes foram preservados para não alterar a identificação das versões no histórico do Supabase. A ordem de aplicação continua sendo a dos nomes dos arquivos; os números abaixo seguem essa mesma ordem.
+
+| Nº  | Arquivo                                                                                                      | Finalidade                                                                                                                                                                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 001 | [202610190001_init.sql](supabase/migrations/202610190001_init.sql)                                           | Cria a estrutura inicial: organizações, perfis, colaboradores, equipamentos, tamanhos, estoque originalmente por lotes, fichas, assinaturas, entregas e auditoria. Configura integridade, RLS, permissões e proteção das fichas emitidas.                                       |
+| 002 | [202610200001_audit_email_verification.sql](supabase/migrations/202610200001_audit_email_verification.sql)   | Registra em auditoria a confirmação do e-mail do colaborador, sem gravar o código ou o endereço no log.                                                                                                                                                                         |
+| 003 | [202610200002_manual_signature.sql](supabase/migrations/202610200002_manual_signature.sql)                   | Permite registrar assinatura presencial vinculada ao PDF e impede registro duplicado. Não confirma entrega física nem baixa estoque.                                                                                                                                            |
+| 004 | [20261020120000_reservations_and_access.sql](supabase/migrations/20261020120000_reservations_and_access.sql) | Introduz reserva na emissão, baixa na entrega e liberação no cancelamento, com operações idempotentes. Reforça perfis/RLS e cria evidências, anexos, limites de requisição e estrutura preparatória de biometria, sem habilitar coleta facial.                                  |
+| 005 | [20261020130000_signing_identity.sql](supabase/migrations/20261020130000_signing_identity.sql)               | Vincula o link ao e-mail verificado, invalida seu uso se o canal mudar, protege as evidências contra alteração e adiciona auditoria automática aos cadastros.                                                                                                                   |
+| 006 | [202610210001_sheet_register.sql](supabase/migrations/202610210001_sheet_register.sql)                       | Implementa a regra histórica de contador por ficha/organização, com reserva idempotente de número. Essa regra é substituída pela 007; o arquivo permanece necessário no histórico e na instalação ordenada.                                                                     |
+| 007 | [202610210002_inventory_without_lots.sql](supabase/migrations/202610210002_inventory_without_lots.sql)       | Consolida estoque por equipamento/tamanho, migra reservas e movimentos e desativa lotes no fluxo ativo. Preserva o histórico e bloqueia unidades antigas vencidas/avariadas. Estabelece Nº de Registro igual à matrícula textual do colaborador e desativa o contador anterior. |
+
+Migrations descrevem a evolução do banco, não apenas as regras atuais: não apague a 006 nem as estruturas históricas de lotes para instalar a versão atual. Em banco existente, aplique somente as pendentes, conforme o histórico já registrado.
+
+`setup.sql` não é uma migration adicional: é o consolidado das sete migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais, não uma alteração versionada de estrutura. O modelo corporativo PDF/Excel está no código do Backend, não em uma migration SQL.
+
+Para futuras migrations, continue usando identificadores técnicos únicos e crescentes, acrescente o próximo número de leitura no cabeçalho e atualize este índice. Não renumere versões já existentes para inserir uma alteração no meio do histórico.
+
 ## SQL Editor: projeto novo
 
 Execute `setup.sql` inteiro no SQL Editor de um projeto Supabase novo. A instalação usa uma transação e recusa uma estrutura EPI existente. Cria tabelas, índices, constraints, funções, triggers, RLS e buckets privados. Não cria contas Auth nem altera usuários reais.

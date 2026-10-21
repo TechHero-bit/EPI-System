@@ -1,3 +1,4 @@
+-- MIGRATION 007 - Estoque sem lotes e Nº de Registro igual à matrícula do colaborador.
 -- Additive transition. Old lots, documents, hashes and movements are retained as history.
 -- Active stock is now per equipment size (variant), not per lot.
 create table public.inventory_stock(
