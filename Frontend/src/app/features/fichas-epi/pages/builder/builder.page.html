@@ -68,7 +68,7 @@
 @if (preparedId && step < 3) {
   <p class="note">
     Consulta da versão já preparada. Para editar uma revisão pendente, retorne à
-    etapa 3 e escolha “Alterar método ou dados”. Fichas assinadas ou entregues
+    etapa 3 e escolha “Alterar métodos ou dados”. Fichas assinadas ou entregues
     não podem ser alteradas.
   </p>
 }
@@ -170,20 +170,17 @@
     @if (step === 3) {
       <section class="panel">
         <h2>Revisar ficha e assinatura</h2>
-        <div class="toolbar spaced">
-          <button class="secondary" (click)="back()" [disabled]="s.busy()">
-            ← Voltar para equipamentos
-          </button>
-          @if (canRevise) {
+        @if (!preparedId || canRevise) {
+          <div class="toolbar spaced">
             <button
               class="secondary"
               (click)="requestEdit()"
               [disabled]="s.busy()"
             >
-              Alterar método ou dados
+              ← Alterar métodos ou dados
             </button>
-          }
-        </div>
+          </div>
+        }
         <p>
           <strong>{{ employee?.name }}</strong
           ><br />{{ employee?.job_title || employee?.jobTitle }} ·

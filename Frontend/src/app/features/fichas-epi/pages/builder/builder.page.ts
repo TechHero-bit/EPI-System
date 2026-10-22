@@ -89,6 +89,7 @@ export class BuilderComponent implements OnInit, OnDestroy {
   }
   requestEdit() {
     if (this.canRevise) this.editTarget = 3;
+    else if (!this.preparedId) this.back();
   }
   async confirmBack() {
     const target = this.editTarget;

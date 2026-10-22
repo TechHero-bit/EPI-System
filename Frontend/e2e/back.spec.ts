@@ -32,11 +32,23 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
   );
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "← Alterar métodos ou dados",
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole("button", {
+      name: "← Voltar para equipamentos",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await page
     .getByRole("combobox", { name: "Método de assinatura", exact: true })
     .selectOption("ELECTRONIC");
   await page
-    .getByRole("button", { name: "← Voltar antes de gerar", exact: true })
+    .getByRole("button", { name: "← Alterar métodos ou dados", exact: true })
     .click();
   await expect(
     page.getByLabel("Data da entrega do item", { exact: false }),
@@ -56,7 +68,7 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
     .getByLabel("Link de assinatura", { exact: true })
     .inputValue();
   await page
-    .getByRole("button", { name: "Alterar método ou dados", exact: true })
+    .getByRole("button", { name: "← Alterar métodos ou dados", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Manter revisão atual", exact: true })
@@ -65,7 +77,7 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
     page.getByRole("combobox", { name: "Método de assinatura", exact: true }),
   ).toBeDisabled();
   await page
-    .getByRole("button", { name: "← Voltar para equipamentos", exact: true })
+    .getByRole("button", { name: "← Alterar métodos ou dados", exact: true })
     .click();
   const confirmation = page.getByRole("region", {
     name: "Confirmar retorno para edição",
@@ -81,6 +93,12 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
     .getByRole("button", { name: "Voltar e editar", exact: true })
     .click();
   await expect(page).toHaveURL(/\/rh\/fichas\/nova$/);
+  await expect(
+    page.getByRole("combobox", { name: "Método de assinatura", exact: true }),
+  ).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Voltar uma etapa", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Escolha os equipamentos e tamanhos" }),
   ).toBeVisible();
@@ -136,7 +154,10 @@ test("voltar de ficha assinada permite consultar todas as etapas sem alterar ou 
     page.getByRole("combobox", { name: "Método de assinatura", exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("button", { name: "Alterar método ou dados", exact: true }),
+    page.getByRole("button", {
+      name: "← Alterar métodos ou dados",
+      exact: true,
+    }),
   ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Voltar uma etapa", exact: true })
