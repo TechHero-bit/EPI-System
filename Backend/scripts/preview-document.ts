@@ -17,7 +17,7 @@ const snapshot: SheetSnapshot = {
   issuedAt: "2026-10-21T13:00:00.000Z",
   documentDate: "2026-10-25",
   method: "MANUAL",
-  template: "COMPANY_EPI_2026_V3",
+  template: "COMPANY_EPI_2026_V4",
   organizationName: "Empresa demonstrativa",
   demonstration: true,
   items: [

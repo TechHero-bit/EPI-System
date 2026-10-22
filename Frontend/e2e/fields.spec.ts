@@ -121,7 +121,7 @@ test("matrícula manual aparece como registro em todas as fichas do funcionário
   await page.getByRole("button", { name: "Baixar Excel", exact: true }).click();
   const book = new ExcelJS.Workbook();
   await book.xlsx.readFile((await (await download).path())!);
-  expect(book.worksheets[0]!.getCell("E7").value).toBe("000546");
+  expect(book.worksheets[0]!.getCell("F6").value).toBe("000546");
   await page.screenshot({
     path: "dist/matricula-registro.png",
     fullPage: true,
@@ -190,21 +190,24 @@ test("ficha usa catálogo somente leitura e mantém datas de entrega editáveis"
   await book.xlsx.readFile((await excel.path())!);
   const ws = book.getWorksheet("Ficha EPI")!;
   expect(ws.getImages()).toHaveLength(1);
-  expect(ws.getCell("E7").value).toBe("DEMO-001");
-  expect((ws.getCell("A20").value as Date).toISOString().slice(0, 10)).toBe(
+  expect(ws.getCell("F6").value).toBe("DEMO-001");
+  expect((ws.getCell("A21").value as Date).toISOString().slice(0, 10)).toBe(
     "2026-10-29",
   );
-  expect(ws.getCell("B20").value).toBe(1);
-  expect(ws.getCell("C20").value).toBe("Bota de segurança em couro");
-  expect(ws.getCell("G20").value).toBe("DEMO-1100");
-  expect(ws.getCell("I20").value).toBe("Proteção Demo");
-  expect(ws.getCell("M20").value).toBe("");
-  const generatedDate = new Intl.DateTimeFormat("en-CA", {
+  expect(ws.getCell("B21").value).toBe(1);
+  expect(ws.getCell("C21").value).toBe("Bota de segurança em couro");
+  expect(ws.getCell("E21").value).toBe("DEMO-1100");
+  expect(ws.getCell("F21").value).toBe("Proteção Demo");
+  expect(ws.getCell("I21").value).toBe("");
+  expect(ws.getCell("H21").value).toBeNull();
+  expect(ws.getCell("N21").value).toBeNull();
+  const generatedDate = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
   }).format(new Date());
-  expect((ws.getCell("E17").value as Date).toISOString().slice(0, 10)).toBe(
-    generatedDate,
-  );
+  expect(ws.getCell("A17").value).toBe(`Rio de Janeiro, ${generatedDate}.`);
   await page.screenshot({
     path: "dist/ficha-campos-modelo.png",
     fullPage: true,

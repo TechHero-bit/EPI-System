@@ -97,7 +97,7 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
     documentDate: body.documentDate,
     method: body.method,
     items,
-    template: "COMPANY_EPI_2026_V3",
+    template: "COMPANY_EPI_2026_V4",
     requestKey: body.idempotencyKey,
     organizationName: organization.name,
   };

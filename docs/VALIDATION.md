@@ -1,5 +1,13 @@
 # Validação local
 
+## Atualização de 22/10/2026 — ficha completa da empresa
+
+Build Angular/backend aprovado. Permanecem apenas os avisos CommonJS conhecidos de `qrcode`/`dijkstrajs`.
+
+Novas emissões usam `COMPANY_EPI_2026_V4`, com as dez colunas e o cabeçalho completo do Excel fornecido. O PDF preenche a impressão nativa do modelo; o XLSX preenche a cópia correspondente. O original permanece com o SHA-256 registrado, sem alterações. Mapeamento e decisões de paginação: [COMPANY-FORM-20261022.md](COMPANY-FORM-20261022.md).
+
+Validação desta rodada: 49 testes em `npm test` (15 backend/documentos, 15 demonstração/utilitários, 19 banco) e os dois testes de navegador de matrícula/emissão/download passaram. `npm run typecheck` passou. A amostra normal e todas as cinco páginas do PDF com textos extensos foram renderizadas e inspecionadas. Os arquivos XLSX normal e de estresse também foram impressos pelo Microsoft Excel desktop, sem reparos do arquivo, preservando uma e cinco páginas respectivamente. As quebras de linha do Excel foram consideradas no cálculo do espaço. Modelos históricos V1/V2/V3 continuam disponíveis; não foram reescritas fichas emitidas nem aplicadas migrations remotas.
+
 ## Atualização de 22/10/2026 — botão Voltar em todas as etapas
 
 Navegação de retorno com preservação do rascunho e troca de assinatura foi adicionada. Para revisões já preparadas e pendentes, é necessário confirmar o cancelamento da reserva antiga antes de editar um novo rascunho. Documentos assinados continuam imutáveis e as etapas anteriores são de consulta. Detalhes em [BACK-NAVIGATION-20261022.md](BACK-NAVIGATION-20261022.md).

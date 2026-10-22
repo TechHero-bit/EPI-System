@@ -1,6 +1,10 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import ExcelJS from "exceljs";
 import {
+  renderExactCompanyPdf,
+  renderExactCompanyXlsx,
+} from "./company-form.service.js";
+import {
   renderCompanyPdf,
   renderCompanyXlsx,
 } from "./company-document.service.js";
@@ -35,7 +39,8 @@ export type SheetSnapshot = {
   template:
     | "PROVISIONAL_FROM_IMAGE_V1"
     | "EPI_RECEIPT_V2"
-    | "COMPANY_EPI_2026_V3";
+    | "COMPANY_EPI_2026_V3"
+    | "COMPANY_EPI_2026_V4";
   requestKey?: string;
   organizationName?: string;
   demonstration?: boolean;
@@ -61,6 +66,7 @@ export const sheetHeaders = [
 
 export async function renderPdf(s: SheetSnapshot): Promise<Uint8Array> {
   if (s.items.length > 15) throw new Error("Limite de 15 itens por ficha.");
+  if (s.template === "COMPANY_EPI_2026_V4") return renderExactCompanyPdf(s);
   if (s.template === "COMPANY_EPI_2026_V3") return renderCompanyPdf(s);
   const pdf = await PDFDocument.create();
   let page = pdf.addPage([842, 595]);
@@ -240,6 +246,7 @@ export async function renderPdf(s: SheetSnapshot): Promise<Uint8Array> {
 
 export async function renderXlsx(s: SheetSnapshot): Promise<Uint8Array> {
   if (s.items.length > 15) throw new Error("Limite de 15 itens por ficha.");
+  if (s.template === "COMPANY_EPI_2026_V4") return renderExactCompanyXlsx(s);
   if (s.template === "COMPANY_EPI_2026_V3") return renderCompanyXlsx(s);
   const book = new ExcelJS.Workbook();
   const ws = book.addWorksheet("Ficha EPI", {

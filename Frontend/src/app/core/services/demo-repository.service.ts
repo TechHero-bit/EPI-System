@@ -92,7 +92,7 @@ export function makeDemoData(): PortalData {
   for (let i = 0; i < 4; i++) {
     const snapshot = {
       recordNumber: data.employees[i].registration,
-      template: "COMPANY_EPI_2026_V3",
+      template: "COMPANY_EPI_2026_V4",
       issuedAt: new Date(Date.now() - i * 86400000).toISOString(),
       organizationName: data.organization.name,
       employee: structuredClone(data.employees[i]),
@@ -356,7 +356,7 @@ export class DemoRepository {
       request_key: key,
       items: structuredClone(items),
       snapshot: {
-        template: "COMPANY_EPI_2026_V3",
+        template: "COMPANY_EPI_2026_V4",
         recordNumber,
         issuedAt,
         organizationName: this.data.organization.name,

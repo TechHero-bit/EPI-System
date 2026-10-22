@@ -1,0 +1,141 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import ExcelJS from "exceljs";
+import { PDFDocument } from "pdf-lib";
+import {
+  renderPdf,
+  renderXlsx,
+  type SheetSnapshot,
+} from "../src/services/document.service.js";
+
+const snapshot: SheetSnapshot = {
+  template: "COMPANY_EPI_2026_V4",
+  employee: {
+    name: "João de Souza",
+    registration: "000546",
+    jobTitle: "Técnico de telecomunicações",
+    department: "Operações",
+    admissionDate: "2025-07-01",
+    terminationDate: "2026-10-31",
+  },
+  recordNumber: "NAO-USAR",
+  issuedAt: "2026-10-23T01:00:00Z",
+  documentDate: "2026-10-24",
+  method: "MANUAL",
+  items: [
+    {
+      date: "2026-10-29",
+      description: "PAR DE BOTAS DE PROTEÇÃO",
+      ca: "0027300",
+      brand: "BRACOL",
+      risk: "02",
+      size: "40",
+      variantId: "v-1",
+      quantity: 1,
+    },
+  ],
+};
+
+test("ficha original mantém dez colunas, legendas, matrícula e datas nos campos correspondentes", async () => {
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load((await renderXlsx(snapshot)) as any);
+  const ws = book.worksheets[0]!;
+  assert.equal(ws.getImages().length, 1);
+  assert.equal(ws.getCell("B6").value, snapshot.employee.name);
+  assert.equal(ws.getCell("F6").value, "000546");
+  assert.equal(ws.getCell("F6").numFmt, "@");
+  assert.equal(ws.getCell("B8").value, snapshot.employee.jobTitle);
+  for (const [cell, date] of [
+    ["B10", "2025-07-01"],
+    ["F10", "2026-10-31"],
+    ["A21", "2026-10-29"],
+  ]) {
+    assert.equal(
+      (ws.getCell(cell!).value as Date).toISOString().slice(0, 10),
+      date,
+    );
+    assert.equal(ws.getCell(cell!).numFmt, "dd/mm/yyyy");
+  }
+  assert.equal(
+    ws.getCell("A17").value,
+    "Rio de Janeiro, 22 de outubro de 2026.",
+  );
+  assert.equal(ws.getCell("G17").value, null);
+  assert.equal(ws.getCell("B21").value, 1);
+  assert.equal(ws.getCell("C21").value, snapshot.items[0]!.description);
+  assert.equal(ws.getCell("E21").value, "0027300");
+  assert.equal(ws.getCell("F21").value, "BRACOL");
+  assert.equal(ws.getCell("I21").value, "02");
+  for (const cell of ["H21", "M21", "N21"])
+    assert.equal(ws.getCell(cell).value, null);
+  assert.match(ws.getCell("G5").text, /Motivos de Devolução/);
+  assert.equal(ws.getCell("O5").value, "LEGENDA");
+  assert.deepEqual(
+    ["A19", "B19", "C19", "E19", "F19", "H19", "I19", "K19", "M19", "N19"].map(
+      (c) => ws.getCell(c).text.trim(),
+    ),
+    [
+      "Data da Entrega",
+      "Qtd.",
+      "Descrição do E.P.I.",
+      "C.A.",
+      "Marca",
+      "Assinatura / Rubrica",
+      "Risco",
+      "Data da Devolução",
+      "M.D.",
+      "Assinatura / Rubrica",
+    ],
+  );
+  assert.equal(ws.pageSetup.printArea, "A2:O40");
+  assert.equal(ws.pageSetup.orientation, "landscape");
+  assert.equal(
+    (await PDFDocument.load(await renderPdf(snapshot))).getPageCount(),
+    1,
+  );
+});
+
+test("textos extensos preservam os quinze itens e usam as mesmas páginas no PDF e Excel", async () => {
+  const input: SheetSnapshot = {
+    ...snapshot,
+    employee: {
+      ...snapshot.employee,
+      name: "W".repeat(160),
+      registration: "0".repeat(50),
+      jobTitle: "W".repeat(120),
+    },
+    items: Array.from({ length: 15 }, (_, i) => ({
+      ...snapshot.items[0]!,
+      description: `${i + 1} EQUIPAMENTO COM DESCRIÇÃO EXTENSA `
+        .repeat(6)
+        .slice(0, 180),
+      ca: "W".repeat(50),
+      brand: "MARCA COM NOME EXTENSO ".repeat(5).slice(0, 100),
+      risk: "W".repeat(30),
+    })),
+  };
+  const pdf = await PDFDocument.load(await renderPdf(input));
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load((await renderXlsx(input)) as any);
+  assert.ok(pdf.getPageCount() > 1);
+  assert.equal(book.worksheets.length, pdf.getPageCount());
+  const descriptions: string[] = [];
+  for (const ws of book.worksheets) {
+    assert.equal(ws.getImages().length, 1);
+    assert.equal(ws.getCell("B6").value, input.employee.name);
+    assert.equal(ws.getCell("F6").value, input.employee.registration);
+    for (let row = 21; row <= 40; row++) {
+      const cell = ws.getCell(`C${row}`);
+      if (cell.master.address === cell.address && cell.value) {
+        descriptions.push(cell.value as string);
+        assert.equal(ws.getCell(`B${row}`).value, 1);
+        assert.equal(ws.getCell(`E${row}`).value, "W".repeat(50));
+        assert.equal(ws.getCell(`F${row}`).value, input.items[0]!.brand);
+      }
+    }
+  }
+  assert.deepEqual(
+    descriptions,
+    input.items.map((i) => i.description),
+  );
+});
