@@ -8,8 +8,8 @@ export class StatusComponent {
   @Input() value = "";
   labels: Record<string, string> = {
     PENDING: "Pendente",
-    SIGNED_MANUAL: "Assinatura presencial",
-    SIGNED_ELECTRONIC: "Assinatura eletrônica",
+    SIGNED_MANUAL: "Assinada presencialmente",
+    SIGNED_ELECTRONIC: "Assinada eletronicamente",
     UNCONFIRMED: "Entrega pendente",
     CONFIRMED: "Entrega confirmada",
     RESERVED: "Reservado",

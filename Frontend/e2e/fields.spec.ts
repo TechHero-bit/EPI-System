@@ -111,6 +111,9 @@ test("matrícula manual aparece como registro em todas as fichas do funcionário
     await page
       .getByRole("button", { name: "Gerar ficha demonstrativa" })
       .click();
+    await page
+      .getByRole("button", { name: "Avançar para ficha final", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/rh\/fichas\/[a-f0-9-]+$/);
     await expect(page.locator(".count")).toContainText("Nº de Registro 000546");
   }
@@ -124,7 +127,7 @@ test("matrícula manual aparece como registro em todas as fichas do funcionário
     fullPage: true,
   });
 });
-test("ficha congela cadastro, permite campos do modelo e exporta datas distintas", async ({
+test("ficha usa catálogo somente leitura e mantém datas de entrega editáveis", async ({
   page,
 }) => {
   await login(page);
@@ -139,12 +142,14 @@ test("ficha congela cadastro, permite campos do modelo e exporta datas distintas
   await page
     .getByRole("button", { name: /Bota de segurança em couro/ })
     .click();
-  await page
-    .getByLabel("Descrição de E.P.I.", { exact: true })
-    .fill("PAR DE BOTAS AJUSTADO");
-  await page.getByLabel("C.A.", { exact: true }).fill("27300");
-  await page.getByLabel("Marca", { exact: true }).fill("BRACOL");
-  await page.getByLabel("Risco", { exact: true }).fill("02");
+  for (const name of ["Descrição de E.P.I.", "C.A.", "Marca", "Risco"])
+    await expect(page.getByLabel(name, { exact: true })).toHaveCount(0);
+  await expect(page.locator(".builder-summary")).toContainText(
+    "C.A.: DEMO-1100",
+  );
+  await expect(page.locator(".builder-summary")).toContainText(
+    "Marca: Proteção Demo",
+  );
   await page
     .getByLabel("Data da entrega do item", { exact: false })
     .fill("2026-10-29");
@@ -156,10 +161,21 @@ test("ficha congela cadastro, permite campos do modelo e exporta datas distintas
     "Ana Martins",
   );
   await page.getByRole("button", { name: "Gerar ficha demonstrativa" }).click();
+  await expect(
+    page.getByLabel("Data da entrega (padrão dos itens)", { exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Avançar para ficha final", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/rh\/fichas\/[a-f0-9-]+$/);
   await expect(page.locator(".count")).toContainText("Nº de Registro DEMO-001");
   await expect(page.locator("tbody")).toContainText("29/10/2026");
-  await expect(page.locator("tbody")).toContainText("PAR DE BOTAS AJUSTADO");
+  await expect(page.locator("tbody")).toContainText(
+    "Bota de segurança em couro",
+  );
+  await expect(
+    page.getByRole("heading", { name: /^Assinatura (presencial|eletrônica)$/ }),
+  ).toHaveCount(0);
   const pdfDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Baixar PDF / imprimir" }).click();
   const pdf = await pdfDownload;
@@ -179,10 +195,10 @@ test("ficha congela cadastro, permite campos do modelo e exporta datas distintas
     "2026-10-29",
   );
   expect(ws.getCell("B20").value).toBe(1);
-  expect(ws.getCell("C20").value).toBe("PAR DE BOTAS AJUSTADO");
-  expect(ws.getCell("G20").value).toBe("27300");
-  expect(ws.getCell("I20").value).toBe("BRACOL");
-  expect(ws.getCell("M20").value).toBe("02");
+  expect(ws.getCell("C20").value).toBe("Bota de segurança em couro");
+  expect(ws.getCell("G20").value).toBe("DEMO-1100");
+  expect(ws.getCell("I20").value).toBe("Proteção Demo");
+  expect(ws.getCell("M20").value).toBe("");
   const generatedDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
   }).format(new Date());

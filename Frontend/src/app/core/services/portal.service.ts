@@ -118,6 +118,11 @@ export class PortalStore {
   }
   async load() {
     if (this.demo) {
+      const saved = localStorage.getItem("epi-demo-v3");
+      if (saved) this.repository = new DemoRepository(JSON.parse(saved));
+      const role = sessionStorage.getItem("epi-demo-role") as Role | null;
+      if (role && ["RH", "ALMOXARIFADO"].includes(role))
+        this.repository.data.role = role;
       this.data.set(structuredClone(this.repository.data));
       return;
     }
@@ -319,7 +324,11 @@ export class PortalStore {
     }
   }
   async signingLink(id: string) {
-    if (this.demo) return `${location.origin}/assinar/demo-${id}`;
+    if (this.demo) {
+      const token = this.repository.createSigningLink(id);
+      this.persist();
+      return `${location.origin}/assinar/demo-${token}`;
+    }
     return (await this.request(`/api/sheets/${id}/signing-links`, "POST", {}))
       .url;
   }
@@ -356,23 +365,14 @@ export class PortalStore {
       );
     if (!token.startsWith("demo-"))
       throw new Error("Este link requer o ambiente real.");
-    const id = token.slice(5);
-    const sheet = this.repository.data.sheets.find((s) => s.id === id);
-    if (!sheet)
-      throw new Error(
-        "Exemplo não encontrado. Entre na demonstração para gerar um link.",
-      );
-    if (step === "confirm") {
-      this.repository.sign(id);
-      this.persist();
-    }
-    return {
-      sheet,
-      terms:
-        "Simular o aceite de um documento fictício. Esta ação não produz uma assinatura juridicamente válida.",
-      sha256: "DEMONSTRAÇÃO",
-      pending: true,
-    };
+    await this.load();
+    const result = this.repository.publicSigning(
+      token.slice(5),
+      step,
+      body?.acceptedTerms === true,
+    );
+    if (step) this.persist();
+    return result;
   }
   async request(
     path: string,

@@ -46,7 +46,7 @@ test("todas as rotas principais abrem diretamente, inclusive após refresh", asy
   }
   expect(errors).toEqual([]);
 });
-test("assistente emite ficha, exporta PDF/Excel e mantém entrega separada", async ({
+test("QR na revisão aguarda aceite em outra aba antes da ficha final", async ({
   page,
 }) => {
   await login(page);
@@ -63,29 +63,78 @@ test("assistente emite ficha, exporta PDF/Excel e mantém entrega separada", asy
     .locator("select")
     .selectOption("ELECTRONIC");
   await page.getByRole("button", { name: "Gerar ficha demonstrativa" }).click();
+  await expect(page).toHaveURL(/\/rh\/fichas\/nova\?ficha=[0-9a-f-]+$/);
+  await expect(
+    page.getByRole("button", { name: "Avançar para ficha final", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("img", { name: "QR Code do link individual de assinatura" }),
+  ).toBeVisible();
+  const firstLink = await page
+    .getByRole("textbox", { name: "Link de assinatura" })
+    .inputValue();
+  expect(firstLink).toMatch(/\/assinar\/demo-[a-f0-9]{64}$/);
+  await page.screenshot({ path: "dist/revisao-qr-code.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page.getByRole("img", { name: "QR Code do link individual de assinatura" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: "dist/revisao-qr-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const reviewUrl = page.url();
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Avançar para ficha final", exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Preparar link e QR Code" }).click();
+  const link = await page
+    .getByRole("textbox", { name: "Link de assinatura" })
+    .inputValue();
+  expect(link).not.toBe(firstLink);
+  expect(page.url()).toBe(reviewUrl);
+  const signer = await page.context().newPage();
+  await signer.goto(link);
+  await signer.getByRole("button", { name: "Iniciar simulação" }).click();
+  await signer.getByRole("button", { name: "Conferir documento" }).click();
+  await signer.getByRole("checkbox").check();
+  await signer.getByRole("button", { name: "Simular aceite" }).click();
+  await expect(
+    signer.getByRole("heading", { name: "Simulação concluída" }),
+  ).toBeVisible();
+  await expect(signer.locator(".sign-card")).toContainText(
+    "entrega física continua pendente",
+  );
+  await page.bringToFront();
+  await expect(
+    page.getByText("Assinatura confirmada. Você já pode avançar", {
+      exact: false,
+    }),
+  ).toBeVisible({ timeout: 15000 });
+  await page.screenshot({
+    path: "dist/revisao-assinatura-confirmada.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Avançar para ficha final", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/rh\/fichas\/[0-9a-f-]+$/);
+  await expect(page.locator("main")).toContainText("Assinada eletronicamente");
   await expect(page.locator("main")).toContainText("Entrega pendente");
+  await expect(
+    page.getByRole("button", {
+      name: /Criar link|Preparar link|Registrar assinatura/,
+    }),
+  ).toHaveCount(0);
   const pdf = page.waitForEvent("download");
   await page.getByRole("button", { name: "Baixar PDF / imprimir" }).click();
   expect((await pdf).suggestedFilename()).toMatch(/^DEMO-.*\.pdf$/);
   const xlsx = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Baixar Excel" }).click();
+  await page.getByRole("button", { name: "Baixar Excel", exact: true }).click();
   expect((await xlsx).suggestedFilename()).toMatch(/\.xlsx$/);
-  await page.getByRole("button", { name: "Criar link de simulação" }).click();
-  const link = await page
-    .getByRole("textbox", { name: "Link de assinatura" })
-    .inputValue();
-  await page.goto(link);
-  await page.getByRole("button", { name: "Iniciar simulação" }).click();
-  await page.getByRole("button", { name: "Conferir documento" }).click();
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Simular aceite" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Simulação concluída" }),
-  ).toBeVisible();
-  await expect(page.locator(".sign-card")).toContainText(
-    "entrega física continua pendente",
-  );
+  await signer.close();
 });
 test("perfis restringem rotas e menu", async ({ page }) => {
   await login(page, "ALMOXARIFADO");
@@ -96,6 +145,47 @@ test("perfis restringem rotas e menu", async ({ page }) => {
   await expect(page).toHaveURL(/dashboard/);
   await page.goto("/administracao");
   await expect(page).toHaveURL(/dashboard/);
+});
+test("assinatura presencial pode ser retomada na revisão e não aparece na ficha final", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/rh/fichas/sheet-3");
+  await expect(
+    page.getByRole("heading", { name: "Assinatura presencial", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("link", { name: "Retomar revisão", exact: true })
+    .click();
+  await expect(page).toHaveURL(/nova\?ficha=sheet-3$/);
+  await page
+    .getByLabel("Local de arquivo do original assinado", { exact: true })
+    .fill("Arquivo RH, original assinado presencialmente em 22/10/2026");
+  await page
+    .getByRole("button", {
+      name: "Registrar assinatura presencial",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page
+      .locator(".builder")
+      .getByText("Assinatura presencial registrada.", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Avançar para ficha final", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/rh\/fichas\/sheet-3$/);
+  await expect(page.locator("main")).toContainText("Assinada presencialmente");
+  await expect(
+    page.getByRole("button", {
+      name: "Registrar assinatura presencial",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Entrega física", exact: true }),
+  ).toBeVisible();
 });
 test("busca e layout móvel funcionam", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

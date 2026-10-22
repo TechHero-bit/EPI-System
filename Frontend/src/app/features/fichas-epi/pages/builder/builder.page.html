@@ -6,22 +6,30 @@
       Selecione os equipamentos por cartões. Cada seleção adiciona uma unidade.
     </p>
   </div>
-  <span class="date-pill">Etapa {{ step }} de 3</span>
+  <span class="date-pill">Etapa {{ step }} de 4</span>
 </div>
 <div class="stepper">
-  <button [class.active]="step === 1" (click)="step = 1">1 · Colaborador</button
+  <button
+    [class.active]="step === 1"
+    [disabled]="!!preparedId"
+    (click)="step = 1"
+  >
+    1 · Colaborador</button
   ><button
     [class.active]="step === 2"
-    [disabled]="!employeeId"
+    [disabled]="!employeeId || !!preparedId"
     (click)="step = 2"
   >
     2 · Equipamentos</button
   ><button
     [class.active]="step === 3"
-    [disabled]="!draft.length"
+    [disabled]="!draft.length && !preparedId"
     (click)="step = 3"
   >
-    3 · Revisão e emissão
+    3 · Revisão e assinatura
+  </button>
+  <button [disabled]="!canFinish || s.busy()" (click)="finish()">
+    4 · Ficha final
   </button>
 </div>
 <div class="builder">
@@ -104,18 +112,22 @@
     }
     @if (step === 3) {
       <section class="panel">
-        <h2>Revisar e gerar ficha</h2>
+        <h2>Revisar ficha e assinatura</h2>
         <p>
-          <strong>{{ s.employee(employeeId)?.name }}</strong
-          ><br />{{ s.employee(employeeId)?.job_title }} ·
-          {{ s.employee(employeeId)?.department }}
+          <strong>{{ employee?.name }}</strong
+          ><br />{{ employee?.job_title || employee?.jobTitle }} ·
+          {{ employee?.department }}
         </p>
         <label class="field"
           >Data da entrega (padrão dos itens)<input
             type="date"
+            [disabled]="!!preparedId"
             [(ngModel)]="date" /></label
         ><label class="field"
-          >Método de assinatura<select [(ngModel)]="method">
+          >Método de assinatura<select
+            [(ngModel)]="method"
+            [disabled]="!!preparedId"
+          >
             <option value="ELECTRONIC">Eletrônica por link + código</option>
             <option value="MANUAL">Presencial / documento impresso</option>
           </select></label
@@ -127,95 +139,232 @@
         <div class="form-grid spaced">
           <label class="field"
             >Matrícula / Nº de Registro<input
-              [value]="s.employee(employeeId)?.registration || ''"
+              [value]="employee?.registration || ''"
               readonly
           /></label>
           <label class="field"
-            >Funcionário(a)<input
-              [value]="s.employee(employeeId)?.name || ''"
-              readonly
+            >Funcionário(a)<input [value]="employee?.name || ''" readonly
           /></label>
           <label class="field"
             >Função<input
-              [value]="s.employee(employeeId)?.job_title || ''"
+              [value]="employee?.job_title || employee?.jobTitle || ''"
               readonly
           /></label>
           <label class="field"
             >Data da Admissão<input
               type="date"
-              [value]="s.employee(employeeId)?.admission_date || ''"
+              [value]="
+                employee?.admission_date || employee?.admissionDate || ''
+              "
               readonly
           /></label>
           <label class="field"
             >Data da Demissão<input
               type="date"
-              [value]="s.employee(employeeId)?.termination_date || ''"
+              [value]="
+                employee?.termination_date || employee?.terminationDate || ''
+              "
               readonly
           /></label>
         </div>
         <p class="note">
-          Nº de Registro: {{ s.employee(employeeId)?.registration }} (matrícula
-          do colaborador). A data de geração será a data da emissão, no horário
-          de Brasília. Para corrigir os dados do funcionário, edite seu cadastro
+          Nº de Registro: {{ employee?.registration }} (matrícula do
+          colaborador). A data de geração será a data da emissão, no horário de
+          Brasília. Para corrigir os dados do funcionário, edite seu cadastro
           antes de emitir.
         </p>
-        <button
-          class="primary wide"
-          [disabled]="s.busy() || !draft.length || !employeeId || !date"
-          (click)="issue()"
-        >
-          {{
-            s.busy()
-              ? "Gerando…"
-              : s.demo
-                ? "Gerar ficha demonstrativa"
-                : "Gerar
+        @if (!preparedId) {
+          <button
+            class="primary wide"
+            [disabled]="s.busy() || !draft.length || !employeeId || !date"
+            (click)="issue()"
+          >
+            {{
+              s.busy()
+                ? "Gerando…"
+                : s.demo
+                  ? "Gerar ficha demonstrativa"
+                  : "Gerar
         ficha e reservar EPIs"
-          }}
-        </button>
+            }}
+          </button>
+        } @else if (!prepared) {
+          <button class="secondary" (click)="reload()" [disabled]="s.busy()">
+            Recarregar revisão
+          </button>
+        } @else {
+          <div class="note">
+            Esta versão do PDF já está congelada e os EPIs estão reservados.
+            Para corrigir dados ou datas, cancele a reserva e inicie outra
+            ficha. A assinatura não confirma entrega física.
+          </div>
+          <button
+            class="secondary spaced"
+            (click)="preview()"
+            [disabled]="s.busy()"
+          >
+            Conferir PDF desta versão
+          </button>
+          @if (method === "ELECTRONIC") {
+            @if (state?.signature_status === "SIGNED_ELECTRONIC") {
+              <p class="alert success">
+                Assinatura confirmada. Você já pode avançar para a ficha final.
+              </p>
+            } @else if (pending) {
+              <h3>Assinatura por link na revisão</h3>
+              <p>
+                Escaneie o QR Code ou abra o link individual. No modo real, o
+                colaborador recebe um código de 6 dígitos no e-mail pessoal
+                verificado, confere o PDF e confirma o aceite.
+              </p>
+              @if (s.demo) {
+                <p class="note">
+                  SIMULAÇÃO: funciona somente em abas deste navegador, sem
+                  e-mail real ou validade jurídica. Para assinar em outro
+                  aparelho é necessário o ambiente real acessível na rede.
+                </p>
+              }
+              @if (qr) {
+                <img
+                  class="signing-qr"
+                  [src]="qr"
+                  alt="QR Code do link individual de assinatura"
+                  width="256"
+                  height="256"
+                />
+              }
+              @if (url) {
+                <div class="copy-row spaced">
+                  <input
+                    aria-label="Link de assinatura"
+                    readonly
+                    [value]="url"
+                  /><button class="secondary" (click)="copy()">
+                    Copiar link
+                  </button>
+                </div>
+                <a
+                  class="text-button"
+                  [href]="url"
+                  target="_blank"
+                  rel="noopener"
+                  >Abrir {{ s.demo ? "simulação" : "link de assinatura" }}</a
+                >
+              }
+              <div class="toolbar spaced">
+                <button
+                  class="secondary"
+                  (click)="link()"
+                  [disabled]="s.busy()"
+                >
+                  {{ url ? "Gerar novo link" : "Preparar link e QR Code" }}
+                </button>
+                <button
+                  class="secondary"
+                  (click)="refresh()"
+                  [disabled]="refreshing || s.busy()"
+                >
+                  Consultar confirmação
+                </button>
+              </div>
+              <p class="muted">
+                Aguardando confirmação. Consulta automática a cada 5 segundos.
+              </p>
+            }
+          } @else {
+            <p class="note">
+              Imprima o PDF desta versão para assinatura presencial. Se o
+              original já foi assinado, registre o local do arquivo aqui na
+              revisão.
+            </p>
+            @if (pending) {
+              <label class="field spaced"
+                >Local de arquivo do original assinado<textarea
+                  [(ngModel)]="signatureNote"
+                  maxlength="500"
+                ></textarea>
+              </label>
+              <button
+                class="secondary"
+                (click)="manual()"
+                [disabled]="s.busy() || !signatureNote.trim()"
+              >
+                Registrar assinatura presencial
+              </button>
+              @if (!s.demo) {
+                <label class="field spaced"
+                  >Documento físico digitalizado (PDF, até 5 MB)<input
+                    type="file"
+                    accept="application/pdf"
+                    (change)="attach($event)"
+                /></label>
+              }
+            } @else if (state?.signature_status === "SIGNED_MANUAL") {
+              <p class="alert success">Assinatura presencial registrada.</p>
+            }
+          }
+          @if (state?.reservation_status === "CANCELLED") {
+            <p class="alert error">
+              Reserva cancelada. Não é possível finalizar esta revisão.
+            </p>
+          }
+          <button
+            class="primary wide spaced"
+            (click)="finish()"
+            [disabled]="!canFinish || s.busy()"
+          >
+            Avançar para ficha final
+          </button>
+          @if (state?.reservation_status === "RESERVED") {
+            <label class="field spaced"
+              >Motivo para cancelar a revisão<input
+                [(ngModel)]="cancelNote"
+                maxlength="500"
+            /></label>
+            <button
+              class="secondary"
+              (click)="cancel()"
+              [disabled]="s.busy() || cancelNote.trim().length < 5"
+            >
+              Cancelar revisão e liberar EPIs
+            </button>
+          }
+        }
       </section>
     }
   </div>
   <aside class="panel builder-summary">
     <div class="panel-title">
       <h2>Seleção da ficha</h2>
-      <span class="count">{{ draft.length }} itens</span>
+      <span class="count">{{ selectedItems.length }} itens</span>
     </div>
-    @for (item of draft; track $index) {
+    @for (item of selectedItems; track $index) {
       <div class="draft-item">
         <div>
-          <strong>{{
-            s.product(s.variant(item.variantId)?.product_id)?.description
-          }}</strong
-          ><small
-            >Tamanho {{ s.variant(item.variantId)?.size }} · 1 unidade</small
-          ><label class="field"
-            >Descrição de E.P.I.<input
-              [(ngModel)]="item.description"
-              maxlength="180"
-              required
-          /></label>
-          <label class="field"
-            >C.A.<input [(ngModel)]="item.ca" maxlength="50"
-          /></label>
-          <label class="field"
-            >Marca<input [(ngModel)]="item.brand" maxlength="100"
-          /></label>
-          <label class="field"
-            >Risco<input [(ngModel)]="item.risk" maxlength="30"
-          /></label>
-          <label class="field"
-            >Data da entrega do item<input
-              type="date"
-              [(ngModel)]="item.deliveryDate"
-              [placeholder]="date"
-            /><small
-              >Em branco: usa a data padrão
-              {{ date | date: "dd/MM/yyyy" }}.</small
-            ></label
+          <strong>{{ item.description }}</strong
+          ><small>Tamanho {{ item.size }} · 1 unidade</small>
+          <small
+            >C.A.: {{ item.ca || "N/A" }} · Marca:
+            {{ item.brand || "Não informada" }}</small
           >
+          <small>Risco: {{ item.risk || "Não informado" }}</small>
+          @if (!preparedId) {
+            <label class="field"
+              >Data da entrega do item<input
+                type="date"
+                [(ngModel)]="draft[$index].deliveryDate"
+                [placeholder]="date"
+              /><small
+                >Em branco: usa a data padrão
+                {{ date | date: "dd/MM/yyyy" }}.</small
+              ></label
+            >
+          } @else {
+            <small>Entrega: {{ item.date | date: "dd/MM/yyyy" }}</small>
+          }
         </div>
         <button
+          [disabled]="!!preparedId"
           class="remove"
           (click)="draft.splice($index, 1)"
           aria-label="Remover item"
@@ -229,8 +378,7 @@
     <div class="summary-footer">
       <span>Quantidade fixa: 1 unidade por linha</span
       ><small
-        >Os campos vermelhos do documento original não fazem parte da
-        montagem.</small
+        >Dados do equipamento são alterados somente no Almoxarifado.</small
       >
     </div>
   </aside>

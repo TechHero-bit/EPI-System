@@ -1,5 +1,9 @@
 # Validação local
 
+## Atualização de 22/10/2026 — catálogo protegido e assinatura na revisão
+
+Os campos do equipamento deixaram de ser editáveis na montagem, inclusive no contrato da API. O QR/link e o registro presencial foram movidos à revisão, com versão congelada antes do aceite, retomada de pendências e bloqueio de avanço eletrônico até confirmação. O painel final de assinatura foi removido; entrega física continua independente. Detalhes e limites em [REVIEW-SIGNING-20261022.md](REVIEW-SIGNING-20261022.md). Este comportamento substitui as instruções antigas de editar dados do equipamento na ficha ou assinar nos detalhes finais.
+
 ## Renumeração pré-instalação — vigente
 
 Após o usuário confirmar que nenhuma migration foi executada, os arquivos passaram a se chamar `001_init.sql` a `006_inventory_without_lots.sql`. A antiga migration de contador por ficha foi removida e a atual 006 passou a criar diretamente o trigger de matrícula, sem tabelas, função ou coluna de numeração sequencial. Nomes antigos citados nos relatórios históricos abaixo não são instruções de instalação atuais. Correspondência e detalhes em [MIGRATION-RENUMBERING.md](MIGRATION-RENUMBERING.md).

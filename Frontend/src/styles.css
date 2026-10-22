@@ -597,6 +597,21 @@ textarea::placeholder {
   position: sticky;
   top: 90px;
 }
+.signing-qr {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 16px auto;
+  background: white;
+}
+.draft-item .field {
+  display: grid;
+  gap: 6px;
+}
+.draft-item input[type="date"] {
+  width: 100%;
+  min-width: 0;
+}
 .step-title {
   display: flex;
   align-items: center;

@@ -71,6 +71,17 @@
               />
             </td>
             <td>
+              @if (
+                s.state(f.id)?.signature_status === "PENDING" &&
+                s.state(f.id)?.reservation_status !== "CANCELLED"
+              ) {
+                <a
+                  class="secondary button-link"
+                  routerLink="/rh/fichas/nova"
+                  [queryParams]="{ ficha: f.id }"
+                  >Retomar revisão</a
+                >
+              }
               <a
                 class="secondary button-link"
                 [routerLink]="['/rh/fichas', f.id]"

@@ -8,7 +8,6 @@ import {
 const item = {
   variantId: "variant-0",
   quantity: 1 as const,
-  risk: "",
 };
 test("ordenação pt-BR trata acentos e tamanhos numéricos sem alterar o original", () => {
   const labels = ["Único", "Luva 10", "Bota", "Árvore", "Luva 2"];
@@ -25,10 +24,6 @@ test("registro usa a matrícula em todas as fichas do colaborador e preserva dat
   const edited = {
     ...item,
     deliveryDate: "2026-10-29",
-    description: "PAR DE BOTAS",
-    ca: "27300",
-    brand: "BRACOL",
-    risk: "02",
   };
   const first = repository.issue(
     "employee-0",
@@ -52,10 +47,10 @@ test("registro usa a matrícula em todas as fichas do colaborador e preserva dat
     "DEMO-001",
   );
   assert.deepEqual(first.snapshot.items[0], {
-    description: "PAR DE BOTAS",
-    ca: "27300",
-    brand: "BRACOL",
-    risk: "02",
+    description: "Bota de segurança em couro",
+    ca: "DEMO-1100",
+    brand: "Proteção Demo",
+    risk: "",
     date: "2026-10-29",
     size: "40",
     quantity: 1,
@@ -81,6 +76,95 @@ test("demonstração possui dez colaboradores e quatro categorias fictícias", (
   assert.ok(
     d.employees.every((e) => e.personal_email.endsWith("@example.invalid")),
   );
+});
+test("RH não pode sobrescrever campos do catálogo durante a emissão", () => {
+  const r = new DemoRepository();
+  r.data.role = "RH";
+  for (const field of ["description", "ca", "brand", "risk"])
+    assert.throws(
+      () =>
+        r.issue(
+          "employee-0",
+          [{ ...item, [field]: "FORJADO" }] as any,
+          "MANUAL",
+          "2026-10-22",
+          crypto.randomUUID(),
+        ),
+      /Almoxarifado/,
+    );
+  const first = r.issue(
+    "employee-0",
+    [item],
+    "MANUAL",
+    "2026-10-22",
+    crypto.randomUUID(),
+  );
+  r.data.role = "ALMOXARIFADO";
+  r.product(
+    {
+      description: "Bota atualizada",
+      category: "Botas de segurança",
+      brand: "Nova marca",
+      ca: "009900",
+      riskCode: "02",
+    },
+    "product-0",
+  );
+  r.data.role = "RH";
+  const next = r.issue(
+    "employee-0",
+    [item],
+    "MANUAL",
+    "2026-10-22",
+    crypto.randomUUID(),
+  );
+  assert.equal(
+    first.snapshot.items[0]!.description,
+    "Bota de segurança em couro",
+  );
+  assert.equal(next.snapshot.items[0]!.description, "Bota atualizada");
+  assert.equal(next.snapshot.items[0]!.ca, "009900");
+  assert.equal(next.snapshot.items[0]!.risk, "02");
+});
+test("link aleatório da revisão exige conferência e aceite e não confirma entrega", () => {
+  const r = new DemoRepository();
+  const f = r.issue(
+    "employee-0",
+    [item],
+    "ELECTRONIC",
+    "2026-10-22",
+    crypto.randomUUID(),
+  );
+  const physical = r.data.inventory[0].stock_quantity;
+  const token = r.createSigningLink(f.id),
+    other = r.createSigningLink(f.id);
+  assert.match(token, /^[a-f0-9]{64}$/);
+  assert.notEqual(token, other);
+  assert.throws(() => r.publicSigning(f.id, ""), /Link inválido/);
+  assert.throws(() => r.publicSigning(token, "confirm", true), /Confira/);
+  r.publicSigning(token, "code");
+  r.publicSigning(token, "preview");
+  assert.throws(() => r.publicSigning(token, "confirm", false), /aceite/);
+  r.publicSigning(token, "confirm", true);
+  const state = r.data.states.find((state) => state.sheet_id === f.id);
+  assert.equal(state.signature_status, "SIGNED_ELECTRONIC");
+  assert.equal(state.receipt_status, "UNCONFIRMED");
+  assert.equal(r.data.inventory[0].stock_quantity, physical);
+  assert.throws(() => r.publicSigning(token, ""), /utilizado/);
+  assert.throws(() => r.publicSigning(other, ""), /utilizado/);
+  const pending = r.issue(
+    "employee-1",
+    [item],
+    "ELECTRONIC",
+    "2026-10-22",
+    crypto.randomUUID(),
+  );
+  const expired = r.createSigningLink(pending.id);
+  r.data.signingLinks!.find((link) => link.token === expired)!.expires_at =
+    Date.now() - 1;
+  assert.throws(() => r.publicSigning(expired, ""), /expirado/);
+  r.cancel(pending.id);
+  assert.throws(() => r.createSigningLink(pending.id), /indisponível/);
 });
 test("cadastro manual rejeita matrícula duplicada e mantém zeros no registro", () => {
   const repository = new DemoRepository();

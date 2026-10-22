@@ -1,10 +1,11 @@
 import { RequestHandler } from "express";
 import { z } from "zod";
+import { sheetIssueSchema } from "../schemas/sheet.schema.js";
+import { catalogSnapshotItem } from "../services/sheet-catalog.service.js";
 import { config } from "../config/environment.js";
 import {
   admin,
   uuid,
-  isoDate,
   required,
   error,
   context,
@@ -31,28 +32,7 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
   res,
 ) => {
   const c = await context(req, ["ADMIN", "RH", "SEGURANCA"]);
-  const body = z
-    .object({
-      employeeId: uuid,
-      documentDate: isoDate,
-      method: z.enum(["MANUAL", "ELECTRONIC"]),
-      idempotencyKey: uuid,
-      items: z
-        .array(
-          z.object({
-            variantId: uuid,
-            quantity: z.literal(1).optional(),
-            risk: z.string().trim().max(30).optional(),
-            deliveryDate: isoDate.optional(),
-            description: required.max(180).optional(),
-            ca: z.string().trim().max(50).optional(),
-            brand: z.string().trim().max(100).optional(),
-          }),
-        )
-        .min(1)
-        .max(15),
-    })
-    .parse(req.body);
+  const body = sheetIssueSchema.parse(req.body);
   const employee = await owned<any>(c, "employees", body.employeeId);
   if (employee.termination_date) throw error("Colaborador inativo.");
   const requested = unitItems(body.items);
@@ -87,16 +67,13 @@ export const postsheets: RequestHandler<{ id: string; token: string }> = async (
       throw error(
         "Escolha um equipamento ativo com estoque disponível e C.A. válido.",
       );
-    items.push({
-      date: fields.deliveryDate ?? body.documentDate,
-      description: fields.description ?? product.description,
-      ca: fields.ca ?? product.ca ?? "",
-      brand: fields.brand ?? product.brand,
-      risk: fields.risk ?? product.risk_code ?? "",
-      size: variant.size,
-      variantId: variant.id,
-      quantity: 1,
-    });
+    const snapshotItem = catalogSnapshotItem(
+      product,
+      variant,
+      fields.deliveryDate ?? body.documentDate,
+    );
+    item.risk = snapshotItem.risk;
+    items.push(snapshotItem);
   }
   const organization = dbResult(
     await c.admin
@@ -215,12 +192,14 @@ export const postsheetsIdSigningLinks: RequestHandler<{
   const state = dbResult(
     await c.admin
       .from("sheet_state")
-      .select("signature_status")
+      .select("signature_status,reservation_status")
       .eq("sheet_id", sheet.id)
       .single(),
   );
   if (state.signature_status !== "PENDING")
     throw error("Esta ficha já foi assinada.");
+  if (state.reservation_status === "CANCELLED")
+    throw error("Esta reserva foi cancelada.");
   const raw = token();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
   dbOk(

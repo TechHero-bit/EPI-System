@@ -98,6 +98,17 @@
       >
         Baixar Excel
       </button>
+      @if (
+        state?.signature_status === "PENDING" &&
+        state?.reservation_status !== "CANCELLED"
+      ) {
+        <a
+          class="secondary button-link"
+          routerLink="/rh/fichas/nova"
+          [queryParams]="{ ficha: id }"
+          >Retomar revisão</a
+        >
+      }
     </div>
     <p class="note">
       {{
@@ -110,117 +121,50 @@
     </p>
     <small class="hash">SHA-256: {{ sheet.pdf_sha256 }}</small>
   </section>
-  <div class="two-col">
-    <section class="panel">
-      <h2>
-        Assinatura
-        {{ sheet.signature_method === "MANUAL" ? "presencial" : "eletrônica" }}
-      </h2>
-      @if (
-        state?.signature_status === "PENDING" &&
-        state?.reservation_status !== "CANCELLED"
-      ) {
-        @if (sheet.signature_method === "MANUAL") {
-          <label class="field"
-            >Local de arquivo do original assinado<textarea
-              [(ngModel)]="signatureNote"
-              maxlength="500"
-              placeholder="Informe responsável, data e referência do arquivo"
-            ></textarea></label
-          ><button
-            class="primary"
-            [disabled]="s.busy() || !signatureNote.trim()"
-            (click)="manual()"
-          >
-            Registrar assinatura presencial
-          </button>
-          @if (!s.demo) {
-            <label class="field spaced"
-              >Documento físico digitalizado (PDF, até 5 MB)<input
-                type="file"
-                accept="application/pdf"
-                (change)="attach($event)"
-            /></label>
-          }
-        } @else {
-          <p class="muted">
-            O link requer código enviado ao e-mail pessoal previamente
-            verificado.
-          </p>
-          <button class="primary" (click)="link()" [disabled]="s.busy()">
-            {{ s.demo ? "Criar link de simulação" : "Criar link individual" }}
-          </button>
-          @if (url) {
-            <div class="copy-row spaced">
-              <input
-                aria-label="Link de assinatura"
-                readonly
-                [value]="url"
-              /><button class="secondary" (click)="copy()">Copiar</button>
-            </div>
-            <a [href]="url" target="_blank" rel="noopener" class="text-button"
-              >Abrir {{ s.demo ? "simulação" : "link" }}</a
-            >
-          }
-        }
-      } @else {
-        <p class="muted">
-          {{
-            state?.reservation_status === "CANCELLED"
-              ? "Reserva cancelada."
-              : "A
-      assinatura já está registrada nesta versão."
-          }}
-        </p>
-      }
-    </section>
-    <section class="panel">
-      <h2>Entrega física</h2>
-      <p class="muted">
-        Somente confirme após entregar efetivamente os EPIs. Esta ação baixa as
-        unidades reservadas.
-      </p>
-      @if (
-        state?.receipt_status !== "CONFIRMED" &&
-        state?.reservation_status !== "CANCELLED"
-      ) {
+  <section class="panel">
+    <h2>Entrega física</h2>
+    <p class="muted">
+      Somente confirme após entregar efetivamente os EPIs. Esta ação baixa as
+      unidades reservadas.
+    </p>
+    @if (
+      state?.receipt_status !== "CONFIRMED" &&
+      state?.reservation_status !== "CANCELLED"
+    ) {
+      <label class="field"
+        >Evidência da entrega presencial<textarea
+          [(ngModel)]="receiptNote"
+          maxlength="500"
+          placeholder="Quem recebeu, quem entregou e observações"
+        ></textarea></label
+      ><button
+        class="primary"
+        [disabled]="s.busy() || !receiptNote.trim()"
+        (click)="receipt()"
+      >
+        Confirmar entrega física
+      </button>
+      <div class="spaced">
         <label class="field"
-          >Evidência da entrega presencial<textarea
-            [(ngModel)]="receiptNote"
-            maxlength="500"
-            placeholder="Quem recebeu, quem entregou e observações"
-          ></textarea></label
+          >Motivo do cancelamento<input
+            [(ngModel)]="cancelNote"
+            maxlength="500" /></label
         ><button
-          class="primary"
-          [disabled]="s.busy() || !receiptNote.trim()"
-          (click)="receipt()"
+          class="secondary"
+          [disabled]="s.busy() || cancelNote.trim().length < 5"
+          (click)="cancel()"
         >
-          Confirmar entrega física
+          Cancelar reserva e liberar itens
         </button>
-        <div class="spaced">
-          <label class="field"
-            >Motivo do cancelamento<input
-              [(ngModel)]="cancelNote"
-              maxlength="500" /></label
-          ><button
-            class="secondary"
-            [disabled]="s.busy() || cancelNote.trim().length < 5"
-            (click)="cancel()"
-          >
-            Cancelar reserva e liberar itens
-          </button>
-        </div>
-      } @else {
-        <epi-status
-          [value]="
-            state?.reservation_status === 'CANCELLED'
-              ? 'CANCELLED'
-              : 'CONFIRMED'
-          "
-        />
-      }
-    </section>
-  </div>
+      </div>
+    } @else {
+      <epi-status
+        [value]="
+          state?.reservation_status === 'CANCELLED' ? 'CANCELLED' : 'CONFIRMED'
+        "
+      />
+    }
+  </section>
   <section class="panel">
     <h2>Histórico da ficha</h2>
     @for (a of audits; track a.id) {

@@ -23,16 +23,15 @@ export function unitItems(
   items: Array<{
     variantId: string;
     quantity?: number;
-    risk?: string;
   }>,
 ) {
   if (!items.length) throw new Error("Escolha ao menos um EPI.");
   for (const item of items)
     if (item.quantity !== undefined && item.quantity !== 1)
       throw new Error("Quantidade por item deve ser 1.");
-  return items.map(({ variantId, risk }) => ({
+  return items.map(({ variantId }) => ({
     variant_id: variantId,
-    risk: risk ?? "",
+    risk: "",
     quantity: UNIT_QUANTITY,
   }));
 }

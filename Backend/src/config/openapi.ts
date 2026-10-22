@@ -1,19 +1,16 @@
 const item = {
   type: "object",
   required: ["variantId"],
+  additionalProperties: false,
   properties: {
     variantId: { type: "string", format: "uuid" },
     quantity: { type: "integer", const: 1 },
-    risk: { type: "string", maxLength: 30 },
     deliveryDate: {
       type: "string",
       format: "date",
       description:
         "Data da entrega editável por item; usa documentDate se omitida",
     },
-    description: { type: "string", minLength: 1, maxLength: 180 },
-    ca: { type: "string", maxLength: 50 },
-    brand: { type: "string", maxLength: 100 },
   },
 };
 const methods: Record<string, Record<string, string>> = {

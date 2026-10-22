@@ -312,6 +312,14 @@ export class DemoRepository {
       throw new Error("Selecione colaborador ativo e entre 1 e 15 itens.");
     const demand = new Map<string, number>();
     for (const item of items) {
+      if (
+        Object.keys(item).some(
+          (key) => !["variantId", "quantity", "deliveryDate"].includes(key),
+        )
+      )
+        throw new Error(
+          "Os dados do equipamento só podem ser alterados no Almoxarifado.",
+        );
       if (item.quantity !== 1)
         throw new Error("Quantidade por item deve ser 1.");
       if (item.deliveryDate && !/^\d{4}-\d{2}-\d{2}$/.test(item.deliveryDate))
@@ -355,10 +363,10 @@ export class DemoRepository {
           const v = this.data.variants.find((v) => v.id === i.variantId);
           const p = this.data.products.find((p) => p.id === v.product_id);
           return {
-            description: i.description ?? p.description,
-            ca: i.ca ?? p.ca,
-            brand: i.brand ?? p.brand,
-            risk: i.risk ?? p.risk_code ?? "",
+            description: p.description,
+            ca: p.ca ?? "",
+            brand: p.brand,
+            risk: p.risk_code ?? "",
             date: i.deliveryDate ?? date,
             size: v.size,
             quantity: 1,
@@ -419,6 +427,67 @@ export class DemoRepository {
     state.reservation_status = "CANCELLED";
     this.event("RESERVATION_CANCELLED", id);
   }
+  createSigningLink(id: string) {
+    this.require(HR);
+    const sheet = this.data.sheets.find((s) => s.id === id);
+    const state = this.data.states.find((s) => s.sheet_id === id);
+    if (
+      !sheet ||
+      sheet.signature_method !== "ELECTRONIC" ||
+      state?.signature_status !== "PENDING" ||
+      state.reservation_status === "CANCELLED"
+    )
+      throw new Error("Ficha indisponível para assinatura por link.");
+    const token = Array.from(
+      crypto.getRandomValues(new Uint8Array(32)),
+      (byte) => byte.toString(16).padStart(2, "0"),
+    ).join("");
+    (this.data.signingLinks ??= []).push({
+      token,
+      sheet_id: id,
+      expires_at: Date.now() + 24 * 60 * 60_000,
+      consumed: false,
+      requested: false,
+      previewed: false,
+    });
+    this.event("SIMULATED_SIGNING_LINK_CREATED", id);
+    return token;
+  }
+  publicSigning(token: string, step: string, acceptedTerms = false) {
+    const link = this.data.signingLinks?.find((link) => link.token === token);
+    if (!link || link.consumed || link.expires_at <= Date.now())
+      throw new Error("Link inválido, expirado ou já utilizado.");
+    const sheet = this.data.sheets.find((sheet) => sheet.id === link.sheet_id);
+    const state = this.data.states.find(
+      (state) => state.sheet_id === link.sheet_id,
+    );
+    if (
+      !sheet ||
+      state?.reservation_status === "CANCELLED" ||
+      state?.signature_status !== "PENDING"
+    )
+      throw new Error("Assinatura indisponível.");
+    if (step === "code") link.requested = true;
+    if (step === "preview") {
+      if (!link.requested)
+        throw new Error("Inicie a simulação antes de conferir o documento.");
+      link.previewed = true;
+    }
+    if (step === "confirm") {
+      if (!link.previewed || !acceptedTerms)
+        throw new Error(
+          "Confira o documento e aceite os termos antes de confirmar.",
+        );
+      this.sign(sheet.id);
+    }
+    return {
+      sheet,
+      terms:
+        "Simular o aceite de um documento fictício. Esta ação não produz uma assinatura juridicamente válida.",
+      sha256: "DEMONSTRAÇÃO",
+      pending: state.signature_status === "PENDING",
+    };
+  }
   sign(id: string, manual = false) {
     if (manual) this.require(HR);
     const sheet = this.data.sheets.find((s) => s.id === id);
@@ -432,6 +501,8 @@ export class DemoRepository {
     if ((sheet.signature_method === "MANUAL") !== manual)
       throw new Error("Método de assinatura incompatível.");
     state.signature_status = manual ? "SIGNED_MANUAL" : "SIGNED_ELECTRONIC";
+    for (const link of this.data.signingLinks ?? [])
+      if (link.sheet_id === id) link.consumed = true;
     this.event("SIMULATED_SIGNATURE", id);
   }
 }

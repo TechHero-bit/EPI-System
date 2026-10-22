@@ -26,11 +26,7 @@ export const today = () =>
 export interface DraftItem {
   variantId: string;
   quantity: 1;
-  risk: string;
   deliveryDate?: string;
-  description?: string;
-  ca?: string;
-  brand?: string;
 }
 export interface PortalData {
   organization: { id: string; name: string };
@@ -43,6 +39,7 @@ export interface PortalData {
   states: any[];
   movements: any[];
   audits: any[];
+  signingLinks?: any[];
   members?: any[];
 }
 export const emptyData = (): PortalData => ({
