@@ -8,6 +8,7 @@ import {
 } from "../../../../shared/utils/alphabetical";
 import { PortalStore } from "../../../../core/services/portal.service";
 import { today, type DraftItem } from "../../../../core/models/portal.model";
+import { restoreReviewDraft } from "../../../../shared/utils/review-draft";
 @Component({
   standalone: true,
   imports: [FormsModule, DatePipe],
@@ -33,6 +34,7 @@ export class BuilderComponent implements OnInit, OnDestroy {
   signatureNote = "";
   cancelNote = "";
   refreshing = false;
+  editTarget: number | null = null;
   timer?: ReturnType<typeof setInterval>;
   get employee() {
     return (
@@ -55,6 +57,86 @@ export class BuilderComponent implements OnInit, OnDestroy {
       (this.method === "MANUAL" ||
         this.state?.signature_status === "SIGNED_ELECTRONIC")
     );
+  }
+  get canRevise() {
+    return (
+      !!this.prepared &&
+      this.state?.signature_status === "PENDING" &&
+      this.state?.reservation_status === "RESERVED" &&
+      this.state?.receipt_status === "UNCONFIRMED"
+    );
+  }
+  back() {
+    if (this.preparedId && !this.prepared) {
+      void this.router.navigate(["/rh/fichas"]);
+      return;
+    }
+    if (this.step === 1) {
+      void this.router.navigate(["/rh/fichas"]);
+      return;
+    }
+    this.goTo(this.step - 1);
+  }
+  goTo(target: number) {
+    if (this.s.busy() || target < 1 || target > 3) return;
+    if (target === 2 && !this.employeeId) return;
+    if (target === 3 && !this.draft.length && !this.preparedId) return;
+    if (this.preparedId && target < this.step && this.canRevise) {
+      this.editTarget = target;
+      return;
+    }
+    this.step = target;
+  }
+  requestEdit() {
+    if (this.canRevise) this.editTarget = 3;
+  }
+  async confirmBack() {
+    const target = this.editTarget;
+    if (target === null) return;
+    await this.s.action(async () => {
+      const restored = restoreReviewDraft(this.prepared);
+      await this.s.load();
+      if (!this.canRevise) {
+        this.editTarget = null;
+        this.step = target;
+        this.s.failure.set(
+          "O estado desta ficha mudou. As etapas anteriores estão disponíveis somente para consulta.",
+        );
+        return;
+      }
+      await this.s.cancel(
+        this.preparedId,
+        "Retorno para edição das etapas da ficha; versão pendente substituída por novo rascunho.",
+      );
+      this.editTarget = null;
+      if (this.state?.signature_status !== "PENDING") {
+        this.step = target;
+        this.s.failure.set(
+          "Uma assinatura foi registrada durante o retorno. O documento foi preservado e a reserva foi cancelada; esta versão permanece somente para consulta.",
+        );
+        return;
+      }
+      this.employeeId = restored.employeeId;
+      this.date = restored.date;
+      this.method = restored.method;
+      this.draft = restored.items;
+      this.preparedId = "";
+      this.prepared = undefined;
+      this.url = "";
+      this.qr = "";
+      this.signatureNote = "";
+      this.cancelNote = "";
+      this.key = crypto.randomUUID();
+      this.step = target;
+      await this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: {},
+        replaceUrl: true,
+      });
+      this.s.message.set(
+        "Dados preservados em um novo rascunho. Você pode alterar o método de assinatura e as etapas anteriores.",
+      );
+    }, "");
   }
   get selectedItems(): any[] {
     return (
@@ -221,6 +303,7 @@ export class BuilderComponent implements OnInit, OnDestroy {
     );
   }
   add(v: any) {
+    if (this.preparedId) return;
     if (this.draft.length >= 15) {
       this.s.failure.set("Limite de 15 itens por ficha.");
       return;

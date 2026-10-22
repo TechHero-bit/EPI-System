@@ -303,7 +303,7 @@ export class PortalStore {
   }
   async cancel(id: string, note: string) {
     if (this.demo) {
-      this.repository.cancel(id);
+      this.repository.cancel(id, note);
       this.persist();
     } else {
       await this.request(`/api/sheets/${id}/cancel`, "POST", { note });

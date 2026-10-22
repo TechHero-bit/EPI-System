@@ -177,13 +177,17 @@ export class DemoRepository {
     if (!allowed.includes(this.data.role))
       throw new Error("Seu perfil não permite esta ação.");
   }
-  private event(action: string, id: string) {
+  private event(
+    action: string,
+    id: string,
+    detail: Record<string, unknown> = {},
+  ) {
     this.data.audits.unshift({
       id: crypto.randomUUID(),
       action,
       entity_id: id,
       created_at: new Date().toISOString(),
-      detail: { demo: true },
+      detail: { demo: true, ...detail },
     });
   }
   available(balance: any): number {
@@ -415,8 +419,10 @@ export class DemoRepository {
     state.confirmed_at = new Date().toISOString();
     this.event("RECEIPT_CONFIRMED", id);
   }
-  cancel(id: string) {
+  cancel(id: string, note = "Cancelamento demonstrativo") {
     this.require(HR);
+    if (note.trim().length < 5)
+      throw new Error("Informe o motivo do cancelamento.");
     const sheet = this.data.sheets.find((s) => s.id === id);
     const state = this.data.states.find((s) => s.sheet_id === id);
     if (!sheet || !state || state.reservation_status !== "RESERVED")
@@ -425,7 +431,9 @@ export class DemoRepository {
       this.data.inventory.find((l) => l.id === item.variantId)
         .reserved_quantity--;
     state.reservation_status = "CANCELLED";
-    this.event("RESERVATION_CANCELLED", id);
+    for (const link of this.data.signingLinks ?? [])
+      if (link.sheet_id === id) link.consumed = true;
+    this.event("RESERVATION_CANCELLED", id, { reason: note });
   }
   createSigningLink(id: string) {
     this.require(HR);

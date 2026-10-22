@@ -1,5 +1,9 @@
 # Validação local
 
+## Atualização de 22/10/2026 — botão Voltar em todas as etapas
+
+Navegação de retorno com preservação do rascunho e troca de assinatura foi adicionada. Para revisões já preparadas e pendentes, é necessário confirmar o cancelamento da reserva antiga antes de editar um novo rascunho. Documentos assinados continuam imutáveis e as etapas anteriores são de consulta. Detalhes em [BACK-NAVIGATION-20261022.md](BACK-NAVIGATION-20261022.md).
+
 ## Atualização de 22/10/2026 — catálogo protegido e assinatura na revisão
 
 Os campos do equipamento deixaram de ser editáveis na montagem, inclusive no contrato da API. O QR/link e o registro presencial foram movidos à revisão, com versão congelada antes do aceite, retomada de pendências e bloqueio de avanço eletrônico até confirmação. O painel final de assinatura foi removido; entrega física continua independente. Detalhes e limites em [REVIEW-SIGNING-20261022.md](REVIEW-SIGNING-20261022.md). Este comportamento substitui as instruções antigas de editar dados do equipamento na ficha ou assinar nos detalhes finais.

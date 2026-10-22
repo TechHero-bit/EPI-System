@@ -70,6 +70,8 @@ O menu contém apenas um Dashboard, adaptado ao setor. Os endereços antigos `/r
 
 ## Modo real
 
+Todas as etapas da montagem oferecem Voltar: na primeira, retorna à lista; entre etapas, mantém o rascunho. Depois de preparar uma revisão ainda pendente, Voltar pede confirmação para cancelar a reserva/link antigos e recuperar os dados em um novo rascunho. “Alterar método ou dados” permite voltar à edição diretamente na revisão. A ficha final tem retorno à revisão; versões assinadas ou entregues permitem apenas consulta das etapas anteriores. Detalhes em [docs/BACK-NAVIGATION-20261022.md](docs/BACK-NAVIGATION-20261022.md).
+
 1. Crie um projeto Supabase de desenvolvimento e instale o banco conforme [database/README.md](database/README.md). Não execute o setup completo em um banco que já possui o ERP.
 2. Crie a conta do administrador em Supabase Auth e use `database/functions/provision-first-admin.sql`. Para contas posteriores, use `provision-member.sql`. Os scripts exigem UUIDs explícitos e não criam senhas.
 3. Copie `.env.example` para `.env`. Preencha as chaves do projeto de desenvolvimento e use `APP_MODE=real`. Gere TOKEN_PEPPER e CRON_SECRET aleatórios com ao menos 32 caracteres. Os exemplos não são segredos utilizáveis.

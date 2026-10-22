@@ -9,22 +9,18 @@
   <span class="date-pill">Etapa {{ step }} de 4</span>
 </div>
 <div class="stepper">
-  <button
-    [class.active]="step === 1"
-    [disabled]="!!preparedId"
-    (click)="step = 1"
-  >
+  <button [class.active]="step === 1" [disabled]="s.busy()" (click)="goTo(1)">
     1 · Colaborador</button
   ><button
     [class.active]="step === 2"
-    [disabled]="!employeeId || !!preparedId"
-    (click)="step = 2"
+    [disabled]="!employeeId || s.busy()"
+    (click)="goTo(2)"
   >
     2 · Equipamentos</button
   ><button
     [class.active]="step === 3"
     [disabled]="!draft.length && !preparedId"
-    (click)="step = 3"
+    (click)="goTo(3)"
   >
     3 · Revisão e assinatura
   </button>
@@ -32,11 +28,61 @@
     4 · Ficha final
   </button>
 </div>
+<div class="toolbar spaced">
+  <button
+    class="secondary"
+    (click)="back()"
+    [disabled]="s.busy()"
+    aria-label="Voltar uma etapa"
+  >
+    ← Voltar
+  </button>
+</div>
+@if (editTarget !== null) {
+  <section
+    class="panel"
+    role="region"
+    aria-label="Confirmar retorno para edição"
+  >
+    <h2>Voltar e editar a ficha?</h2>
+    <p>
+      A versão preparada será mantida no histórico como cancelada. A reserva
+      será liberada e o link antigo deixará de funcionar. Colaborador,
+      equipamentos, datas e método escolhido serão preservados em um novo
+      rascunho.
+    </p>
+    <div class="toolbar">
+      <button
+        class="secondary"
+        (click)="editTarget = null"
+        [disabled]="s.busy()"
+      >
+        Manter revisão atual
+      </button>
+      <button class="primary" (click)="confirmBack()" [disabled]="s.busy()">
+        Voltar e editar
+      </button>
+    </div>
+  </section>
+}
+@if (preparedId && step < 3) {
+  <p class="note">
+    Consulta da versão já preparada. Para editar uma revisão pendente, retorne à
+    etapa 3 e escolha “Alterar método ou dados”. Fichas assinadas ou entregues
+    não podem ser alteradas.
+  </p>
+}
 <div class="builder">
   <div>
     @if (step === 1) {
       <section class="panel">
         <h2>Para quem vamos preparar a ficha?</h2>
+        @if (preparedId) {
+          <p class="note">
+            Colaborador desta versão: {{ employee?.name }} · Matrícula
+            {{ employee?.registration }}
+          </p>
+        }
         <input
           aria-label="Buscar colaborador"
           [(ngModel)]="employeeQuery"
@@ -46,6 +92,7 @@
           @for (e of employees; track e.id) {
             <button
               class="person-option"
+              [disabled]="!!preparedId"
               [class.selected]="employeeId === e.id"
               (click)="employeeId = e.id"
             >
@@ -62,9 +109,14 @@
             <div class="empty">Nenhum colaborador ativo encontrado.</div>
           }
         </div>
-        <button class="primary" [disabled]="!employeeId" (click)="step = 2">
-          Escolher equipamentos →
-        </button>
+        <div class="toolbar spaced">
+          <button class="secondary" (click)="back()" [disabled]="s.busy()">
+            ← Voltar às fichas
+          </button>
+          <button class="primary" [disabled]="!employeeId" (click)="goTo(2)">
+            Escolher equipamentos →
+          </button>
+        </div>
       </section>
     }
     @if (step === 2) {
@@ -86,7 +138,7 @@
           @for (v of variants; track v.id) {
             <button
               class="equipment-card"
-              [disabled]="!available(v.id)"
+              [disabled]="!!preparedId || !available(v.id)"
               (click)="add(v)"
             >
               <strong>{{ s.product(v.product_id)?.description }}</strong
@@ -101,18 +153,37 @@
             <div class="empty">Nenhum equipamento encontrado.</div>
           }
         </div>
-        <button
-          class="primary spaced"
-          [disabled]="!draft.length"
-          (click)="step = 3"
-        >
-          Revisar seleção →
-        </button>
+        <div class="toolbar spaced">
+          <button class="secondary" (click)="back()" [disabled]="s.busy()">
+            ← Voltar para colaborador
+          </button>
+          <button
+            class="primary spaced"
+            [disabled]="(!draft.length && !preparedId) || s.busy()"
+            (click)="goTo(3)"
+          >
+            Revisar seleção →
+          </button>
+        </div>
       </section>
     }
     @if (step === 3) {
       <section class="panel">
         <h2>Revisar ficha e assinatura</h2>
+        <div class="toolbar spaced">
+          <button class="secondary" (click)="back()" [disabled]="s.busy()">
+            ← Voltar para equipamentos
+          </button>
+          @if (canRevise) {
+            <button
+              class="secondary"
+              (click)="requestEdit()"
+              [disabled]="s.busy()"
+            >
+              Alterar método ou dados
+            </button>
+          }
+        </div>
         <p>
           <strong>{{ employee?.name }}</strong
           ><br />{{ employee?.job_title || employee?.jobTitle }} ·
@@ -174,6 +245,13 @@
           antes de emitir.
         </p>
         @if (!preparedId) {
+          <button
+            class="secondary spaced"
+            (click)="back()"
+            [disabled]="s.busy()"
+          >
+            ← Voltar antes de gerar
+          </button>
           <button
             class="primary wide"
             [disabled]="s.busy() || !draft.length || !employeeId || !date"

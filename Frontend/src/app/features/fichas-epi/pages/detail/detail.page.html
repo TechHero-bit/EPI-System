@@ -4,9 +4,17 @@
     <h1>Detalhes da ficha</h1>
     <p>{{ id }}</p>
   </div>
-  <a class="secondary button-link" routerLink="/rh/fichas"
-    >← Voltar às fichas</a
-  >
+  <div class="toolbar">
+    <a
+      class="secondary button-link"
+      routerLink="/rh/fichas/nova"
+      [queryParams]="{ ficha: id }"
+      >← Voltar à revisão</a
+    >
+    <a class="secondary button-link" routerLink="/rh/fichas"
+      >← Voltar às fichas</a
+    >
+  </div>
 </div>
 @if (sheet) {
   <section class="panel">
