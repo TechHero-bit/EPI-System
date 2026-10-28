@@ -77,7 +77,7 @@ before(async () => {
 after(async () => {
   await db.close();
 });
-test("arquivos de migrations são numerados de 001 a 006 sem lacunas", async () => {
+test("arquivos de migrations são numerados de 001 a 007 sem lacunas", async () => {
   const files = (await readdir("database/supabase/migrations"))
     .filter((name) => name.endsWith(".sql"))
     .sort();
@@ -88,6 +88,7 @@ test("arquivos de migrations são numerados de 001 a 006 sem lacunas", async () 
     "004_reservations_and_access.sql",
     "005_signing_identity.sql",
     "006_inventory_without_lots.sql",
+    "007_manual_receipt.sql",
   ]);
   for (const [index, file] of files.entries()) {
     const source = await readFile(
@@ -693,6 +694,156 @@ test("registro presencial exige perfil RH; entrega baixa uma unidade uma vez", a
     ).n >= 3,
   );
 });
+test("entrega presencial confirma assinatura atomicamente e aceita repetição", async () => {
+  const id = await issue(rh, undefined, "MANUAL");
+  const note = "Colaborador recebeu os EPIs e já assinou presencialmente.";
+  const before = await one("select * from inventory_stock where id=$1", [lot]);
+  await assert.rejects(
+    one("select confirm_manual_receipt($1,$2,$3,$4)", [
+      other,
+      outsider,
+      id,
+      note,
+    ]),
+    /não encontrada/,
+  );
+  await assert.rejects(
+    one("select confirm_manual_receipt($1,$2,$3,$4)", [org, stock, id, note]),
+    /negado/,
+  );
+  await assert.rejects(
+    one("select confirm_manual_receipt($1,$2,$3,$4)", [org, rh, id, " "]),
+    /observações/,
+  );
+  // A failure after recording the signature must roll back the entire operation.
+  await db.query("update inventory_stock set reserved_quantity=0 where id=$1", [
+    lot,
+  ]);
+  await assert.rejects(
+    one("select confirm_manual_receipt($1,$2,$3,$4)", [org, rh, id, note]),
+    /inconsistente/,
+  );
+  const pending = await one("select * from sheet_state where sheet_id=$1", [
+    id,
+  ]);
+  assert.equal(pending.signature_status, "PENDING");
+  assert.equal(pending.receipt_status, "UNCONFIRMED");
+  assert.equal(
+    (
+      await one(
+        "select count(*)::integer as n from signatures where sheet_id=$1",
+        [id],
+      )
+    ).n,
+    0,
+  );
+  assert.equal(
+    (
+      await one(
+        "select count(*)::integer as n from stock_movements where sheet_id=$1",
+        [id],
+      )
+    ).n,
+    0,
+  );
+  await db.query(
+    "update inventory_stock set reserved_quantity=$2 where id=$1",
+    [lot, before.reserved_quantity],
+  );
+  await one("select confirm_manual_receipt($1,$2,$3,$4)", [org, rh, id, note]);
+  await one("select confirm_manual_receipt($1,$2,$3,$4)", [org, rh, id, note]);
+  const state = await one("select * from sheet_state where sheet_id=$1", [id]);
+  assert.equal(state.signature_status, "SIGNED_MANUAL");
+  assert.equal(state.receipt_status, "CONFIRMED");
+  assert.equal(state.reservation_status, "DELIVERED");
+  const balance = await one("select * from inventory_stock where id=$1", [lot]);
+  assert.equal(balance.stock_quantity, before.stock_quantity - 1);
+  assert.equal(balance.reserved_quantity, before.reserved_quantity - 1);
+  for (const table of ["signatures", "receipts", "stock_movements"])
+    assert.equal(
+      (
+        await one(
+          `select count(*)::integer as n from ${table} where sheet_id=$1`,
+          [id],
+        )
+      ).n,
+      1,
+    );
+  const signature = await one("select * from signatures where sheet_id=$1", [
+    id,
+  ]);
+  assert.equal(signature.note, note);
+  assert.equal(signature.actor_id, rh);
+  assert.equal(
+    signature.document_sha256,
+    (await one("select pdf_sha256 from sheets where id=$1", [id])).pdf_sha256,
+  );
+  assert.equal(
+    (
+      await one(
+        "select count(*)::integer as n from signature_evidences where sheet_id=$1",
+        [id],
+      )
+    ).n,
+    1,
+  );
+  assert.equal(
+    (
+      await one(
+        "select count(*)::integer as n from audit_events where entity_id=$1 and action='MANUAL_SIGNATURE_RECORDED'",
+        [id],
+      )
+    ).n,
+    1,
+  );
+});
+
+test("confirmação conjunta não assina fichas eletrônicas nem reservas canceladas", async () => {
+  const electronic = await issue();
+  await assert.rejects(
+    one("select confirm_manual_receipt($1,$2,$3,$4)", [
+      org,
+      rh,
+      electronic,
+      "Recebido e assinado",
+    ]),
+    /eletrônica/,
+  );
+  assert.equal(
+    (
+      await one("select signature_status from sheet_state where sheet_id=$1", [
+        electronic,
+      ])
+    ).signature_status,
+    "PENDING",
+  );
+  const manual = await issue(rh, undefined, "MANUAL");
+  await one("select cancel_reservation($1,$2,$3,$4)", [
+    org,
+    rh,
+    manual,
+    "Cancelamento de teste",
+  ]);
+  await assert.rejects(
+    one("select confirm_manual_receipt($1,$2,$3,$4)", [
+      org,
+      rh,
+      manual,
+      "Recebido e assinado",
+    ]),
+    /cancelada/,
+  );
+  assert.equal(
+    (
+      await one(
+        "select count(*)::integer as n from signatures where sheet_id=$1",
+        [manual],
+      )
+    ).n,
+    0,
+  );
+});
+
 test("RLS bloqueia outras organizações, dados pessoais e alterações de perfil", async () => {
   await db.exec("set role authenticated");
   try {

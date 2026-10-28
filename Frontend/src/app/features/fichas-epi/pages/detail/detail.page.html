@@ -5,12 +5,6 @@
     <p>{{ id }}</p>
   </div>
   <div class="toolbar">
-    <a
-      class="secondary button-link"
-      routerLink="/rh/fichas/nova"
-      [queryParams]="{ ficha: id }"
-      >← Voltar à revisão</a
-    >
     <a class="secondary button-link" routerLink="/rh/fichas"
       >← Voltar às fichas</a
     >
@@ -106,17 +100,6 @@
       >
         Baixar Excel
       </button>
-      @if (
-        state?.signature_status === "PENDING" &&
-        state?.reservation_status !== "CANCELLED"
-      ) {
-        <a
-          class="secondary button-link"
-          routerLink="/rh/fichas/nova"
-          [queryParams]="{ ficha: id }"
-          >Retomar revisão</a
-        >
-      }
     </div>
     <p class="note">
       {{
@@ -135,36 +118,49 @@
       Somente confirme após entregar efetivamente os EPIs. Esta ação baixa as
       unidades reservadas.
     </p>
-    @if (
-      state?.receipt_status !== "CONFIRMED" &&
-      state?.reservation_status !== "CANCELLED"
-    ) {
+    @if (sheet.signature_method === "MANUAL" && needsReceiptConfirmation) {
+      <p class="note">
+        Ao confirmar, você também declara que o documento já foi assinado
+        presencialmente. Informe a entrega e a assinatura nas observações.
+      </p>
+    }
+    @if (needsReceiptConfirmation) {
       <label class="field"
-        >Evidência da entrega presencial<textarea
+        >Observações da entrega presencial<textarea
           [(ngModel)]="receiptNote"
           maxlength="500"
-          placeholder="Quem recebeu, quem entregou e observações"
+          [placeholder]="
+            sheet.signature_method === 'MANUAL'
+              ? 'Quem recebeu, quem entregou e confirmação de que o documento já foi assinado presencialmente'
+              : 'Quem recebeu, quem entregou e observações'
+          "
         ></textarea></label
       ><button
         class="primary"
         [disabled]="s.busy() || !receiptNote.trim()"
         (click)="receipt()"
       >
-        Confirmar entrega física
+        {{
+          sheet.signature_method === "MANUAL"
+            ? "Confirmar entrega e assinatura presencial"
+            : "Confirmar entrega física"
+        }}
       </button>
-      <div class="spaced">
-        <label class="field"
-          >Motivo do cancelamento<input
-            [(ngModel)]="cancelNote"
-            maxlength="500" /></label
-        ><button
-          class="secondary"
-          [disabled]="s.busy() || cancelNote.trim().length < 5"
-          (click)="cancel()"
-        >
-          Cancelar reserva e liberar itens
-        </button>
-      </div>
+      @if (state?.reservation_status === "RESERVED") {
+        <div class="spaced">
+          <label class="field"
+            >Motivo do cancelamento<input
+              [(ngModel)]="cancelNote"
+              maxlength="500" /></label
+          ><button
+            class="secondary"
+            [disabled]="s.busy() || cancelNote.trim().length < 5"
+            (click)="cancel()"
+          >
+            Cancelar reserva e liberar itens
+          </button>
+        </div>
+      }
     } @else {
       <epi-status
         [value]="

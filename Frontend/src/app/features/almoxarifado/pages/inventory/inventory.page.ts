@@ -22,7 +22,6 @@ export class InventoryComponent {
   }
   query = "";
   category = "";
-  onlyLow = false;
   kind = "";
   categories = categories;
   editing = "";
@@ -38,7 +37,9 @@ export class InventoryComponent {
     caExpiresAt: null,
     unit: "UN",
   };
-  variant = { productId: "", size: "Único", sku: "", minimumStock: 5 };
+  initialSize = "Único";
+  initialVariantPending = true;
+  private initialSkuKey = `EPI-${crypto.randomUUID()}`;
   movement = { variantId: "", quantity: 1, reason: "", adjust: false };
   private key = crypto.randomUUID();
   get products() {
@@ -47,7 +48,11 @@ export class InventoryComponent {
       .products.filter(
         (p) =>
           (!this.category || p.category === this.category) &&
-          `${p.description} ${p.ca ?? ""} ${p.brand}`
+          `${p.description} ${p.ca ?? ""} ${p.brand} ${this.s
+            .data()
+            .variants.filter((v) => v.product_id === p.id)
+            .map((v) => `${v.size} ${v.sku}`)
+            .join(" ")}`
             .toLowerCase()
             .includes(this.query.toLowerCase()),
       )
@@ -61,29 +66,10 @@ export class InventoryComponent {
       ]),
     ].sort(compareLabels);
   }
-  get productOptions() {
-    return alphabetical(this.s.data().products, (p) => p.description);
-  }
   get variantOptions() {
     return alphabetical(
       this.s.data().variants,
       (v) => `${this.s.product(v.product_id)?.description} · ${v.size}`,
-    );
-  }
-  get stockRows() {
-    return alphabetical(
-      this.s.data().inventory.filter((l) => {
-        const v = this.s.variant(l.id);
-        const p = this.s.product(v?.product_id);
-        return (
-          (!this.onlyLow || this.s.stock(v.id) <= v.minimum_stock) &&
-          (!this.category || p?.category === this.category) &&
-          `${p?.description} ${v?.size} ${v?.sku}`
-            .toLowerCase()
-            .includes(this.query.toLowerCase())
-        );
-      }),
-      (row) => this.variantName(row.id),
     );
   }
   get movements() {
@@ -92,10 +78,25 @@ export class InventoryComponent {
       .movements.filter(
         (m) =>
           (!this.kind || m.type === this.kind) &&
-          `${m.reason} ${this.variantName(m.variant_id)}`
+          `${m.reason} ${this.variantName(m.variant_id)} ${this.movementEmployee(m)?.name ?? ""} ${this.movementEmployee(m)?.registration ?? ""}`
             .toLowerCase()
             .includes(this.query.toLowerCase()),
       );
+  }
+  movementEmployee(movement: any) {
+    const employeeId =
+      movement.employee_id ??
+      this.s.data().sheets.find((sheet) => sheet.id === movement.sheet_id)
+        ?.employee_id;
+    return this.s.employee(employeeId);
+  }
+  movementEmployeeLabel(movement: any) {
+    return (
+      this.movementEmployee(movement)?.name ??
+      (movement.sheet_id || movement.type === "ISSUE"
+        ? "Colaborador não identificado"
+        : "Sem colaborador vinculado")
+    );
   }
   variantName(id: string) {
     const v = this.s.variant(id);
@@ -103,6 +104,8 @@ export class InventoryComponent {
   }
   async save() {
     await this.s.action(async () => {
+      if (this.initialVariantPending && !this.initialSize.trim())
+        throw new Error("Informe o tamanho do equipamento.");
       const value = await this.s.saveProduct(
         {
           ...this.product,
@@ -115,13 +118,24 @@ export class InventoryComponent {
         },
         this.editing || undefined,
       );
-      this.variant.productId = value.id;
+      // Keep the saved product when a size fails, so a retry cannot create it twice.
+      this.editing = value.id;
       this.categoryChoice = value.category;
       this.newCategory = "";
-    }, "Equipamento salvo. Cadastre os tamanhos e registre o saldo na tela de estoque.");
+      if (this.initialVariantPending) {
+        await this.s.addVariant({
+          productId: value.id,
+          size: this.initialSize.trim(),
+          sku: this.initialSkuKey,
+          minimumStock: 0,
+        });
+        this.initialVariantPending = false;
+      }
+    }, "Equipamento salvo.");
   }
   edit(p: any) {
     this.editing = p.id;
+    this.initialVariantPending = false;
     this.categoryChoice = p.category;
     this.newCategory = "";
     this.product = {
@@ -129,12 +143,6 @@ export class InventoryComponent {
       caExpiresAt: p.ca_expires_at,
       riskCode: p.risk_code,
     };
-  }
-  async addVariant() {
-    await this.s.action(async () => {
-      await this.s.addVariant(this.variant);
-      this.variant = { productId: "", size: "Único", sku: "", minimumStock: 5 };
-    }, "Variação cadastrada.");
   }
   async move() {
     const ok = await this.s.action(async () => {

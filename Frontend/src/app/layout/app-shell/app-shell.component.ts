@@ -24,12 +24,6 @@ export class ShellComponent {
       roles: ["ADMIN", "ALMOXARIFADO"],
     },
     {
-      path: "/almoxarifado/estoque",
-      label: "Estoque",
-      icon: "▥",
-      roles: ["ADMIN", "ALMOXARIFADO"],
-    },
-    {
       path: "/almoxarifado/movimentacoes",
       label: "Movimentações",
       icon: "⇄",

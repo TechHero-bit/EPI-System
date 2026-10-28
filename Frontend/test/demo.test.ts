@@ -320,6 +320,10 @@ test("assinatura simulada não confirma entrega nem baixa estoque", () => {
   assert.equal(r.data.inventory[0].stock_quantity, before - 1);
   r.receipt(f.id, "Repetição");
   assert.equal(r.data.inventory[0].stock_quantity, before - 1);
+  const deliveries = r.data.movements.filter((m) => m.sheet_id === f.id);
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].employee_id, "employee-0");
+  assert.equal(deliveries[0].variant_id, item.variantId);
 });
 test("cancelar libera reserva e não altera estoque físico", () => {
   const r = new DemoRepository();
@@ -331,4 +335,56 @@ test("cancelar libera reserva e não altera estoque físico", () => {
   assert.equal(r.available(l), initial);
   assert.throws(() => r.receipt(f.id, "Entrega"), /indisponível/);
   assert.ok(r.data.audits.some((a) => a.action === "RESERVATION_CANCELLED"));
+});
+
+test("entrega presencial registra assinatura e observações uma única vez", () => {
+  const r = new DemoRepository();
+  const f = r.issue(
+    "employee-0",
+    [item],
+    "MANUAL",
+    "2026-10-27",
+    "manual-receipt",
+  );
+  const state = r.data.states.find((s) => s.sheet_id === f.id);
+  const balance = r.data.inventory.find((row) => row.id === item.variantId);
+  const before = balance.stock_quantity;
+  const note = "Colaborador recebeu e já assinou presencialmente.";
+  r.data.role = "ALMOXARIFADO";
+  assert.throws(() => r.receipt(f.id, note), /perfil/);
+  assert.equal(state.signature_status, "PENDING");
+  assert.equal(balance.stock_quantity, before);
+  r.data.role = "RH";
+  balance.stock_quantity = 0;
+  assert.throws(() => r.receipt(f.id, note), /inconsistente/);
+  assert.equal(state.signature_status, "PENDING");
+  balance.stock_quantity = before;
+  assert.throws(() => r.receipt(f.id, " "), /evidência/);
+  r.receipt(f.id, note);
+  assert.equal(state.signature_status, "SIGNED_MANUAL");
+  assert.equal(state.receipt_status, "CONFIRMED");
+  assert.equal(state.reservation_status, "DELIVERED");
+  assert.equal(balance.stock_quantity, before - 1);
+  r.receipt(f.id, note);
+  assert.equal(balance.stock_quantity, before - 1);
+  const signatures = r.data.audits.filter(
+    (a) => a.entity_id === f.id && a.action === "MANUAL_SIGNATURE_RECORDED",
+  );
+  assert.equal(signatures.length, 1);
+  assert.equal(signatures[0].detail.note, note);
+});
+
+test("confirmar entrega de ficha eletrônica não registra assinatura por conta própria", () => {
+  const r = new DemoRepository();
+  const f = r.issue(
+    "employee-0",
+    [item],
+    "ELECTRONIC",
+    "2026-10-27",
+    "electronic-receipt",
+  );
+  r.receipt(f.id, "Equipamentos recebidos presencialmente.");
+  const state = r.data.states.find((s) => s.sheet_id === f.id);
+  assert.equal(state.signature_status, "PENDING");
+  assert.equal(state.receipt_status, "CONFIRMED");
 });

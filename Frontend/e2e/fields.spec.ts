@@ -24,11 +24,11 @@ async function alphabetical(select: any, skipPlaceholder = true) {
     ),
   );
 }
-test("todas as listas do estoque e categorias seguem ordem alfabética", async ({
+test("listas de equipamentos, tamanhos e categorias seguem ordem alfabética", async ({
   page,
 }) => {
   await login(page, "ALMOXARIFADO");
-  await page.goto("/almoxarifado/estoque");
+  await page.goto("/almoxarifado/equipamentos");
   await expect(page.locator("main")).not.toContainText(/\blotes?\b/i);
   for (const select of await page.locator("select").all())
     await alphabetical(
@@ -44,29 +44,40 @@ test("todas as listas do estoque e categorias seguem ordem alfabética", async (
       (await select.getAttribute("name")) !== "operation",
     );
 });
-test("entrada de estoque funciona por equipamento e tamanho sem criar lote", async ({
+test("tamanho cadastrado com equipamento fica disponível nas movimentações", async ({
   page,
 }) => {
   await login(page, "ALMOXARIFADO");
-  await page.goto("/almoxarifado/estoque");
+  await page.goto("/almoxarifado/equipamentos/novo");
   await page
-    .getByRole("combobox", { name: "Equipamento", exact: true })
-    .selectOption("product-0");
+    .getByLabel("Descrição de E.P.I.", { exact: true })
+    .fill("Bota cadastrada com tamanho");
+  await page
+    .getByLabel("Categoria", { exact: true })
+    .selectOption("Botas de segurança");
   await page.getByLabel("Tamanho", { exact: true }).fill("41");
+  await expect(
+    page.getByRole("textbox", { name: /SKU|código interno/i }),
+  ).toHaveCount(0);
   await page
-    .getByLabel("SKU / código interno", { exact: true })
-    .fill("E2E-BOOT-41");
-  await page
-    .getByRole("button", { name: "Salvar tamanho", exact: true })
+    .getByRole("button", { name: "Salvar equipamento", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Variação cadastrada");
+  await expect(page.getByRole("status")).toContainText("Equipamento salvo.");
+  await page.goto("/almoxarifado/equipamentos");
+  await expect(
+    page
+      .locator(".catalog .equipment-card")
+      .filter({ hasText: "Bota cadastrada com tamanho" })
+      .locator(".variant-chips"),
+  ).toContainText("41");
+  await page.goto("/almoxarifado/movimentacoes");
   const selector = page.getByRole("combobox", {
     name: "Equipamento e tamanho",
     exact: true,
   });
   const id = await selector
     .locator("option")
-    .filter({ hasText: "Bota de segurança em couro · 41" })
+    .filter({ hasText: "Bota cadastrada com tamanho · 41" })
     .getAttribute("value");
   await selector.selectOption(id!);
   await page.getByLabel("Quantidade de entrada", { exact: true }).fill("5");
@@ -74,8 +85,10 @@ test("entrada de estoque funciona por equipamento e tamanho sem criar lote", asy
   await expect(page.getByRole("status")).toContainText(
     "Movimentação registrada",
   );
-  const row = page.locator("tbody tr").filter({ hasText: "E2E-BOOT-41" });
-  await expect(row.locator("td").nth(2)).toHaveText("5");
+  const row = page
+    .locator("tbody tr")
+    .filter({ hasText: "Bota cadastrada com tamanho · 41" });
+  await expect(row.locator("td").nth(3)).toHaveText("+5");
   await expect(page.locator("main")).not.toContainText(/\blotes?\b/i);
   await page.screenshot({ path: "dist/estoque-sem-lotes.png", fullPage: true });
 });

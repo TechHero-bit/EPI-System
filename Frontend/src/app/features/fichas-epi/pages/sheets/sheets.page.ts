@@ -17,9 +17,12 @@ export class SheetsComponent implements OnDestroy {
   employee: string | null = null;
   private querySubscription = this.route.queryParamMap.subscribe((params) => {
     const status = params.get("status") ?? "";
-    this.status = ["PENDING", "SIGNED_MANUAL", "SIGNED_ELECTRONIC"].includes(
-      status,
-    )
+    this.status = [
+      "PENDING",
+      "SIGNED_MANUAL",
+      "SIGNED_ELECTRONIC",
+      "UNCONFIRMED",
+    ].includes(status)
       ? status
       : "";
     this.employee = params.get("employee");
@@ -40,7 +43,11 @@ export class SheetsComponent implements OnDestroy {
             .toLowerCase()
             .includes(this.query.toLowerCase()) &&
           (!this.status ||
-            this.s.state(f.id)?.signature_status === this.status),
+            (this.status === "UNCONFIRMED"
+              ? (this.s.state(f.id)?.receipt_status ?? "UNCONFIRMED") ===
+                  "UNCONFIRMED" &&
+                this.s.state(f.id)?.reservation_status !== "CANCELLED"
+              : this.s.state(f.id)?.signature_status === this.status)),
       );
   }
   ngOnDestroy() {

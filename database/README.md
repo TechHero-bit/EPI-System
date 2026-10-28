@@ -4,7 +4,7 @@ A fonte SQL está em `supabase/migrations/`. Escolha uma forma de instalação; 
 
 ## Índice numerado das migrations
 
-Os arquivos agora começam diretamente com **001 a 006**, na ordem de aplicação. A renumeração foi autorizada após o usuário confirmar que nenhuma migration havia sido executada no Supabase.
+Os arquivos vão de **001 a 007**, na ordem de aplicação. A migration 007 confirma entrega e assinatura presencial na mesma transação, vinculando as observações ao documento e evitando duplicação da baixa.
 
 | Nº  | Arquivo                                                                                  | Finalidade                                                                                                                                                                                 |
 | --- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -14,12 +14,13 @@ Os arquivos agora começam diretamente com **001 a 006**, na ordem de aplicaçã
 | 004 | [004_reservations_and_access.sql](supabase/migrations/004_reservations_and_access.sql)   | Reservas, baixa na entrega, cancelamento, idempotência, perfis/RLS, evidências, anexos e limites de requisição. Estrutura biométrica somente preparatória, sem coleta habilitada.          |
 | 005 | [005_signing_identity.sql](supabase/migrations/005_signing_identity.sql)                 | Assinatura vinculada ao e-mail verificado, evidências imutáveis e auditoria dos cadastros.                                                                                                 |
 | 006 | [006_inventory_without_lots.sql](supabase/migrations/006_inventory_without_lots.sql)     | Estoque por equipamento/tamanho, lotes históricos somente leitura e Nº de Registro igual à matrícula textual. Cria sua própria validação de matrícula, sem depender de contador por ficha. |
+| 007 | [007_manual_receipt.sql](supabase/migrations/007_manual_receipt.sql) | Confirmação conjunta da entrega e assinatura presencial, com evidência, auditoria e idempotência. |
 
 A antiga `202610210001_sheet_register.sql` foi removida: o contador por ficha ficou sem uso. A nova instalação não cria `sheet_number_counters`, `sheet_number_allocations`, `reserve_sheet_number` nem a coluna numérica `sheets.record_number`. A antiga 007 passou a ser a atual 006, com as dependências corrigidas. As outras cinco migrations continuam necessárias; não foram removidas apenas por conterem funções que evoluem nas seguintes.
 
-`setup.sql` não é uma migration adicional: é o consolidado das seis migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais. O modelo corporativo PDF/Excel está no Backend, não no SQL.
+`setup.sql` não é uma migration adicional: é o consolidado das sete migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais. O modelo corporativo PDF/Excel está no Backend, não no SQL. Em banco que já recebeu as migrations 001 a 006, aplique somente a 007 para habilitar a nova confirmação presencial.
 
-Para futuras migrations, use o próximo número disponível, como `007_descricao.sql`, e atualize este índice. Depois da primeira aplicação em um ambiente, não renumere nem reescreva o histórico desse ambiente; acrescente uma nova migration. O gerador do consolidado verifica nomes e sequência sem lacunas.
+Para futuras migrations, use o próximo número disponível, como `008_descricao.sql`, e atualize este índice. Depois da primeira aplicação em um ambiente, não renumere nem reescreva o histórico desse ambiente; acrescente uma nova migration. O gerador do consolidado verifica nomes e sequência sem lacunas.
 
 ## SQL Editor: projeto novo
 
@@ -45,7 +46,7 @@ No projeto hospedado, confira o project-ref antes de qualquer execução. Este c
 
 ### Atualização de 21/10/2026
 
-Em banco novo, execute as migrations 001 a 006 em ordem ou o `setup.sql` inteiro, nunca ambos. A aplicação no Supabase hospedado depende de autorização; os testes desta alteração usam bancos locais PGlite. Não execute `setup.sql` em banco existente.
+Em banco novo, execute as migrations 001 a 007 em ordem ou o `setup.sql` inteiro, nunca ambos. Os testes desta alteração usam bancos locais PGlite. Não execute `setup.sql` em banco existente.
 
 A regra vigente é **Nº de Registro = matrícula textual do colaborador**, única por organização e obrigatória no cadastro manual. Zeros à esquerda são mantidos. A ficha recebe `employee_registration` e o mesmo valor no snapshot, conferido em trigger. Não existe contador por ficha nem coluna numérica `record_number` no novo esquema. Snapshots anteriores à transição de estoque não são reescritos. A versão por colaborador continua incremental e a emissão mantém idempotência.
 

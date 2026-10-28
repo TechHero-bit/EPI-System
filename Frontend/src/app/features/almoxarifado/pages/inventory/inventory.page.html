@@ -3,343 +3,191 @@
     <span class="eyebrow">ALMOXARIFADO</span>
     <h1>
       {{
-        page === "new"
-          ? "Cadastrar equipamento"
-          : page === "stock"
-            ? "Estoque"
-            : page === "movements"
-              ? "Movimentações"
-              : "Catálogo de equipamentos"
+      page === "new"
+      ? "Cadastrar equipamento"
+      : page === "movements"
+      ? "Movimentações"
+      : "Catálogo de equipamentos"
       }}
     </h1>
-    <p>Controle por equipamento e tamanho, da entrada à entrega.</p>
+    <p>Cadastre equipamentos e tamanhos e acompanhe as movimentações.</p>
   </div>
   @if (page === "catalog") {
-    <a class="primary button-link" routerLink="/almoxarifado/equipamentos/novo"
-      >+ Novo equipamento</a
-    >
+  <a class="primary button-link" routerLink="/almoxarifado/equipamentos/novo">+ Novo equipamento</a>
   }
 </div>
 @if (page === "new" || editing) {
-  <section class="panel">
-    <h2>{{ editing ? "Editar equipamento" : "Dados do equipamento" }}</h2>
-    <form (ngSubmit)="save()">
-      <div class="form-grid">
-        <div class="field">
-          <label for="description">Descrição de E.P.I.</label
-          ><input
-            id="description"
-            name="description"
-            [(ngModel)]="product.description"
-            required
-            maxlength="180"
-          />
-        </div>
-        <div class="field">
-          <label for="category">Categoria</label
-          ><select
-            id="category"
-            name="category"
-            [(ngModel)]="categoryChoice"
-            required
-          >
-            <option value="" disabled>Selecione uma categoria</option>
-            @for (c of allCategories; track c) {
-              <option [value]="c">{{ c }}</option>
-            }
-            <option value="__new__">+ Adicionar nova categoria</option>
-          </select>
-        </div>
-        @if (categoryChoice === "__new__") {
-          <div class="field full">
-            <label for="new-category">Nome da nova categoria</label
-            ><input
-              id="new-category"
-              name="newCategory"
-              [(ngModel)]="newCategory"
-              required
-              maxlength="80"
-              placeholder="Ex.: Protetores auditivos"
-            />
-          </div>
-        }
-        <div class="field">
-          <label for="brand">Marca</label
-          ><input
-            id="brand"
-            name="brand"
-            [(ngModel)]="product.brand"
-            maxlength="100"
-          />
-        </div>
-        <div class="field">
-          <label for="model">Modelo</label
-          ><input
-            id="model"
-            name="model"
-            [(ngModel)]="product.model"
-            maxlength="100"
-          />
-        </div>
-        <div class="field">
-          <label for="ca"
-            >C.A. — Certificado de Aprovação (quando aplicável)</label
-          ><input id="ca" name="ca" [(ngModel)]="product.ca" maxlength="50" />
-        </div>
-        <div class="field">
-          <label for="risk">Risco</label
-          ><input
-            id="risk"
-            name="risk"
-            [(ngModel)]="product.riskCode"
-            maxlength="30"
-          />
-        </div>
-        <div class="field">
-          <label for="ca-date">Validade do CA</label
-          ><input
-            id="ca-date"
-            name="caDate"
-            type="date"
-            [(ngModel)]="product.caExpiresAt"
-          />
-        </div>
+<section class="panel">
+  <h2>{{ editing ? "Editar equipamento" : "Dados do equipamento" }}</h2>
+  <form #productForm="ngForm" (ngSubmit)="productForm.valid && save()">
+    <div class="form-grid">
+      <div class="field">
+        <label for="description">Descrição de E.P.I.</label><input id="description" name="description"
+          [(ngModel)]="product.description" required maxlength="180" />
       </div>
-      <p class="note">
-        Cadastre os tamanhos e registre os saldos na tela de estoque após salvar
-        o equipamento.
-      </p>
-      <button class="primary" [disabled]="s.busy()">Salvar equipamento</button
-      ><a
-        class="secondary button-link inline"
-        routerLink="/almoxarifado/estoque"
-        >Tamanhos e estoque →</a
-      >
-    </form>
-  </section>
-}
-@if (page !== "new") {
-  <section class="panel">
-    <div class="toolbar">
-      <input
-        aria-label="Buscar"
-        [(ngModel)]="query"
-        placeholder="Buscar equipamento, tamanho ou SKU…"
-      />
-      @if (page !== "movements") {
-        <select aria-label="Filtrar categoria" [(ngModel)]="category">
-          <option value="">Todas as categorias</option>
+      <div class="field">
+        <label for="category">Categoria</label><select id="category" name="category" [(ngModel)]="categoryChoice"
+          required>
+          <option value="" disabled>Selecione uma categoria</option>
           @for (c of allCategories; track c) {
-            <option>{{ c }}</option>
+          <option [value]="c">{{ c }}</option>
           }
+          <option value="__new__">+ Adicionar nova categoria</option>
         </select>
-      } @else {
-        <select aria-label="Tipo de movimentação" [(ngModel)]="kind">
-          <option value="">Todos os tipos</option>
-          <option value="ADJUSTMENT">Ajustes</option>
-          <option value="RECEIPT">Entradas</option>
-          <option value="ISSUE">Saídas</option>
-        </select>
+      </div>
+      @if (categoryChoice === "__new__") {
+      <div class="field full">
+        <label for="new-category">Nome da nova categoria</label><input id="new-category" name="newCategory"
+          [(ngModel)]="newCategory" required maxlength="80" placeholder="Ex.: Protetores auditivos" />
+      </div>
+      }
+      <div class="field">
+        <label for="brand">Marca</label><input id="brand" name="brand" [(ngModel)]="product.brand" maxlength="100" />
+      </div>
+      <div class="field">
+        <label for="model">Modelo</label><input id="model" name="model" [(ngModel)]="product.model" maxlength="100" />
+      </div>
+      <div class="field">
+        <label for="ca">C.A. — Certificado de Aprovação (quando aplicável)</label><input id="ca" name="ca"
+          [(ngModel)]="product.ca" maxlength="50" />
+      </div>
+      <div class="field">
+        <label for="risk">Risco</label><input id="risk" name="risk" [(ngModel)]="product.riskCode" maxlength="30" />
+      </div>
+      <div class="field">
+        <label for="ca-date">Validade do CA</label><input id="ca-date" name="caDate" type="date"
+          [(ngModel)]="product.caExpiresAt" />
+      </div>
+      @if (initialVariantPending) {
+      <div class="field">
+        <label for="initial-size">Tamanho</label>
+        <input id="initial-size" name="initialSize" [(ngModel)]="initialSize" required maxlength="30"
+          placeholder="Ex.: P, M, G, 40 ou Único" />
+      </div>
       }
     </div>
-    @if (page === "catalog") {
-      <div class="equipment-grid catalog">
-        @for (p of products; track p.id) {
-          <article class="equipment-card">
-            <span class="chip">{{ p.category }}</span
-            ><strong>{{ p.description }}</strong
-            ><small>CA {{ p.ca || "Não informado" }} · {{ p.brand }}</small>
-            <div class="variant-chips">
-              @for (v of variantOptions; track v.id) {
-                @if (v.product_id === p.id) {
-                  <span class="chip"
-                    >{{ v.size }} · {{ s.stock(v.id) }} disponíveis</span
-                  >
-                }
-              }
-            </div>
-            <button class="secondary" (click)="edit(p)">
-              Editar equipamento
-            </button>
-          </article>
-        } @empty {
-          <div class="empty">
-            Nenhum equipamento encontrado. Ajuste os filtros ou cadastre um novo
-            EPI.
-          </div>
+    <button class="primary" [disabled]="s.busy()">Salvar equipamento</button>
+  </form>
+</section>
+}
+@if (page !== "new") {
+<section class="panel">
+  <div class="toolbar">
+    <input aria-label="Buscar" [(ngModel)]="query" [placeholder]="page === 'movements' ? 'Buscar equipamento, colaborador ou matrícula...' : 'Buscar equipamento ou tamanho...'" />
+    @if (page !== "movements") {
+    <select aria-label="Filtrar categoria" [(ngModel)]="category">
+      <option value="">Todas as categorias</option>
+      @for (c of allCategories; track c) {
+      <option>{{ c }}</option>
+      }
+    </select>
+    } @else {
+    <select aria-label="Tipo de movimentação" [(ngModel)]="kind">
+      <option value="">Todos os tipos</option>
+      <option value="ADJUSTMENT">Ajustes</option>
+      <option value="RECEIPT">Entradas</option>
+      <option value="ISSUE">Saídas</option>
+    </select>
+    }
+  </div>
+  @if (page === "catalog") {
+  <div class="equipment-grid catalog">
+    @for (p of products; track p.id) {
+    <article class="equipment-card">
+      <span class="chip">{{ p.category }}</span><strong>{{ p.description }}</strong><small>CA {{ p.ca || "Não informado"
+        }} · {{ p.brand }}</small>
+      <div class="variant-chips">
+        @for (v of variantOptions; track v.id) {
+        @if (v.product_id === p.id) {
+        <span class="chip">{{ v.size }}</span>
+        }
         }
       </div>
-    }
-    @if (page === "stock") {
-      <label class="checkline"
-        ><input type="checkbox" [(ngModel)]="onlyLow" />Somente estoque
-        baixo</label
-      >
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Equipamento / tamanho</th>
-              <th>SKU</th>
-              <th>Físico</th>
-              <th>Reservado</th>
-              <th>Bloqueado (legado)</th>
-              <th>Disponível</th>
-              <th>Mínimo</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of stockRows; track row.id) {
-              <tr>
-                <td>
-                  <strong>{{ variantName(row.id) }}</strong>
-                </td>
-                <td>{{ s.variant(row.id)?.sku }}</td>
-                <td>{{ row.stock_quantity }}</td>
-                <td>{{ row.reserved_quantity || 0 }}</td>
-                <td>{{ row.blocked_quantity || 0 }}</td>
-                <td>
-                  <span class="status" [class.ok]="s.available(row) > 5">{{
-                    s.available(row)
-                  }}</span>
-                </td>
-                <td>{{ s.variant(row.id)?.minimum_stock }}</td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="7" class="empty">
-                  Nenhum equipamento encontrado no estoque.
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-    @if (page === "movements") {
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Equipamento / tamanho</th>
-              <th>Tipo</th>
-              <th>Quantidade</th>
-              <th>Justificativa</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (m of movements; track m.id) {
-              <tr>
-                <td>{{ m.created_at | date: "dd/MM/yyyy HH:mm" }}</td>
-                <td>{{ variantName(m.variant_id) }}</td>
-                <td><epi-status [value]="m.type" /></td>
-                <td>{{ m.quantity > 0 ? "+" : "" }}{{ m.quantity }}</td>
-                <td>{{ m.reason || "Entrega de EPI" }}</td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="5" class="empty">
-                  Nenhuma movimentação encontrada.
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-  </section>
-}
-@if (page === "stock") {
-  <section class="panel spaced">
-    <h2>Novo tamanho de equipamento</h2>
-    <form (ngSubmit)="addVariant()">
-      <div class="form-grid">
-        <label class="field"
-          >Equipamento<select
-            name="variantProduct"
-            [(ngModel)]="variant.productId"
-            required
-          >
-            <option value="">Selecionar</option>
-            @for (p of productOptions; track p.id) {
-              <option [value]="p.id">{{ p.description }}</option>
-            }
-          </select></label
-        >
-        <label class="field"
-          >Tamanho<input name="size" [(ngModel)]="variant.size" required
-        /></label>
-        <label class="field"
-          >SKU / código interno<input
-            name="sku"
-            [(ngModel)]="variant.sku"
-            required
-        /></label>
-        <label class="field"
-          >Estoque mínimo<input
-            name="min"
-            type="number"
-            min="0"
-            [(ngModel)]="variant.minimumStock"
-            required
-        /></label>
-      </div>
-      <button class="primary" [disabled]="s.busy()">Salvar tamanho</button>
-    </form>
-  </section>
-}
-@if (page === "movements" || page === "stock") {
-  <section class="panel spaced">
-    <h2>Registrar entrada ou ajuste</h2>
-    <form (ngSubmit)="move()">
-      <div class="form-grid">
-        <label class="field"
-          >Equipamento e tamanho<select
-            name="movementVariant"
-            [(ngModel)]="movement.variantId"
-            required
-          >
-            <option value="">Selecionar</option>
-            @for (v of variantOptions; track v.id) {
-              <option [value]="v.id">{{ variantName(v.id) }}</option>
-            }
-          </select></label
-        >
-        <label class="field"
-          >Operação<select name="operation" [(ngModel)]="movement.adjust">
-            <option [ngValue]="true">Ajuste com justificativa</option>
-            <option [ngValue]="false">Entrada de estoque</option>
-          </select></label
-        >
-        <label class="field"
-          >{{
-            movement.adjust
-              ? "Variação do saldo (negativo para reduzir)"
-              : "Quantidade de entrada"
-          }}<input
-            name="quantity"
-            type="number"
-            [min]="movement.adjust ? -100000 : 1"
-            max="100000"
-            [(ngModel)]="movement.quantity"
-            required
-        /></label>
-        <label class="field"
-          >Justificativa<input
-            name="reason"
-            [(ngModel)]="movement.reason"
-            [required]="movement.adjust"
-            maxlength="300"
-        /></label>
-      </div>
-      <p class="note">
-        A saída de entrega é feita na confirmação física da ficha. Ajustes não
-        podem consumir unidades reservadas ou bloqueadas do histórico.
-      </p>
-      <button class="primary" [disabled]="s.busy()">
-        Registrar movimentação
+      <button class="secondary" (click)="edit(p)">
+        Editar equipamento
       </button>
-    </form>
-  </section>
+    </article>
+    } @empty {
+    <div class="empty">
+      Nenhum equipamento encontrado. Ajuste os filtros ou cadastre um novo
+      EPI.
+    </div>
+    }
+  </div>
+  }
+  @if (page === "movements") {
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Data</th>
+          <th scope="col">Equipamento / tamanho</th>
+          <th scope="col">Colaborador</th>
+          <th scope="col">Tipo</th>
+          <th scope="col">Quantidade</th>
+          <th scope="col">Justificativa</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (m of movements; track m.id) {
+        <tr>
+          <td>{{ m.created_at | date: "dd/MM/yyyy HH:mm" }}</td>
+          <td>{{ variantName(m.variant_id) }}</td>
+          <td>
+            {{ movementEmployeeLabel(m) }}
+            @if (movementEmployee(m)?.registration; as registration) {
+              <br /><small>Matrícula: {{ registration }}</small>
+            }
+          </td>
+          <td><epi-status [value]="m.type" /></td>
+          <td>{{ m.quantity > 0 ? "+" : "" }}{{ m.quantity }}</td>
+          <td>{{ m.reason || "Entrega de EPI" }}</td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="6" class="empty">
+            Nenhuma movimentação encontrada.
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</section>
+}
+@if (page === "movements") {
+<section class="panel spaced">
+  <h2>Registrar entrada ou ajuste</h2>
+  <form (ngSubmit)="move()">
+    <div class="form-grid">
+      <label class="field">Equipamento e tamanho<select name="movementVariant" [(ngModel)]="movement.variantId"
+          required>
+          <option value="">Selecionar</option>
+          @for (v of variantOptions; track v.id) {
+          <option [value]="v.id">{{ variantName(v.id) }}</option>
+          }
+        </select></label>
+      <label class="field">Operação<select name="operation" [(ngModel)]="movement.adjust">
+          <option [ngValue]="true">Ajuste com justificativa</option>
+          <option [ngValue]="false">Entrada de estoque</option>
+        </select></label>
+      <label class="field">{{
+        movement.adjust
+        ? "Variação do saldo (negativo para reduzir)"
+        : "Quantidade de entrada"
+        }}<input name="quantity" type="number" [min]="movement.adjust ? -100000 : 1" max="100000"
+          [(ngModel)]="movement.quantity" required /></label>
+      <label class="field">Justificativa<input name="reason" [(ngModel)]="movement.reason" [required]="movement.adjust"
+          maxlength="300" /></label>
+    </div>
+    <p class="note">
+      A saída de entrega é feita na confirmação física da ficha. Ajustes não
+      podem consumir unidades reservadas ou bloqueadas do histórico.
+    </p>
+    <button class="primary" [disabled]="s.busy()">
+      Registrar movimentação
+    </button>
+  </form>
+</section>
 }

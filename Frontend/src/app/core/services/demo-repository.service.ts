@@ -400,6 +400,32 @@ export class DemoRepository {
     if (!sheet || !state || state.reservation_status === "CANCELLED")
       throw new Error("Ficha indisponível.");
     if (!note.trim()) throw new Error("Informe a evidência da entrega.");
+    if (note.length > 500)
+      throw new Error("Limite de 500 caracteres nas observações.");
+    if (state.receipt_status !== "CONFIRMED") {
+      const demand = new Map<string, number>();
+      for (const item of sheet.items ?? [])
+        demand.set(item.variantId, (demand.get(item.variantId) ?? 0) + 1);
+      for (const [variantId, count] of demand) {
+        const balance = this.data.inventory.find((row) => row.id === variantId);
+        if (
+          !balance ||
+          balance.stock_quantity < count ||
+          balance.reserved_quantity < count
+        )
+          throw new Error("Reserva inconsistente.");
+      }
+    }
+    if (
+      sheet.signature_method === "MANUAL" &&
+      state.signature_status === "PENDING"
+    ) {
+      this.sign(id, true);
+      this.event("MANUAL_SIGNATURE_RECORDED", id, {
+        note,
+        documentSha256: sheet.pdf_sha256,
+      });
+    }
     if (state.receipt_status === "CONFIRMED") return;
     for (const item of sheet.items ?? []) {
       const balance = this.data.inventory.find((l) => l.id === item.variantId);
@@ -410,6 +436,8 @@ export class DemoRepository {
         variant_id: balance.id,
         type: "ISSUE",
         quantity: -1,
+        sheet_id: sheet.id,
+        employee_id: sheet.employee_id,
         created_at: new Date().toISOString(),
         reason: note,
       });
@@ -417,7 +445,7 @@ export class DemoRepository {
     state.receipt_status = "CONFIRMED";
     state.reservation_status = "DELIVERED";
     state.confirmed_at = new Date().toISOString();
-    this.event("RECEIPT_CONFIRMED", id);
+    this.event("RECEIPT_CONFIRMED", id, { note });
   }
   cancel(id: string, note = "Cancelamento demonstrativo") {
     this.require(HR);

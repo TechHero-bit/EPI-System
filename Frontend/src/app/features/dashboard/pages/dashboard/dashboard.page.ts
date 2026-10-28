@@ -26,23 +26,19 @@ export class DashboardComponent {
           caption: "Produtos ativos no catálogo",
         },
         {
-          label: "Saldo disponível",
-          value: this.s
-            .data()
-            .inventory.reduce((n, l) => n + this.s.available(l), 0),
-          caption: "Unidades livres de reserva",
+          label: "Tamanhos cadastrados",
+          value: this.s.data().variants.length,
+          caption: "Variações dos equipamentos",
         },
         {
-          label: "Unidades reservadas",
-          value: this.s
-            .data()
-            .inventory.reduce((n, l) => n + (l.reserved_quantity ?? 0), 0),
-          caption: "Separadas para entrega",
+          label: "Categorias",
+          value: this.categoryCounts.length,
+          caption: "Categorias no catálogo",
         },
         {
-          label: "Estoque baixo",
-          value: this.lows.length,
-          caption: "Variações no mínimo ou abaixo",
+          label: "CAs a vencer ou vencidos",
+          value: this.expiring,
+          caption: "Atenção nos próximos 30 dias",
         },
       ];
     return [
@@ -85,11 +81,6 @@ export class DashboardComponent {
         state.reservation_status !== "CANCELLED"
       );
     });
-  }
-  get lows() {
-    return this.s
-      .data()
-      .variants.filter((v) => this.s.stock(v.id) <= v.minimum_stock);
   }
   get expiring() {
     return this.s

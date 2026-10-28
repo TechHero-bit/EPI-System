@@ -31,7 +31,6 @@ export class BuilderComponent implements OnInit, OnDestroy {
   prepared: any;
   url = "";
   qr = "";
-  signatureNote = "";
   cancelNote = "";
   refreshing = false;
   editTarget: number | null = null;
@@ -125,7 +124,6 @@ export class BuilderComponent implements OnInit, OnDestroy {
       this.prepared = undefined;
       this.url = "";
       this.qr = "";
-      this.signatureNote = "";
       this.cancelNote = "";
       this.key = crypto.randomUUID();
       this.step = target;
@@ -225,12 +223,6 @@ export class BuilderComponent implements OnInit, OnDestroy {
   }
   preview(kind: "pdf" | "xlsx" = "pdf") {
     void this.s.action(() => this.s.download(this.preparedId, kind), "");
-  }
-  manual() {
-    void this.s.action(
-      () => this.s.manual(this.preparedId, this.signatureNote),
-      "Assinatura presencial registrada.",
-    );
   }
   finish() {
     if (!this.canFinish) {

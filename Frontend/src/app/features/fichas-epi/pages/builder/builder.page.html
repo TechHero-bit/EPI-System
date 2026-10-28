@@ -348,24 +348,9 @@
             }
           } @else {
             <p class="note">
-              Imprima o PDF desta versão para assinatura presencial. Se o
-              original já foi assinado, registre o local do arquivo aqui na
-              revisão.
+              Imprima o PDF desta versão para assinatura presencial.
             </p>
             @if (pending) {
-              <label class="field spaced"
-                >Local de arquivo do original assinado<textarea
-                  [(ngModel)]="signatureNote"
-                  maxlength="500"
-                ></textarea>
-              </label>
-              <button
-                class="secondary"
-                (click)="manual()"
-                [disabled]="s.busy() || !signatureNote.trim()"
-              >
-                Registrar assinatura presencial
-              </button>
               @if (!s.demo) {
                 <label class="field spaced"
                   >Documento físico digitalizado (PDF, até 5 MB)<input

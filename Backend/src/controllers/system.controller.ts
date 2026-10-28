@@ -108,7 +108,7 @@ export const getbootstrap: RequestHandler<{
         .limit(100),
       c.admin
         .from("stock_movements")
-        .select("id,variant_id,type,quantity,created_at,reason")
+        .select("id,variant_id,type,quantity,created_at,reason,sheet_id")
         .eq("organization_id", c.orgId)
         .order("created_at", { ascending: false })
         .limit(100),
@@ -125,6 +125,25 @@ export const getbootstrap: RequestHandler<{
     ]);
   for (const result of [org, employees, products, sheets, movements, audits])
     if (result.error) throw error("Falha ao carregar dados.", 500);
+  // A recent movement can reference a sheet older than the 100 loaded above.
+  const movementSheetIds = [
+    ...new Set(
+      (movements.data ?? []).flatMap((m) => (m.sheet_id ? [m.sheet_id] : [])),
+    ),
+  ];
+  const movementSheets: { id: string; employee_id: string }[] =
+    movementSheetIds.length
+      ? dbResult(
+          await c.admin
+            .from("sheets")
+            .select("id,employee_id")
+            .eq("organization_id", c.orgId)
+            .in("id", movementSheetIds),
+        )
+      : [];
+  const movementEmployees = new Map(
+    movementSheets.map((s) => [s.id, s.employee_id]),
+  );
   const productIds = (products.data ?? []).map((p) => p.id);
   const variants = productIds.length
     ? dbResult(
@@ -156,7 +175,10 @@ export const getbootstrap: RequestHandler<{
     inventory,
     sheets: sheets.data,
     states,
-    movements: movements.data,
+    movements: (movements.data ?? []).map((m) => ({
+      ...m,
+      employee_id: movementEmployees.get(m.sheet_id) ?? null,
+    })),
     audits: audits.data,
   });
 };

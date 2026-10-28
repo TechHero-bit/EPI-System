@@ -59,9 +59,8 @@ export const routes: Routes = [
       },
       {
         path: "almoxarifado/estoque",
-        canActivate: [access],
-        data: { roles: STOCK, page: "stock" },
-        loadComponent: inventory,
+        pathMatch: "full",
+        redirectTo: "almoxarifado/equipamentos",
       },
       {
         path: "almoxarifado/movimentacoes",

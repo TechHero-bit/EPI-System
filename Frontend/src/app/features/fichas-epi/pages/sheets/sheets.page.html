@@ -14,10 +14,11 @@
       aria-label="Buscar ficha"
       [(ngModel)]="query"
       placeholder="Buscar colaborador, matrícula ou ficha…"
-    /><select aria-label="Filtrar assinatura" [(ngModel)]="status">
+    /><select aria-label="Filtrar status" [(ngModel)]="status">
       <option value="">Todos os estados</option>
       <option value="SIGNED_ELECTRONIC">Assinada eletronicamente</option>
       <option value="SIGNED_MANUAL">Assinada presencialmente</option>
+      <option value="UNCONFIRMED">Entrega pendente</option>
       <option value="PENDING">Pendente</option>
     </select>
   </div>
@@ -71,17 +72,6 @@
               />
             </td>
             <td>
-              @if (
-                s.state(f.id)?.signature_status === "PENDING" &&
-                s.state(f.id)?.reservation_status !== "CANCELLED"
-              ) {
-                <a
-                  class="secondary button-link"
-                  routerLink="/rh/fichas/nova"
-                  [queryParams]="{ ficha: f.id }"
-                  >Retomar revisão</a
-                >
-              }
               <a
                 class="secondary button-link"
                 [routerLink]="['/rh/fichas', f.id]"

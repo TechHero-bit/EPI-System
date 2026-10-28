@@ -234,13 +234,20 @@ export const postsheetsIdReceipt: RequestHandler<{
     })
     .parse(req.body);
   dbOk(
-    await c.admin.rpc("confirm_receipt", {
-      p_org: c.orgId,
-      p_actor: c.userId,
-      p_sheet: sheet.id,
-      p_method: body.method,
-      p_note: body.note,
-    }),
+    sheet.signature_method === "MANUAL" && body.method === "IN_PERSON"
+      ? await c.admin.rpc("confirm_manual_receipt", {
+          p_org: c.orgId,
+          p_actor: c.userId,
+          p_sheet: sheet.id,
+          p_note: body.note,
+        })
+      : await c.admin.rpc("confirm_receipt", {
+          p_org: c.orgId,
+          p_actor: c.userId,
+          p_sheet: sheet.id,
+          p_method: body.method,
+          p_note: body.note,
+        }),
   );
   res.json({ received: true });
 };

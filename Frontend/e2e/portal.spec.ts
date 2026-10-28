@@ -146,37 +146,47 @@ test("perfis restringem rotas e menu", async ({ page }) => {
   await page.goto("/administracao");
   await expect(page).toHaveURL(/dashboard/);
 });
-test("assinatura presencial pode ser retomada na revisão e não aparece na ficha final", async ({
+test("ficha final oferece apenas detalhes e confirma entrega junto da assinatura presencial", async ({
   page,
 }) => {
   await login(page);
-  await page.goto("/rh/fichas/sheet-3");
+  await page.goto("/rh/fichas/nova");
+  await page.getByRole("button", { name: /Ana Martins/ }).click();
+  await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page
+    .getByRole("button", { name: /Bota de segurança em couro/ })
+    .click();
+  await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await page.getByRole("button", { name: "Gerar ficha demonstrativa" }).click();
+  await expect(page).toHaveURL(/\/rh\/fichas\/nova\?ficha=[0-9a-f-]+$/);
+  const reviewUrl = new URL(page.url());
+  const id = reviewUrl.searchParams.get("ficha")!;
+  await expect(
+    page.getByRole("link", { name: /Retomar revisão|Voltar à revisão/ }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Assinatura presencial", exact: true }),
   ).toHaveCount(0);
-  await page
-    .getByRole("link", { name: "Retomar revisão", exact: true })
-    .click();
-  await expect(page).toHaveURL(/nova\?ficha=sheet-3$/);
-  await page
-    .getByLabel("Local de arquivo do original assinado", { exact: true })
-    .fill("Arquivo RH, original assinado presencialmente em 22/10/2026");
-  await page
-    .getByRole("button", {
+  await expect(
+    page.getByLabel("Local de arquivo do original assinado", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
       name: "Registrar assinatura presencial",
       exact: true,
-    })
-    .click();
-  await expect(
-    page
-      .locator(".builder")
-      .getByText("Assinatura presencial registrada.", { exact: true }),
-  ).toBeVisible();
+    }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Avançar para ficha final", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/rh\/fichas\/sheet-3$/);
-  await expect(page.locator("main")).toContainText("Assinada presencialmente");
+  await expect(page).toHaveURL(new RegExp(`/rh/fichas/${id}$`));
+  await expect(
+    page.getByRole("link", { name: /Retomar revisão|Voltar à revisão/ }),
+  ).toHaveCount(0);
+  await expect(page.locator(".detail-meta").first()).toContainText("Pendente");
+  await expect(page.locator("main")).not.toContainText(
+    "Assinada presencialmente",
+  );
   await expect(
     page.getByRole("button", {
       name: "Registrar assinatura presencial",
@@ -186,6 +196,57 @@ test("assinatura presencial pode ser retomada na revisão e não aparece na fich
   await expect(
     page.getByRole("heading", { name: "Entrega física", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("link", { name: "← Voltar às fichas", exact: true })
+    .click();
+  await expect(page.getByRole("link", { name: /Retomar revisão/ })).toHaveCount(
+    0,
+  );
+  const row = page
+    .getByRole("row")
+    .filter({ has: page.locator(`a[href="/rh/fichas/${id}"]`) });
+  await expect(row.getByRole("link")).toHaveCount(1);
+  await row.getByRole("link", { name: "Ver detalhes", exact: true }).click();
+  await page
+    .getByLabel("Observações da entrega presencial", { exact: true })
+    .fill("Ana Martins recebeu os equipamentos e já assinou presencialmente.");
+  await page
+    .getByRole("button", {
+      name: "Confirmar entrega e assinatura presencial",
+      exact: true,
+    })
+    .click();
+  await expect(page.getByRole("status")).toContainText(
+    "Entrega e assinatura presencial confirmadas.",
+  );
+  await expect(page.locator(".detail-meta").first()).toContainText(
+    "Assinada presencialmente",
+  );
+  await expect(page.locator(".detail-meta").first()).toContainText("Entregue");
+  await expect(page.locator(".detail-meta").first()).not.toContainText(
+    /Pendente|Entrega pendente|Reservado/,
+  );
+  await page.reload();
+  await expect(page.locator(".detail-meta").first()).toContainText(
+    "Assinada presencialmente",
+  );
+  await page
+    .getByRole("link", { name: "← Voltar às fichas", exact: true })
+    .click();
+  await expect(row).toContainText("Assinada presencialmente");
+  await expect(row).toContainText("Entregue");
+  await page
+    .getByRole("combobox", { name: "Filtrar status" })
+    .selectOption("PENDING");
+  await expect(row).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: "Filtrar status" })
+    .selectOption("UNCONFIRMED");
+  await expect(row).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: "Filtrar status" })
+    .selectOption("SIGNED_MANUAL");
+  await expect(row).toBeVisible();
 });
 test("busca e layout móvel funcionam", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -246,7 +307,18 @@ test("login oferece apenas RH e Almoxarifado com dashboards específicos", async
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Atenção ao estoque", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(
+    nav.getByRole("link", { name: "Estoque", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".stats")).not.toContainText(
+    /Saldo disponível|Unidades reservadas|Estoque baixo/,
+  );
+  await expect(page.locator(".stats")).toContainText("Tamanhos cadastrados");
+  await page.goto("/almoxarifado/estoque");
+  await expect(page).toHaveURL(/\/almoxarifado\/equipamentos$/);
+  await expect(page.locator(".catalog")).not.toContainText("disponíveis");
+  await page.goto("/dashboard");
   await expect(
     page.getByRole("heading", { name: "Status das assinaturas", exact: true }),
   ).toHaveCount(0);
@@ -274,6 +346,7 @@ test("cadastro simplificado cria e filtra uma categoria sem emotes", async ({
   await page
     .getByLabel("Nome da nova categoria", { exact: true })
     .fill("Proteção auditiva");
+  await page.getByLabel("Tamanho", { exact: true }).fill("M");
   await page
     .getByRole("button", { name: "Salvar equipamento", exact: true })
     .click();
@@ -295,6 +368,19 @@ test("cadastro simplificado cria e filtra uma categoria sem emotes", async ({
   await expect(page.locator(".catalog")).toContainText(
     "Protetor auditivo de teste",
   );
+  await expect(page.locator(".catalog .variant-chips")).toHaveText("M");
+  await page.reload();
+  const equipment = page
+    .locator(".catalog .equipment-card")
+    .filter({ hasText: "Protetor auditivo de teste" });
+  await equipment.getByRole("button", { name: "Editar equipamento" }).click();
+  await page.getByLabel("Marca", { exact: true }).fill("Marca atualizada");
+  await page
+    .getByRole("button", { name: "Salvar equipamento", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Equipamento salvo.");
+  await expect(equipment.locator(".variant-chips .chip")).toHaveCount(1);
+  await expect(equipment).toContainText("Marca atualizada");
   await expect(page.locator(".catalog")).not.toContainText(/♧|◒|✋|♜/);
 });
 test("assinaturas ficam disponíveis como filtro da lista de fichas", async ({
@@ -309,15 +395,101 @@ test("assinaturas ficam disponíveis como filtro da lista de fichas", async ({
   await page.getByRole("link", { name: /Pendentes Conferir fichas/ }).click();
   await expect(page).toHaveURL(/rh\/fichas\?status=PENDING/);
   await expect(
-    page.getByRole("combobox", { name: "Filtrar assinatura" }),
+    page.getByRole("combobox", { name: "Filtrar status" }),
   ).toHaveValue("PENDING");
   await expect(page.locator("tbody tr")).toHaveCount(2);
   await page
-    .getByRole("combobox", { name: "Filtrar assinatura" })
+    .getByRole("combobox", { name: "Filtrar status" })
     .selectOption("SIGNED_MANUAL");
   await expect(page.locator("tbody tr")).toHaveCount(1);
-  await page
-    .getByRole("combobox", { name: "Filtrar assinatura" })
-    .selectOption("");
+  await page.getByRole("combobox", { name: "Filtrar status" }).selectOption("");
   await expect(page.locator("tbody tr")).toHaveCount(4);
+});
+
+test("entrega pendente filtra a entrega física sem depender da assinatura", async ({
+  page,
+}) => {
+  await login(page);
+  // Cover every signature state, as well as cancelled and delivered sheets.
+  await page.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("epi-demo-v3")!);
+    data.states.find((s: any) => s.sheet_id === "sheet-0").reservation_status =
+      "CANCELLED";
+    const source = data.sheets.find((s: any) => s.id === "sheet-2");
+    data.sheets.push({ ...source, id: "sheet-electronic-pending" });
+    data.states.push({
+      sheet_id: "sheet-electronic-pending",
+      signature_status: "SIGNED_ELECTRONIC",
+      receipt_status: "UNCONFIRMED",
+      reservation_status: "RESERVED",
+    });
+    localStorage.setItem("epi-demo-v3", JSON.stringify(data));
+  });
+  await page.goto("/dashboard");
+  await page.getByRole("link", { name: "Ver todas (3)", exact: true }).click();
+  await expect(page).toHaveURL(/rh\/fichas\?status=UNCONFIRMED/);
+  const filter = page.getByRole("combobox", { name: "Filtrar status" });
+  await expect(filter).toHaveValue("UNCONFIRMED");
+  await expect(page.locator("tbody tr")).toHaveCount(3);
+  for (const row of await page.locator("tbody tr").all())
+    await expect(row.locator("td").nth(4)).toHaveText("Entrega pendente");
+  await expect(page.locator("tbody")).toContainText("Assinada presencialmente");
+  await expect(page.locator("tbody")).toContainText("Assinada eletronicamente");
+  await expect(page.locator("tbody")).toContainText("Pendente");
+  await expect(page.locator("tbody")).not.toContainText(/Cancelado|Entregue/);
+  await page.reload();
+  await expect(filter).toHaveValue("UNCONFIRMED");
+  await expect(page.locator("tbody tr")).toHaveCount(3);
+  await page.getByLabel("Buscar ficha").fill("Daniel");
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.getByLabel("Buscar ficha").fill("inexistente");
+  await expect(page.locator("tbody")).toContainText("Nenhuma ficha encontrada");
+  await page.goto("/rh/fichas?status=UNCONFIRMED&employee=employee-1");
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await expect(page.locator("tbody")).toContainText("Bruno Almeida");
+  await filter.selectOption("");
+  await page.goto("/rh/fichas");
+  await expect(page.locator("tbody tr")).toHaveCount(5);
+  await filter.selectOption("UNCONFIRMED");
+  await expect(page.locator("tbody tr")).toHaveCount(3);
+  await page.screenshot({
+    path: "dist/filtro-entrega-pendente.png",
+    fullPage: true,
+  });
+});
+
+test("cadastro exige tamanho sem solicitar código interno", async ({
+  page,
+}) => {
+  await login(page, "ALMOXARIFADO");
+  await page.goto("/almoxarifado/equipamentos/novo");
+  await expect(
+    page.getByRole("textbox", { name: /SKU|código interno/i }),
+  ).toHaveCount(0);
+  await page
+    .getByLabel("Descrição de E.P.I.", { exact: true })
+    .fill("Equipamento com tamanho obrigatório");
+  await page
+    .getByLabel("Categoria", { exact: true })
+    .selectOption("Luvas de proteção");
+  await page.getByLabel("Tamanho", { exact: true }).fill("");
+  await page
+    .getByRole("button", { name: "Salvar equipamento", exact: true })
+    .click();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("epi-demo-v3")!).products.length,
+    ),
+  ).toBe(8);
+  await page.getByLabel("Tamanho", { exact: true }).fill("G");
+  await page
+    .getByRole("button", { name: "Salvar equipamento", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Equipamento salvo.");
+  await page.goto("/almoxarifado/equipamentos");
+  const cards = page
+    .locator(".catalog .equipment-card")
+    .filter({ hasText: "Equipamento com tamanho obrigatório" });
+  await expect(cards).toHaveCount(1);
+  await expect(cards.locator(".variant-chips")).toHaveText("G");
 });

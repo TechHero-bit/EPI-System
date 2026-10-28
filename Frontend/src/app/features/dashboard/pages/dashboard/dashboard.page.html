@@ -7,8 +7,7 @@
     <p>
       {{
         isWarehouse
-          ? "Acompanhe saldos, reservas e movimentações de
-      equipamentos."
+          ? "Acompanhe equipamentos, tamanhos e movimentações."
           : "Acompanhe colaboradores, fichas, assinaturas e
       entregas."
       }}
@@ -36,7 +35,7 @@
     <h2>
       {{
         isWarehouse
-          ? "Estoque organizado, entrega preparada."
+          ? "Equipamentos e tamanhos organizados."
           : "O próximo
       EPI, na ficha certa."
       }}
@@ -44,8 +43,7 @@
     <p>
       {{
         isWarehouse
-          ? "Registre entradas e ajustes e acompanhe os itens
-      reservados para entrega."
+          ? "Mantenha o catálogo atualizado para preparar cada entrega."
           : "Escolha o colaborador, selecione os
       equipamentos e acompanhe cada etapa da ficha."
       }}
@@ -53,8 +51,8 @@
     @if (isWarehouse) {
       <a
         class="light-button button-link"
-        routerLink="/almoxarifado/movimentacoes"
-        >Registrar movimentação →</a
+        routerLink="/almoxarifado/equipamentos/novo"
+        >Cadastrar equipamento →</a
       >
     } @else {
       <a class="light-button button-link" routerLink="/rh/fichas/nova"
@@ -132,20 +130,11 @@
   <div class="two-col">
     <section class="panel">
       <div class="panel-title">
-        <h2>Atenção ao estoque</h2>
-        <a routerLink="/almoxarifado/estoque" class="text-button">Conferir</a>
+        <h2>Certificados de aprovação</h2>
+        <a routerLink="/almoxarifado/equipamentos" class="text-button"
+          >Ver equipamentos</a
+        >
       </div>
-      @for (v of lows; track v.id) {
-        <div class="activity">
-          <div>
-            <strong>{{ s.product(v.product_id)?.description }}</strong
-            ><small>Tamanho {{ v.size }} · mínimo {{ v.minimum_stock }}</small>
-          </div>
-          <span class="status">{{ s.stock(v.id) }} disponíveis</span>
-        </div>
-      } @empty {
-        <div class="empty">Nenhum item abaixo do mínimo.</div>
-      }
       <p class="note">
         {{ expiring }} certificados de aprovação vencidos ou com vencimento nos
         próximos 30 dias.
@@ -212,7 +201,12 @@
     <section class="panel">
       <div class="panel-title">
         <h2>Entregas a confirmar</h2>
-        <span class="count">{{ pendingDeliveries.length }}</span>
+        <a
+          class="text-button"
+          routerLink="/rh/fichas"
+          [queryParams]="{ status: 'UNCONFIRMED' }"
+          >Ver todas ({{ pendingDeliveries.length }})</a
+        >
       </div>
       @for (f of pendingDeliveries.slice(0, 5); track f.id) {
         <a class="activity" [routerLink]="['/rh/fichas', f.id]"

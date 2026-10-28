@@ -20,6 +20,14 @@ export class DetailComponent implements OnInit, OnDestroy {
   get state() {
     return this.s.state(this.id);
   }
+  get needsReceiptConfirmation() {
+    return (
+      this.state?.reservation_status !== "CANCELLED" &&
+      (this.state?.receipt_status !== "CONFIRMED" ||
+        (this.sheet?.signature_method === "MANUAL" &&
+          this.state?.signature_status === "PENDING"))
+    );
+  }
   get audits() {
     return this.s.data().audits.filter((a) => a.entity_id === this.id);
   }
@@ -40,7 +48,9 @@ export class DetailComponent implements OnInit, OnDestroy {
   receipt() {
     void this.s.action(
       () => this.s.receipt(this.id, this.receiptNote),
-      "Entrega confirmada e estoque atualizado.",
+      this.sheet?.signature_method === "MANUAL"
+        ? "Entrega e assinatura presencial confirmadas."
+        : "Entrega confirmada e estoque atualizado.",
     );
   }
   cancel() {

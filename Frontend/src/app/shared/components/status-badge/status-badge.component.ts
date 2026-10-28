@@ -11,7 +11,7 @@ export class StatusComponent {
     SIGNED_MANUAL: "Assinada presencialmente",
     SIGNED_ELECTRONIC: "Assinada eletronicamente",
     UNCONFIRMED: "Entrega pendente",
-    CONFIRMED: "Entrega confirmada",
+    CONFIRMED: "Entregue",
     RESERVED: "Reservado",
     DELIVERED: "Entregue",
     CANCELLED: "Cancelado",
