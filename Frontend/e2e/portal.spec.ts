@@ -46,6 +46,61 @@ test("todas as rotas principais abrem diretamente, inclusive após refresh", asy
   }
   expect(errors).toEqual([]);
 });
+test("confirmação da seleção lista todas as unidades e só avança após confirmar", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/rh/fichas/nova");
+  await page.getByRole("button", { name: /Ana Martins/ }).click();
+  await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  for (let i = 0; i < 2; i++)
+    await page
+      .getByRole("button", { name: /Bota de segurança em couro/ })
+      .click();
+  await page.getByLabel("Data da entrega do item").first().fill("2026-11-10");
+  await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  const dialog = page.getByRole("dialog", { name: "Confirmar seleção" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("listitem")).toHaveCount(2);
+  await expect(dialog.getByRole("listitem").first()).toContainText(
+    "10/11/2026",
+  );
+  await expect(dialog).toContainText("Tamanho 40");
+  await dialog.getByRole("button", { name: "Voltar e ajustar" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Escolha os equipamentos e tamanhos" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Data da entrega do item").first()).toHaveValue(
+    "2026-11-10",
+  );
+  for (let i = 0; i < 11; i++)
+    await page
+      .getByRole("button", { name: /Luva de proteção mecânica/ })
+      .click();
+  for (let i = 0; i < 2; i++)
+    await page.getByRole("button", { name: /Cinto com talabarte/ }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "3 · Revisão e assinatura" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("listitem")).toHaveCount(15);
+  await expect(
+    dialog.getByRole("button", { name: "Confirmar e avançar →" }),
+  ).toBeInViewport();
+  await dialog.getByRole("listitem").last().scrollIntoViewIfNeeded();
+  await expect(dialog.getByRole("listitem").last()).toBeInViewport();
+  await page.screenshot({ path: "dist/confirmacao-equipamentos-mobile.png" });
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await dialog.getByRole("button", { name: "Confirmar e avançar →" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Revisar ficha e assinatura" }),
+  ).toBeVisible();
+  await expect(dialog).not.toBeVisible();
+  expect(new URL(page.url()).searchParams.has("ficha")).toBe(false);
+});
+
 test("QR na revisão aguarda aceite em outra aba antes da ficha final", async ({
   page,
 }) => {
@@ -58,6 +113,7 @@ test("QR na revisão aguarda aceite em outra aba antes da ficha final", async ({
     .click();
   await page.getByRole("button", { name: /Luva de proteção mecânica/ }).click();
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await page.getByRole("button", { name: "Confirmar e avançar →" }).click();
   await page
     .getByText("Método de assinatura", { exact: false })
     .locator("select")
@@ -171,6 +227,7 @@ test("ficha final oferece apenas detalhes e confirma entrega junto da assinatura
     .getByRole("button", { name: /Bota de segurança em couro/ })
     .click();
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await page.getByRole("button", { name: "Confirmar e avançar →" }).click();
   await page.getByRole("button", { name: "Gerar ficha demonstrativa" }).click();
   await expect(page).toHaveURL(/\/rh\/fichas\/nova\?ficha=[0-9a-f-]+$/);
   const reviewUrl = new URL(page.url());

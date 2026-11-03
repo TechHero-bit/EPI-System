@@ -1,0 +1,56 @@
+.selection-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid #dbe5f4;
+  border-radius: 18px;
+  color: inherit;
+  background: #fff;
+  box-shadow: 0 24px 80px #10233f40;
+}
+.selection-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.selection-dialog::backdrop {
+  background: #10233f80;
+}
+.selection-dialog-heading {
+  padding: 24px 24px 16px;
+}
+.selection-dialog-heading h2 {
+  margin: 8px 0;
+}
+.selection-dialog-heading p {
+  margin: 0 0 12px;
+}
+.selection-dialog-items {
+  overflow-y: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 24px 0 48px;
+  overscroll-behavior: contain;
+}
+.selection-dialog-items li {
+  padding: 16px 0;
+  border-top: 1px solid #e6edf4;
+  overflow-wrap: anywhere;
+}
+.selection-dialog-items p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.selection-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e6edf4;
+}
+@media (max-width: 480px) {
+  .selection-dialog-actions button {
+    width: 100%;
+  }
+}

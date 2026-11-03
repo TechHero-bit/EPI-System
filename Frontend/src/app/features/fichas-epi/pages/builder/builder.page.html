@@ -1,3 +1,46 @@
+<dialog
+  #selectionDialog
+  class="selection-dialog"
+  aria-labelledby="selection-title"
+  aria-describedby="selection-description"
+>
+  <div class="selection-dialog-heading">
+    <span class="eyebrow">CONFERÊNCIA DOS EQUIPAMENTOS</span>
+    <h2 id="selection-title">Confirmar seleção</h2>
+    <p id="selection-description">
+      Confira todos os itens de {{ employee?.name }} antes de avançar. Cada
+      linha corresponde a uma unidade.
+    </p>
+    <strong>{{ selectedItems.length }} itens selecionados</strong>
+  </div>
+  <ol class="selection-dialog-items" aria-label="Equipamentos selecionados">
+    @for (item of selectedItems; track $index) {
+      <li>
+        <strong>{{ item.description }}</strong>
+        <p>
+          Tamanho {{ item.size }} · 1 unidade · C.A.: {{ item.ca || "N/A" }}
+        </p>
+        <p>Marca: {{ item.brand || "Não informada" }}</p>
+        <p>
+          Entrega:
+          {{ item.deliveryDate || item.date || date | date: "dd/MM/yyyy" }}
+        </p>
+      </li>
+    }
+  </ol>
+  <div class="selection-dialog-actions">
+    <button class="secondary" autofocus (click)="selectionDialog.close()">
+      Voltar e ajustar
+    </button>
+    <button
+      class="primary"
+      [disabled]="!draft.length || s.busy()"
+      (click)="confirmSelection()"
+    >
+      Confirmar e avançar →
+    </button>
+  </div>
+</dialog>
 <div class="page-head">
   <div>
     <span class="eyebrow">FICHAS DE EPI</span>

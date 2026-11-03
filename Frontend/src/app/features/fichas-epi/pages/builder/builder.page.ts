@@ -1,4 +1,11 @@
-import { Component, inject, OnInit, OnDestroy } from "@angular/core";
+import {
+  Component,
+  ElementRef,
+  ViewChild,
+  inject,
+  OnInit,
+  OnDestroy,
+} from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router, ActivatedRoute } from "@angular/router";
 import { DatePipe } from "@angular/common";
@@ -13,8 +20,10 @@ import { restoreReviewDraft } from "../../../../shared/utils/review-draft";
   standalone: true,
   imports: [FormsModule, DatePipe],
   templateUrl: "./builder.page.html",
+  styleUrl: "./builder.page.css",
 })
 export class BuilderComponent implements OnInit, OnDestroy {
+  @ViewChild("selectionDialog") selectionDialog!: ElementRef<HTMLDialogElement>;
   s = inject(PortalStore);
   router = inject(Router);
   route = inject(ActivatedRoute);
@@ -80,11 +89,20 @@ export class BuilderComponent implements OnInit, OnDestroy {
     if (this.s.busy() || target < 1 || target > 3) return;
     if (target === 2 && !this.employeeId) return;
     if (target === 3 && !this.draft.length && !this.preparedId) return;
+    if (target === 3 && this.step < 3 && !this.preparedId) {
+      this.selectionDialog.nativeElement.showModal();
+      return;
+    }
     if (this.preparedId && target < this.step && this.canRevise) {
       this.editTarget = target;
       return;
     }
     this.step = target;
+  }
+  confirmSelection() {
+    if (this.s.busy() || !this.draft.length || !this.employeeId) return;
+    this.selectionDialog.nativeElement.close();
+    this.step = 3;
   }
   requestEdit() {
     if (this.canRevise) this.editTarget = 3;

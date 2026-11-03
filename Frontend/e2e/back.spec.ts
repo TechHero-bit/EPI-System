@@ -32,6 +32,7 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
   );
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await page.getByRole("button", { name: "Confirmar e avançar →" }).click();
   await expect(
     page.getByRole("button", {
       name: "← Alterar métodos ou dados",
@@ -54,6 +55,7 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
     page.getByLabel("Data da entrega do item", { exact: false }),
   ).toHaveValue("2026-10-29");
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await page.getByRole("button", { name: "Confirmar e avançar →" }).click();
   await expect(
     page.getByRole("combobox", { name: "Método de assinatura", exact: true }),
   ).toHaveValue("ELECTRONIC");
@@ -122,6 +124,7 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
   await expired.close();
   await page.bringToFront();
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await page.getByRole("button", { name: "Confirmar e avançar →" }).click();
   await page
     .getByRole("combobox", { name: "Método de assinatura", exact: true })
     .selectOption("MANUAL");

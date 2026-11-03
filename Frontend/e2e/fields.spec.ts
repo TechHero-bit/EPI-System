@@ -121,6 +121,7 @@ test("matrícula manual aparece como registro em todas as fichas do funcionário
       .click();
     await expect(page.getByLabel("Selecionar lote")).toHaveCount(0);
     await page.getByRole("button", { name: "Revisar seleção →" }).click();
+    await page.getByRole("button", { name: "Confirmar e avançar →" }).click();
     await page
       .getByRole("button", { name: "Gerar ficha demonstrativa" })
       .click();
@@ -167,6 +168,7 @@ test("ficha usa catálogo somente leitura e mantém datas de entrega editáveis"
     .getByLabel("Data da entrega do item", { exact: false })
     .fill("2026-10-29");
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
+  await page.getByRole("button", { name: "Confirmar e avançar →" }).click();
   await page
     .getByLabel("Data da entrega (padrão dos itens)", { exact: true })
     .fill("2026-10-27");
