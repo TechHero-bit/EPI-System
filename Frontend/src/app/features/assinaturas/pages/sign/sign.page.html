@@ -17,84 +17,165 @@
       <div class="alert error" role="alert">{{ s.failure() }}</div>
     }
     @if (s.message()) {
-      <div class="alert success">{{ s.message() }}</div>
+      <div class="alert success" role="status">{{ s.message() }}</div>
     }
     @if (done) {
       <div class="success-panel">
         <span class="big-check">✓</span>
         <h2>{{ s.demo ? "Simulação concluída" : "Assinatura registrada" }}</h2>
         <p>A entrega física continua pendente de confirmação separada.</p>
+        <p class="signature-preview" [style.font-family]="signatureFont">
+          {{ signerName }}
+        </p>
+        <p>O nome, o estilo e o aceite foram registrados com a ficha.</p>
       </div>
-    } @else {
+    } @else if (!sent) {
+      <p>
+        Confira o documento, crie sua assinatura e leia os termos antes de
+        confirmar.
+      </p>
       <button
         class="primary wide"
         [disabled]="s.busy()"
         (click)="requestCode()"
       >
-        {{
-          s.demo
-            ? "Iniciar simulação"
-            : sent
-              ? "Reenviar código"
-              : "Enviar
-      código de verificação"
-        }}
+        {{ s.demo ? "Iniciar simulação" : "Iniciar assinatura" }}
       </button>
-      @if (sent) {
-        @if (!s.demo) {
-          <label class="field spaced"
-            >Código de 6 dígitos<input
-              [(ngModel)]="code"
-              maxlength="6"
-              inputmode="numeric"
-              autocomplete="one-time-code"
-          /></label>
-        }
+    } @else if (!previewData) {
+      @if (!s.demo) {
+        <h2>Verifique sua identidade</h2>
+        <p>
+          Digite o código enviado ao seu e-mail. A ficha abrirá automaticamente
+          após a validação.
+        </p>
+        <label class="field"
+          >Código de 6 dígitos
+          <input
+            [ngModel]="code"
+            (ngModelChange)="onCodeChange($event)"
+            maxlength="6"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            [disabled]="s.busy()"
+          />
+        </label>
         <button
           class="secondary wide spaced"
-          [disabled]="s.busy() || (!s.demo && code.length !== 6)"
+          [disabled]="s.busy() || code.length !== 6"
           (click)="preview()"
         >
-          Conferir documento
+          Validar código
+        </button>
+        <button
+          class="secondary wide spaced"
+          [disabled]="s.busy()"
+          (click)="requestCode()"
+        >
+          Reenviar código
+        </button>
+      } @else {
+        <button
+          class="secondary wide"
+          [disabled]="s.busy()"
+          (click)="preview()"
+        >
+          Tentar abrir documento novamente
         </button>
       }
-      @if (previewData) {
-        <div class="preview-block">
-          @if (s.demo) {
-            <p>
-              <strong>{{ previewData.sheet.snapshot.employee.name }}</strong>
-            </p>
-            <ul>
-              @for (i of previewData.sheet.snapshot.items; track $index) {
-                <li>{{ i.description }} · {{ i.size }} · 1 un.</li>
-              }
-            </ul>
-            <button class="secondary wide" (click)="download()">
-              Ver PDF demonstrativo
-            </button>
-          } @else {
-            <a
-              class="secondary button-link"
-              [href]="previewData.documentUrl"
-              target="_blank"
-              rel="noopener"
-              >Abrir PDF exato (link válido por 60 s)</a
-            >
-          }
-          <code>{{ previewData.sha256 }}</code
-          ><label class="checkline"
-            ><input type="checkbox" [(ngModel)]="accepted" /><span>{{
-              previewData.terms
-            }}</span></label
-          ><button
-            class="primary wide"
-            [disabled]="s.busy() || !accepted"
-            (click)="confirm()"
-          >
-            {{ s.demo ? "Simular aceite" : "Assinar eletronicamente" }}
+    } @else {
+      <div class="preview-block">
+        <h2>Confira o documento e crie sua assinatura</h2>
+        <p>
+          <strong>{{ previewData.signerName }}</strong>
+        </p>
+        @if (s.demo) {
+          <ul>
+            @for (i of previewData.sheet.snapshot.items; track $index) {
+              <li>{{ i.description }} · {{ i.size }} · 1 un.</li>
+            }
+          </ul>
+          <button class="secondary wide" (click)="download()">
+            Ver PDF demonstrativo
           </button>
+        } @else {
+          <a
+            class="secondary button-link"
+            [href]="previewData.documentUrl"
+            target="_blank"
+            rel="noopener"
+            >Abrir documento PDF</a
+          >
+          <button
+            class="secondary wide spaced"
+            [disabled]="s.busy()"
+            (click)="preview()"
+          >
+            Renovar acesso ao PDF
+          </button>
+        }
+        <details class="spaced">
+          <summary>Identificação do documento</summary>
+          <code>{{ previewData.sha256 }}</code>
+        </details>
+        <label class="field" for="signer-name">Seu nome completo</label>
+        <input
+          id="signer-name"
+          [(ngModel)]="signerName"
+          (ngModelChange)="resetConsent()"
+          maxlength="180"
+          autocomplete="name"
+          placeholder="Digite seu nome conforme a ficha"
+          aria-describedby="signer-help"
+        />
+        <p id="signer-help" class="muted small">
+          Use o nome do titular: {{ previewData.signerName }}.
+        </p>
+        @if (signerName.trim() && !validName) {
+          <p role="alert">O nome deve corresponder ao titular da ficha.</p>
+        }
+        <label class="field" for="signature-style">Estilo da assinatura</label>
+        <select
+          id="signature-style"
+          [(ngModel)]="signatureStyle"
+          (ngModelChange)="resetConsent()"
+        >
+          @for (style of styles; track style.id) {
+            <option [value]="style.id">{{ style.label }}</option>
+          }
+        </select>
+        <div
+          class="signature-preview spaced"
+          aria-label="Prévia da assinatura"
+          [style.font-family]="signatureFont"
+        >
+          {{ signerName.trim() || "Sua assinatura aparecerá aqui" }}
         </div>
-      }
+        <section
+          class="signature-terms spaced"
+          aria-labelledby="signature-terms-heading"
+        >
+          <h2 id="signature-terms-heading">
+            Termos do serviço de assinatura e responsabilidade
+          </h2>
+          <p>{{ previewData.terms }}</p>
+          <small>Versão: {{ previewData.termsVersion }}</small>
+        </section>
+        <label class="checkline">
+          <input type="checkbox" [(ngModel)]="accepted" />
+          <span
+            >Li e aceito os termos do serviço de assinatura e responsabilidade
+            acima. Confirmo que sou o titular e desejo assinar eletronicamente
+            esta ficha.</span
+          >
+        </label>
+        <button
+          class="primary wide"
+          [disabled]="s.busy() || !accepted || !validName"
+          (click)="confirm()"
+        >
+          {{ s.demo ? "Simular aceite" : "Concluir assinatura" }}
+        </button>
+      </div>
     }
   </section>
 </div>

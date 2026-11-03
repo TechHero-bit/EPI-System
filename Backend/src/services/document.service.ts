@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import {
   renderExactCompanyPdf,
   renderExactCompanyXlsx,
+  stampExactCompanyPdf,
 } from "./company-form.service.js";
 import {
   renderCompanyPdf,
@@ -45,6 +46,26 @@ export type SheetSnapshot = {
   organizationName?: string;
   demonstration?: boolean;
 };
+export type SignaturePrintEvidence = {
+  signerName: string;
+  signatureStyle?: string | null;
+  signedAt: string;
+  documentSha256: string;
+};
+// Rebuild the print layout from the immutable snapshot so historical PDFs also
+// receive layout fixes. The stored original and its signature hash stay intact.
+export async function renderSignedPdf(
+  _original: Uint8Array,
+  s: SheetSnapshot,
+  signature: SignaturePrintEvidence,
+) {
+  const printable = { ...s, template: "COMPANY_EPI_2026_V4" as const };
+  return stampExactCompanyPdf(
+    await renderExactCompanyPdf(printable),
+    printable,
+    signature,
+  );
+}
 export const generationDate = (timestamp: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
     new Date(timestamp),
@@ -244,8 +265,16 @@ export async function renderPdf(s: SheetSnapshot): Promise<Uint8Array> {
   return pdf.save();
 }
 
-export async function renderXlsx(s: SheetSnapshot): Promise<Uint8Array> {
+export async function renderXlsx(
+  s: SheetSnapshot,
+  signature?: SignaturePrintEvidence,
+): Promise<Uint8Array> {
   if (s.items.length > 15) throw new Error("Limite de 15 itens por ficha.");
+  if (signature)
+    return renderExactCompanyXlsx(
+      { ...s, template: "COMPANY_EPI_2026_V4" },
+      signature,
+    );
   if (s.template === "COMPANY_EPI_2026_V4") return renderExactCompanyXlsx(s);
   if (s.template === "COMPANY_EPI_2026_V3") return renderCompanyXlsx(s);
   const book = new ExcelJS.Workbook();

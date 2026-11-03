@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import {
+  SIGNATURE_TERMS,
+  SIGNATURE_TERMS_VERSION,
+} from "../../contracts/signature.mjs";
+import {
   token,
   secretHash,
 } from "../../Backend/src/services/security.service.ts";
@@ -77,7 +81,7 @@ before(async () => {
 after(async () => {
   await db.close();
 });
-test("arquivos de migrations são numerados de 001 a 007 sem lacunas", async () => {
+test("arquivos de migrations são numerados de 001 a 008 sem lacunas", async () => {
   const files = (await readdir("database/supabase/migrations"))
     .filter((name) => name.endsWith(".sql"))
     .sort();
@@ -89,6 +93,7 @@ test("arquivos de migrations são numerados de 001 a 007 sem lacunas", async () 
     "005_signing_identity.sql",
     "006_inventory_without_lots.sql",
     "007_manual_receipt.sql",
+    "008_typed_signature.sql",
   ]);
   for (const [index, file] of files.entries()) {
     const source = await readFile(
@@ -281,7 +286,11 @@ async function issue(
   const snapshot = {
     requestKey: key,
     recordNumber,
-    employee: { registration: recordNumber },
+    employee: {
+      registration: recordNumber,
+      name: (await one("select name from employees where id=$1", [employee]))
+        .name,
+    },
     documentDate: "2026-10-20",
     items,
   };
@@ -582,15 +591,57 @@ test("link com hash, OTP, expiração e uso único mantém entrega física pende
     true,
   );
   const before = await one("select * from inventory_stock where id=$1", [lot]);
-  await one("select complete_signature($1,$2,$3,$4)", [
+  const signerName = (
+    await one("select snapshot from sheets where id=$1", [id])
+  ).snapshot.employee.name;
+  const consent = [
+    signerName,
+    "classic",
+    SIGNATURE_TERMS_VERSION,
+    SIGNATURE_TERMS,
+  ];
+  await assert.rejects(
+    one("select complete_signature($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+      link,
+      code,
+      null,
+      "test",
+      ...consent,
+      false,
+    ]),
+    /Aceite/,
+  );
+  await assert.rejects(
+    one("select complete_signature($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+      link,
+      code,
+      null,
+      "test",
+      "Outra pessoa",
+      "classic",
+      SIGNATURE_TERMS_VERSION,
+      SIGNATURE_TERMS,
+      true,
+    ]),
+    /titular/,
+  );
+  await one("select complete_signature($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
     link,
     code,
     "127.0.0.1",
     "test",
+    ...consent,
+    true,
   ]);
   const state = await one("select * from sheet_state where sheet_id=$1", [id]);
   assert.equal(state.signature_status, "SIGNED_ELECTRONIC");
   assert.equal(state.receipt_status, "UNCONFIRMED");
+  const evidence = (await one("select evidence from signature_evidences where sheet_id=$1", [id])).evidence;
+  assert.equal(evidence.signerName, signerName);
+  assert.equal(evidence.signatureStyle, "classic");
+  assert.equal(evidence.termsVersion, SIGNATURE_TERMS_VERSION);
+  assert.equal(evidence.termsText, SIGNATURE_TERMS);
+  assert.equal(evidence.acceptedTerms, true);
   assert.equal(
     (await one("select stock_quantity from inventory_stock where id=$1", [lot]))
       .stock_quantity,
@@ -606,7 +657,14 @@ test("link com hash, OTP, expiração e uso único mantém entrega física pende
     1,
   );
   await assert.rejects(
-    one("select complete_signature($1,$2,$3,$4)", [link, code, null, "test"]),
+    one("select complete_signature($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+      link,
+      code,
+      null,
+      "test",
+      ...consent,
+      true,
+    ]),
     /inválido ou expirado/,
   );
 });
@@ -632,7 +690,17 @@ test("token expirado e cinco tentativas inválidas bloqueiam assinatura", async 
     [link],
   );
   await assert.rejects(
-    one("select complete_signature($1,$2,$3,$4)", [link, "good", null, "test"]),
+    one("select complete_signature($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+      link,
+      "good",
+      null,
+      "test",
+      "Titular",
+      "classic",
+      SIGNATURE_TERMS_VERSION,
+      SIGNATURE_TERMS,
+      true,
+    ]),
     /expirado/,
   );
 });

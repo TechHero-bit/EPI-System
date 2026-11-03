@@ -4,7 +4,7 @@ export async function demoDocument(
   kind: "pdf" | "xlsx",
 ): Promise<Blob> {
   if (!sheet) throw new Error("Ficha não encontrada.");
-  const { renderPdf, renderXlsx } = await import(
+  const { renderPdf, renderXlsx, renderSignedPdf } = await import(
     "../../../../../Backend/src/services/document.service"
   );
   const s = sheet.snapshot,
@@ -31,8 +31,12 @@ export async function demoDocument(
       risk: i.risk ?? "",
     })),
   };
-  const bytes =
-    kind === "pdf" ? await renderPdf(snapshot) : await renderXlsx(snapshot);
+  const signature = sheet.electronic_signature;
+  let bytes: Uint8Array;
+  if (kind === "pdf") {
+    bytes = await renderPdf(snapshot);
+    if (signature) bytes = await renderSignedPdf(bytes, snapshot, signature);
+  } else bytes = await renderXlsx(snapshot, signature);
   return new Blob([new Uint8Array(bytes)], {
     type:
       kind === "pdf"

@@ -1,5 +1,9 @@
 import { RequestHandler } from "express";
 import { z } from "zod";
+import {
+  SIGNATURE_TERMS,
+  SIGNATURE_TERMS_VERSION,
+} from "../../../contracts/signature.mjs";
 import { config } from "../config/environment.js";
 import {
   error,
@@ -102,7 +106,7 @@ export const postsignTokenPreview: RequestHandler<{
   const sheet = dbResult(
     await db
       .from("sheets")
-      .select("pdf_path,pdf_sha256")
+      .select("pdf_path,pdf_sha256,snapshot")
       .eq("id", link.sheet_id)
       .single(),
   );
@@ -120,8 +124,9 @@ export const postsignTokenPreview: RequestHandler<{
     documentUrl: signed.signedUrl,
     sha256: sheet.pdf_sha256,
     expiresInSeconds: 60,
-    terms:
-      "Declaro que li o documento exato identificado pelo SHA-256 acima e concordo em assinar eletronicamente. A assinatura não confirma, por si só, a entrega física.",
+    signerName: sheet.snapshot.employee.name,
+    terms: SIGNATURE_TERMS,
+    termsVersion: SIGNATURE_TERMS_VERSION,
   });
 };
 
@@ -133,6 +138,9 @@ export const postsignTokenConfirm: RequestHandler<{
     .object({
       code: z.string().regex(/^\d{6}$/),
       acceptedTerms: z.literal(true),
+      signerName: z.string().trim().min(2).max(180),
+      signatureStyle: z.enum(["classic", "handwritten", "elegant"]),
+      termsVersion: z.literal(SIGNATURE_TERMS_VERSION),
     })
     .parse(req.body);
   const { db, link } = await checkCode(req.params.token, body.code);
@@ -143,6 +151,11 @@ export const postsignTokenConfirm: RequestHandler<{
       p_otp_hash: secretHash(body.code, config().TOKEN_PEPPER),
       p_ip: ip,
       p_agent: req.header("user-agent") ?? "",
+      p_signer_name: body.signerName,
+      p_signature_style: body.signatureStyle,
+      p_terms_version: body.termsVersion,
+      p_terms_text: SIGNATURE_TERMS,
+      p_accepted_terms: body.acceptedTerms,
     }),
   );
   res.json({

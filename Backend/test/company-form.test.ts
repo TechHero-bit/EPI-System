@@ -1,10 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import ExcelJS from "exceljs";
-import { PDFDocument } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFArray,
+  PDFRawStream,
+  decodePDFRawStream,
+} from "pdf-lib";
 import {
   renderPdf,
   renderXlsx,
+  renderSignedPdf,
   type SheetSnapshot,
 } from "../src/services/document.service.js";
 
@@ -93,6 +99,132 @@ test("ficha original mantém dez colunas, legendas, matrícula e datas nos campo
     (await PDFDocument.load(await renderPdf(snapshot))).getPageCount(),
     1,
   );
+});
+
+test("cópia assinada marca cada EPI em todas as páginas sem marcar linhas vazias ou devoluções", async () => {
+  const input: SheetSnapshot = {
+    ...snapshot,
+    method: "ELECTRONIC",
+    demonstration: true,
+    items: Array.from({ length: 15 }, (_, i) => ({
+      ...snapshot.items[0]!,
+      description: `${i + 1} EQUIPAMENTO COM DESCRIÇÃO LONGA `
+        .repeat(6)
+        .slice(0, 180),
+    })),
+  };
+  const original = await renderPdf(input);
+  const preserved = new Uint8Array(original);
+  const signature = {
+    signerName: input.employee.name,
+    signedAt: "2026-10-28T15:00:00Z",
+    documentSha256: "b".repeat(64),
+  };
+  const signed = await PDFDocument.load(
+    await renderSignedPdf(original, input, signature),
+  );
+  assert.deepEqual(original, preserved);
+  assert.equal(
+    signed.getPageCount(),
+    (await PDFDocument.load(original)).getPageCount(),
+  );
+  assert.ok(signed.getPageCount() > 1);
+  const marker = Buffer.from("Assinado digitalmente", "latin1")
+    .toString("hex")
+    .toUpperCase();
+  let marks = 0;
+  for (const page of signed.getPages()) {
+    const contents = page.node.Contents() as PDFArray;
+    for (const ref of contents.asArray()) {
+      const stream = signed.context.lookup(ref, PDFRawStream);
+      const operators = Buffer.from(
+        decodePDFRawStream(stream).decode(),
+      ).toString("latin1");
+      marks += operators.split(`<${marker}>`).length - 1;
+      for (const footer of [
+        "Original SHA-256",
+        "DEMONSTRAÇÃO",
+        "Cópia para impressão",
+      ])
+        assert.ok(
+          !operators.includes(
+            Buffer.from(footer, "latin1").toString("hex").toUpperCase(),
+          ),
+        );
+    }
+  }
+  assert.equal(marks, input.items.length + 2 * signed.getPageCount());
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load((await renderXlsx(input, signature)) as any);
+  let rows = 0;
+  for (const ws of book.worksheets) {
+    assert.equal(ws.headerFooter?.oddFooter, "&LAssinado digitalmente");
+    for (let row = 21; row <= 40; row++) {
+      const description = ws.getCell(`C${row}`);
+      if (
+        description.master.address === description.address &&
+        description.value
+      ) {
+        assert.equal(ws.getCell(`H${row}`).value, "Assinado digitalmente");
+        rows++;
+      } else if (!description.value)
+        assert.equal(ws.getCell(`H${row}`).value, null);
+      assert.equal(ws.getCell(`N${row}`).value, null);
+    }
+  }
+  assert.equal(rows, input.items.length);
+});
+
+test("Excel e PDF preservam o estilo escolhido e o PDF incorpora a fonte", async () => {
+  const input: SheetSnapshot = {
+    ...snapshot,
+    method: "ELECTRONIC",
+    items: [snapshot.items[0]!, snapshot.items[0]!],
+  };
+  for (const [signatureStyle, font] of [
+    ["classic", "Dancing Script"],
+    ["handwritten", "Caveat"],
+    ["elegant", "Allura"],
+  ]) {
+    const signerName = "João de Souza Albuquerque e Silva";
+    const signature = {
+      signerName,
+      signatureStyle,
+      signedAt: "2026-10-28T15:00:00Z",
+      documentSha256: "b".repeat(64),
+    };
+    const pdf = await PDFDocument.load(
+      await renderSignedPdf(await renderPdf(input), input, signature),
+    );
+    const objects = pdf.context
+      .enumerateIndirectObjects()
+      .map(([, object]) => object.toString())
+      .join("\n");
+    assert.match(objects, /\/FontFile2/);
+    assert.match(objects, new RegExp(`/BaseFont /${font!.replace(/ /g, "")}`));
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(
+      (await renderXlsx(input, {
+        signerName,
+        signatureStyle,
+        signedAt: "2026-10-28T15:00:00Z",
+        documentSha256: "b".repeat(64),
+      })) as any,
+    );
+    const ws = book.worksheets[0]!;
+    assert.equal(ws.getCell("G17").value, signerName);
+    assert.equal(ws.getCell("G17").font.name, font);
+    for (const row of [21, 22]) {
+      const cell = ws.getCell(`H${row}`);
+      assert.equal(cell.value, signerName);
+      assert.equal(cell.font.name, font);
+      assert.equal(cell.alignment.shrinkToFit, true);
+      assert.ok(!cell.alignment.wrapText);
+      assert.equal(ws.getCell(`N${row}`).value, null);
+    }
+    assert.equal(ws.getCell("H23").value, null);
+    assert.equal(ws.headerFooter?.oddFooter, "&LAssinado digitalmente");
+  }
 });
 
 test("textos extensos preservam os quinze itens e usam as mesmas páginas no PDF e Excel", async () => {

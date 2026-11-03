@@ -370,6 +370,7 @@ export class PortalStore {
       token.slice(5),
       step,
       body?.acceptedTerms === true,
+      body,
     );
     if (step) this.persist();
     return result;

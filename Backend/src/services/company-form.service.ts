@@ -1,4 +1,7 @@
 import ExcelJS from "exceljs";
+import { SIGNATURE_STYLES } from "../../../contracts/signature.mjs";
+import fontkit from "@pdf-lib/fontkit";
+import { signatureFonts } from "../assets/signature-fonts.js";
 import {
   PDFDocument,
   StandardFonts,
@@ -7,7 +10,10 @@ import {
   type PDFPage,
 } from "pdf-lib";
 import { companyForm2026 as template } from "../assets/company-form-2026.js";
-import type { SheetSnapshot } from "./document.service.js";
+import type {
+  SheetSnapshot,
+  SignaturePrintEvidence,
+} from "./document.service.js";
 
 // V4 fills the company's printed form. V3 remains available for historical sheets.
 export const COMPANY_FORM_TEMPLATE = "COMPANY_EPI_2026_V4" as const;
@@ -39,9 +45,30 @@ const columns = [
   ["M21:M21", 13, 13],
   ["N21:O21", 14, 15],
 ] as const;
+// Grid coordinates from the embedded PDF; Excel scaling causes border drift.
+const gridX = [
+  9.984, 81.204, 114.2, 294.23, 363.85, 450.97, 539.2, 584.56, 657.4, 690.42,
+  820.32,
+];
+const gridY = [
+  305.03, 292.07, 279.11, 266.15, 253.19, 240.23, 227.24, 214.28, 201.32,
+  188.36, 175.4, 162.44, 149.48, 136.52, 123.56, 110.6, 97.62, 84.66, 71.7,
+  58.74, 45.78,
+];
+function itemBox(column: number, slot = 0, slots = 1): Box {
+  return {
+    x: gridX[column]!,
+    top: template.bounds.pageHeight - gridY[slot]!,
+    width: gridX[column + 1]! - gridX[column]!,
+    height: gridY[slot]! - gridY[slot + slots]!,
+  };
+}
+
 type Address = keyof typeof template.geometry.cells;
 type Box = { x: number; top: number; width: number; height: number };
 const box = (address: Address): Box => {
+  const column = columns.findIndex(([key]) => key === address);
+  if (column >= 0) return itemBox(column);
   const c = template.geometry.cells[address];
   return {
     x: template.bounds.left + c.x * scaleX,
@@ -201,7 +228,7 @@ export async function renderExactCompanyPdf(
   const font = await pdf.embedFont(StandardFonts.TimesRoman);
   const [background] = await pdf.embedPdf(decode(template.pdfBase64));
   const pages = plan(s, font);
-  for (const [index, items] of pages.entries()) {
+  for (const items of pages) {
     const page = pdf.addPage([
       template.bounds.pageWidth,
       template.bounds.pageHeight,
@@ -213,50 +240,34 @@ export async function renderExactCompanyPdf(
       drawText(page, font, area, text.lines, text.size, address === "A17:F17");
     }
     for (const entry of items) {
-      for (const [i, [address]] of columns.entries()) {
-        const original = box(address);
-        const area = {
-          ...original,
-          top: original.top + entry.slot * rowHeight,
-          height: entry.slots * rowHeight,
-        };
-        // Joining blank form rows accommodates long descriptions while retaining
-        // all ten column boundaries and the surrounding company form.
+      for (const [i] of columns.entries()) {
+        const area = itemBox(i, entry.slot, entry.slots);
+        // Clear the interior, preserving the original border strokes. For long
+        // entries this also removes internal horizontal lines between slots.
+        const left = i === 0 ? 0.61 : 0.31;
+        const right = i === columns.length - 1 ? 0.61 : 0.31;
         page.drawRectangle({
-          x: area.x,
-          y: template.bounds.pageHeight - area.top - area.height,
-          width: area.width,
-          height: area.height,
+          x: area.x + left,
+          y: template.bounds.pageHeight - area.top - area.height + 0.31,
+          width: area.width - left - right,
+          height: area.height - 0.62,
           color: rgb(1, 1, 1),
-          borderColor: rgb(0, 0, 0),
-          borderWidth: 0.45,
         });
         drawText(page, font, area, entry.lines[i]!, bodySize);
       }
     }
-    if (s.demonstration)
-      page.drawText("DEMONSTRAÇÃO - DADOS FICTÍCIOS - SEM VALIDADE JURÍDICA", {
-        x: template.bounds.left,
-        y: 3,
-        size: 5.5,
-        font,
-        color: rgb(0, 0, 0),
-      });
-    if (pages.length > 1)
-      page.drawText(`${index + 1}/${pages.length}`, {
-        x: template.bounds.pageWidth - 28,
-        y: 3,
-        size: 5.5,
-        font,
-        color: rgb(0, 0, 0),
-      });
   }
   return pdf.save();
 }
 
 export async function renderExactCompanyXlsx(
   s: SheetSnapshot,
+  signature?: SignaturePrintEvidence,
 ): Promise<Uint8Array> {
+  const signatureStyle = SIGNATURE_STYLES.find(
+    (style) => style.id === signature?.signatureStyle,
+  );
+  const styledSignature = signatureStyle && signature?.signerName.trim();
   const book = new ExcelJS.Workbook();
   await book.xlsx.load(decode(template.workbookBase64) as any);
   book.created = book.modified = new Date(s.issuedAt);
@@ -299,7 +310,7 @@ export async function renderExactCompanyXlsx(
         entry.item.description,
         entry.item.ca,
         entry.item.brand,
-        null,
+        signature ? styledSignature || "Assinado digitalmente" : null,
         entry.item.risk,
         "/       /",
         null,
@@ -312,6 +323,9 @@ export async function renderExactCompanyXlsx(
         if (left !== right || start !== end)
           ws.mergeCells(start, left, end, right);
         const cell = ws.getCell(start, left);
+        // Template cells can share style objects; a signature's font must not
+        // be overwritten when the following equipment cells are formatted.
+        cell.style = structuredClone(cell.style);
         cell.value = values[i]!;
         cell.numFmt = i === 0 ? "dd/mm/yyyy" : i === 1 ? "0" : "@";
         cell.font = { name: "Times New Roman", size: 12 };
@@ -320,6 +334,15 @@ export async function renderExactCompanyXlsx(
           vertical: "middle",
           wrapText: true,
         };
+        if (i === 5 && styledSignature) {
+          cell.font = { name: signatureStyle.excelFont, size: 12 };
+          cell.alignment = {
+            horizontal: "center",
+            vertical: "middle",
+            wrapText: false,
+            shrinkToFit: true,
+          };
+        }
         cell.border = {
           top: { style: "thin" },
           bottom: { style: "thin" },
@@ -328,9 +351,88 @@ export async function renderExactCompanyXlsx(
         };
       }
     }
-    ws.headerFooter = {
-      oddFooter: `${s.demonstration ? "&LDEMONSTRAÇÃO - DADOS FICTÍCIOS - SEM VALIDADE JURÍDICA" : ""}${pages.length > 1 ? `&R${index + 1}/${pages.length}` : ""}`,
-    };
+    if (signature) {
+      const cell = ws.getCell("G17");
+      cell.style = structuredClone(cell.style);
+      cell.value = styledSignature || "Assinado digitalmente";
+      cell.font = {
+        name: signatureStyle?.excelFont ?? "Times New Roman",
+        size: 16,
+      };
+      cell.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+        shrinkToFit: true,
+      };
+    }
+    ws.headerFooter = signature ? { oddFooter: "&LAssinado digitalmente" } : {};
   }
   return new Uint8Array(await book.xlsx.writeBuffer());
+}
+
+export async function stampExactCompanyPdf(
+  original: Uint8Array,
+  s: SheetSnapshot,
+  signature: SignaturePrintEvidence,
+): Promise<Uint8Array> {
+  const pdf = await PDFDocument.load(original);
+  const font = await pdf.embedFont(StandardFonts.TimesRoman);
+  const style = SIGNATURE_STYLES.find((s) => s.id === signature.signatureStyle);
+  let signatureFont = font;
+  if (style) {
+    pdf.registerFontkit(fontkit);
+    signatureFont = await pdf.embedFont(decode(signatureFonts[style.id]), {
+      subset: true,
+    });
+  }
+  const signatureText =
+    style && signature.signerName.trim()
+      ? signature.signerName.trim()
+      : "Assinado digitalmente";
+  const pages = plan(s, font);
+  if (pdf.getPageCount() !== pages.length)
+    throw new Error("A paginação do original não corresponde à ficha.");
+  pdf.setSubject(
+    `Cópia para impressão. Original SHA-256: ${signature.documentSha256}`,
+  );
+  for (const [index, items] of pages.entries()) {
+    const page = pdf.getPage(index);
+    const collaboratorArea: Box = {
+      x: 450.97,
+      top: template.bounds.pageHeight - 355.51,
+      width: 369.35,
+      height: 16.82,
+    };
+    const collaboratorText = fitted(
+      signatureText,
+      signatureFont,
+      collaboratorArea,
+      12,
+    );
+    drawText(
+      page,
+      signatureFont,
+      collaboratorArea,
+      collaboratorText.lines,
+      collaboratorText.size,
+    );
+    page.drawText("Assinado digitalmente", {
+      x: template.bounds.left,
+      y: 24,
+      size: 8,
+      font,
+      color: rgb(0, 0, 0),
+    });
+    for (const entry of items) {
+      const area = itemBox(5, entry.slot, entry.slots);
+      const text = fitted(
+        signatureText,
+        signatureFont,
+        area,
+        style ? 10 : bodySize,
+      );
+      drawText(page, signatureFont, area, text.lines, text.size);
+    }
+  }
+  return pdf.save();
 }

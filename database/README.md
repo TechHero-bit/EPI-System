@@ -4,7 +4,7 @@ A fonte SQL está em `supabase/migrations/`. Escolha uma forma de instalação; 
 
 ## Índice numerado das migrations
 
-Os arquivos vão de **001 a 007**, na ordem de aplicação. A migration 007 confirma entrega e assinatura presencial na mesma transação, vinculando as observações ao documento e evitando duplicação da baixa.
+Os arquivos vão de **001 a 008**, na ordem de aplicação. A migration 007 confirma entrega e assinatura presencial na mesma transação. A 008 adiciona nome, estilo e termo versionado à assinatura eletrônica. Em bancos com 001 a 007 aplicadas, execute somente a 008 antes de publicar a API atualizada.
 
 | Nº  | Arquivo                                                                                  | Finalidade                                                                                                                                                                                 |
 | --- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -15,12 +15,13 @@ Os arquivos vão de **001 a 007**, na ordem de aplicação. A migration 007 conf
 | 005 | [005_signing_identity.sql](supabase/migrations/005_signing_identity.sql)                 | Assinatura vinculada ao e-mail verificado, evidências imutáveis e auditoria dos cadastros.                                                                                                 |
 | 006 | [006_inventory_without_lots.sql](supabase/migrations/006_inventory_without_lots.sql)     | Estoque por equipamento/tamanho, lotes históricos somente leitura e Nº de Registro igual à matrícula textual. Cria sua própria validação de matrícula, sem depender de contador por ficha. |
 | 007 | [007_manual_receipt.sql](supabase/migrations/007_manual_receipt.sql) | Confirmação conjunta da entrega e assinatura presencial, com evidência, auditoria e idempotência. |
+| 008 | [008_typed_signature.sql](supabase/migrations/008_typed_signature.sql) | Nome, estilo de assinatura e aceite do termo versionado, com validação transacional e evidência imutável. |
 
 A antiga `202610210001_sheet_register.sql` foi removida: o contador por ficha ficou sem uso. A nova instalação não cria `sheet_number_counters`, `sheet_number_allocations`, `reserve_sheet_number` nem a coluna numérica `sheets.record_number`. A antiga 007 passou a ser a atual 006, com as dependências corrigidas. As outras cinco migrations continuam necessárias; não foram removidas apenas por conterem funções que evoluem nas seguintes.
 
-`setup.sql` não é uma migration adicional: é o consolidado das sete migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais. O modelo corporativo PDF/Excel está no Backend, não no SQL. Em banco que já recebeu as migrations 001 a 006, aplique somente a 007 para habilitar a nova confirmação presencial.
+`setup.sql` não é uma migration adicional: é o consolidado das oito migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais. O modelo corporativo PDF/Excel está no Backend, não no SQL. Em banco existente, aplique somente as migrations pendentes em ordem: a 007 habilita a confirmação presencial conjunta e a 008 habilita o novo registro de assinatura eletrônica.
 
-Para futuras migrations, use o próximo número disponível, como `008_descricao.sql`, e atualize este índice. Depois da primeira aplicação em um ambiente, não renumere nem reescreva o histórico desse ambiente; acrescente uma nova migration. O gerador do consolidado verifica nomes e sequência sem lacunas.
+Para futuras migrations, use o próximo número disponível, como `009_descricao.sql`, e atualize este índice. Depois da primeira aplicação em um ambiente, não renumere nem reescreva o histórico desse ambiente; acrescente uma nova migration. O gerador do consolidado verifica nomes e sequência sem lacunas.
 
 ## SQL Editor: projeto novo
 

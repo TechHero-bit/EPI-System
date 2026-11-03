@@ -14,6 +14,7 @@ import {
   dbResult,
   dbOk,
   audit,
+  type Context,
 } from "../services/portal.service.js";
 import {
   secretHash,
@@ -24,8 +25,32 @@ import {
 import {
   renderPdf,
   renderXlsx,
+  renderSignedPdf,
+  type SignaturePrintEvidence,
   type SheetSnapshot,
 } from "../services/document.service.js";
+
+async function printSignature(
+  c: Context,
+  sheet: Awaited<ReturnType<typeof getSheet>>,
+): Promise<SignaturePrintEvidence | undefined> {
+  const result = await c.admin
+    .from("signatures")
+    .select("signer_name,signature_style,signed_at,document_sha256")
+    .eq("sheet_id", sheet.id)
+    .eq("method", "ELECTRONIC_SIMPLE")
+    .maybeSingle();
+  dbOk(result);
+  if (!result.data) return;
+  if (result.data.document_sha256 !== sheet.pdf_sha256)
+    throw error("Assinatura não corresponde ao documento original.", 409);
+  return {
+    signerName: result.data.signer_name || sheet.snapshot.employee.name,
+    signatureStyle: result.data.signature_style,
+    signedAt: result.data.signed_at,
+    documentSha256: result.data.document_sha256,
+  };
+}
 
 export const postsheets: RequestHandler<{ id: string; token: string }> = async (
   req,
@@ -159,10 +184,14 @@ export const getsheetsIdPdf: RequestHandler<{
   const bytes = Buffer.from(await file.arrayBuffer());
   if (sha256(bytes) !== sheet.pdf_sha256)
     throw error("Integridade do documento comprometida.", 500);
+  const signature = await printSignature(c, sheet);
+  const printable = signature
+    ? await renderSignedPdf(bytes, sheet.snapshot, signature)
+    : bytes;
   res
     .type("application/pdf")
     .set("Content-Disposition", `attachment; filename="ficha-${sheet.id}.pdf"`)
-    .send(Buffer.from(bytes));
+    .send(Buffer.from(printable));
 };
 
 export const getsheetsIdXlsx: RequestHandler<{
@@ -171,7 +200,10 @@ export const getsheetsIdXlsx: RequestHandler<{
 }> = async (req, res) => {
   const c = await context(req);
   const sheet = await getSheet(c, req.params.id);
-  const bytes = await renderXlsx(sheet.snapshot);
+  const bytes = await renderXlsx(
+    sheet.snapshot,
+    await printSignature(c, sheet),
+  );
   res
     .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     .set("Content-Disposition", `attachment; filename="ficha-${sheet.id}.xlsx"`)
@@ -277,7 +309,31 @@ export const getsheetsId: RequestHandler<{
   token: string;
 }> = async (req, res) => {
   const c = await context(req, ["ADMIN", "RH", "SEGURANCA"]);
-  res.json(await getSheet(c, req.params.id));
+  const sheet = await getSheet(c, req.params.id);
+  const signature = await c.admin
+    .from("signatures")
+    .select(
+      "signer_name,signature_style,terms_version,terms_text,signed_at,document_sha256,accepted_terms",
+    )
+    .eq("sheet_id", sheet.id)
+    .eq("method", "ELECTRONIC_SIMPLE")
+    .maybeSingle();
+  dbOk(signature);
+  const evidence = signature.data;
+  res.json({
+    ...sheet,
+    electronic_signature: evidence?.signer_name
+      ? {
+          signerName: evidence.signer_name,
+          signatureStyle: evidence.signature_style,
+          termsVersion: evidence.terms_version,
+          terms: evidence.terms_text,
+          signedAt: evidence.signed_at,
+          documentSha256: evidence.document_sha256,
+          acceptedTerms: evidence.accepted_terms,
+        }
+      : null,
+  });
 };
 
 export const getsheetsIdSignatureStatus: RequestHandler<{

@@ -98,7 +98,21 @@ test("QR na revisão aguarda aceite em outra aba antes da ficha final", async ({
   const signer = await page.context().newPage();
   await signer.goto(link);
   await signer.getByRole("button", { name: "Iniciar simulação" }).click();
-  await signer.getByRole("button", { name: "Conferir documento" }).click();
+  await expect(
+    signer.getByRole("button", { name: "Conferir documento" }),
+  ).toHaveCount(0);
+  await expect(
+    signer.getByRole("button", { name: "Simular aceite" }),
+  ).toBeDisabled();
+  await signer
+    .getByLabel("Seu nome completo", { exact: true })
+    .fill("Ana Martins");
+  await signer
+    .getByLabel("Estilo da assinatura", { exact: true })
+    .selectOption("handwritten");
+  await expect(
+    signer.getByRole("button", { name: "Simular aceite" }),
+  ).toBeDisabled();
   await signer.getByRole("checkbox").check();
   await signer.getByRole("button", { name: "Simular aceite" }).click();
   await expect(

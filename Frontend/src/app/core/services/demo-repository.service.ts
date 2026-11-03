@@ -1,4 +1,10 @@
 import {
+  SIGNATURE_TERMS,
+  SIGNATURE_TERMS_VERSION,
+  SIGNATURE_STYLES,
+  normalizeSignerName,
+} from "../../../../../contracts/signature.mjs";
+import {
   categories,
   emptyData,
   HR,
@@ -489,7 +495,16 @@ export class DemoRepository {
     this.event("SIMULATED_SIGNING_LINK_CREATED", id);
     return token;
   }
-  publicSigning(token: string, step: string, acceptedTerms = false) {
+  publicSigning(
+    token: string,
+    step: string,
+    acceptedTerms = false,
+    signature?: {
+      signerName?: string;
+      signatureStyle?: string;
+      termsVersion?: string;
+    },
+  ) {
     const link = this.data.signingLinks?.find((link) => link.token === token);
     if (!link || link.consumed || link.expires_at <= Date.now())
       throw new Error("Link inválido, expirado ou já utilizado.");
@@ -514,12 +529,32 @@ export class DemoRepository {
         throw new Error(
           "Confira o documento e aceite os termos antes de confirmar.",
         );
+      if (
+        !signature?.signerName ||
+        normalizeSignerName(signature.signerName) !==
+          normalizeSignerName(sheet.snapshot.employee.name) ||
+        !SIGNATURE_STYLES.some((s) => s.id === signature.signatureStyle) ||
+        signature.termsVersion !== SIGNATURE_TERMS_VERSION
+      )
+        throw new Error(
+          "Informe seu nome completo, escolha a assinatura e aceite o termo atual.",
+        );
       this.sign(sheet.id);
+      sheet.electronic_signature = {
+        signerName: signature!.signerName!.trim(),
+        signatureStyle: signature!.signatureStyle,
+        termsVersion: SIGNATURE_TERMS_VERSION,
+        terms: SIGNATURE_TERMS,
+        acceptedTerms: true,
+        signedAt: new Date().toISOString(),
+        documentSha256: sheet.pdf_sha256,
+      };
     }
     return {
       sheet,
-      terms:
-        "Simular o aceite de um documento fictício. Esta ação não produz uma assinatura juridicamente válida.",
+      terms: SIGNATURE_TERMS,
+      termsVersion: SIGNATURE_TERMS_VERSION,
+      signerName: sheet.snapshot.employee.name,
       sha256: "DEMONSTRAÇÃO",
       pending: state.signature_status === "PENDING",
     };

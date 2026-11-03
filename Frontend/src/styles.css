@@ -858,6 +858,28 @@ textarea::placeholder {
 .sign-card h1 {
   margin: 12px 0 16px;
 }
+.signature-preview {
+  padding: 24px 12px;
+  border: 1px dashed #92a8be;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 2rem;
+  font-style: italic;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  color: #173b67;
+  background: #f8fbff;
+}
+.signature-terms {
+  padding: 16px;
+  border: 1px solid #dbe5ef;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.signature-terms p {
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
 .sign-card .field {
   margin-top: 25px;
 }
@@ -1013,4 +1035,28 @@ textarea::placeholder {
   .login-art {
     min-height: 270px;
   }
+}
+
+@font-face {
+  font-family: "Dancing Script";
+  src: url("/fonts/signatures/classic.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Caveat";
+  src: url("/fonts/signatures/handwritten.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Allura";
+  src: url("/fonts/signatures/elegant.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
 }

@@ -145,7 +145,14 @@ test("link aleatório da revisão exige conferência e aceite e não confirma en
   r.publicSigning(token, "code");
   r.publicSigning(token, "preview");
   assert.throws(() => r.publicSigning(token, "confirm", false), /aceite/);
-  r.publicSigning(token, "confirm", true);
+  assert.throws(() => r.publicSigning(token, "confirm", true), /nome completo/);
+  r.publicSigning(token, "confirm", true, {
+    signerName: "Ana Martins",
+    signatureStyle: "classic",
+    termsVersion: "EPI-ELECTRONIC-SIMPLE-V2",
+  });
+  assert.equal(f.electronic_signature.signerName, "Ana Martins");
+  assert.equal(f.electronic_signature.acceptedTerms, true);
   const state = r.data.states.find((state) => state.sheet_id === f.id);
   assert.equal(state.signature_status, "SIGNED_ELECTRONIC");
   assert.equal(state.receipt_status, "UNCONFIRMED");

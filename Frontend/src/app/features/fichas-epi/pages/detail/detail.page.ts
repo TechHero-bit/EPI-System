@@ -4,6 +4,7 @@ import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, RouterLink } from "@angular/router";
 import { PortalStore } from "../../../../core/services/portal.service";
 import { StatusComponent } from "../../../../shared/components/status-badge/status-badge.component";
+import { SIGNATURE_STYLES } from "../../../../../../../contracts/signature.mjs";
 @Component({
   standalone: true,
   imports: [DatePipe, FormsModule, RouterLink, StatusComponent],
@@ -14,6 +15,11 @@ export class DetailComponent implements OnInit, OnDestroy {
   route = inject(ActivatedRoute);
   id = this.route.snapshot.paramMap.get("id")!;
   sheet: any;
+  get signatureFont() {
+    return SIGNATURE_STYLES.find(
+      (style) => style.id === this.sheet?.electronic_signature?.signatureStyle,
+    )?.font;
+  }
   receiptNote = "";
   cancelNote = "";
   timer?: ReturnType<typeof setInterval>;

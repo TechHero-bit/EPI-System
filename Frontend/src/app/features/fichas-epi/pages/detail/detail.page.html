@@ -171,6 +171,23 @@
   </section>
   <section class="panel">
     <h2>Histórico da ficha</h2>
+    @if (sheet.electronic_signature; as signature) {
+      <h3>Assinatura eletrônica registrada</h3>
+      <p class="signature-preview" [style.font-family]="signatureFont">
+        {{ signature.signerName }}
+      </p>
+      <p>
+        Registrada em {{ signature.signedAt | date: "dd/MM/yyyy HH:mm:ss" }}.
+      </p>
+      <details>
+        <summary>Termo aceito e identificação do documento</summary>
+        <p>{{ signature.terms }}</p>
+        <p>{{ signature.termsVersion }}</p>
+        <p class="small" style="overflow-wrap: anywhere">
+          Documento: {{ signature.documentSha256 }}
+        </p>
+      </details>
+    }
     @for (a of audits; track a.id) {
       <div class="activity">
         <div>
