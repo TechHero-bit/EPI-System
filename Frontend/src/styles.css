@@ -1,5 +1,5 @@
 :root {
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--ui-font);
   color: var(--text-primary);
   background: var(--bg-secondary);
   font-synthesis: none;
@@ -31,12 +31,13 @@ p {
 h1,
 h2,
 .brand {
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--ui-font);
 }
 h1 {
-  font-size: clamp(1.8rem, 3vw, 2.45rem);
-  line-height: 1.18;
-  letter-spacing: -0.055em;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  font-weight: 650;
   margin-bottom: 11px;
 }
 h2 {
@@ -56,12 +57,6 @@ small {
 }
 .small {
   font-size: 0.78rem;
-}
-.eyebrow {
-  font-size: 0.7rem;
-  letter-spacing: 0.16em;
-  font-weight: 800;
-  color: var(--text-secondary);
 }
 .brand {
   display: flex;
@@ -83,10 +78,6 @@ small {
   color: var(--text-primary);
   font-size: 1.5rem;
   line-height: 1;
-}
-.brand-light {
-  font-weight: 500;
-  color: var(--primary-soft);
 }
 .app-shell {
   display: flex;
@@ -114,7 +105,7 @@ small {
   padding: 0 12px;
 }
 .workspace-name {
-  font-family: "Segoe UI";
+  font-family: inherit;
   font-weight: 700;
   color: var(--bg-secondary);
   padding: 7px 12px 25px;
@@ -253,10 +244,6 @@ small {
   color: var(--text-secondary);
   margin-bottom: 0;
 }
-.page-head .eyebrow {
-  display: block;
-  margin-bottom: 12px;
-}
 .date-pill {
   background: var(--bg-primary);
   border: 1px solid var(--bg-tertiary);
@@ -276,7 +263,6 @@ small {
   background: var(--bg-primary);
   border: 1px solid var(--bg-tertiary);
   border-radius: 16px;
-  box-shadow: 0 6px 22px rgba(20, 55, 53, 0.035);
 }
 .stat {
   padding: 20px 21px;
@@ -289,7 +275,7 @@ small {
   margin-top: 8px;
 }
 .stat strong {
-  font-family: "Segoe UI";
+  font-family: inherit;
   font-size: 2rem;
   line-height: 1;
   font-weight: 800;
@@ -297,14 +283,6 @@ small {
 }
 .stat small {
   color: var(--text-secondary);
-}
-.stat-icon {
-  height: 36px;
-  width: 36px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-size: 1.25rem;
 }
 .amber {
   background: #fff1d8;
@@ -345,49 +323,6 @@ small {
 .panel-title h2 {
   margin: 0;
 }
-.hero-panel {
-  position: relative;
-  overflow: hidden;
-  background: var(--text-primary);
-  color: var(--bg-secondary);
-  padding: 30px 32px;
-}
-.hero-panel .eyebrow {
-  color: var(--primary-soft);
-}
-.hero-panel h2 {
-  font-size: 1.45rem;
-  margin: 13px 0;
-}
-.hero-panel p {
-  font-size: 0.86rem;
-  max-width: 430px;
-  color: var(--border);
-}
-.hero-decor {
-  position: absolute;
-  right: -12px;
-  bottom: -48px;
-  color: var(--primary-dark);
-  font-size: 15rem;
-  line-height: 1;
-  opacity: 0.38;
-  transform: rotate(15deg);
-  pointer-events: none;
-}
-.light-button {
-  position: relative;
-  background: var(--bg-tertiary);
-  border: 0;
-  color: var(--text-primary);
-  padding: 11px 16px;
-  border-radius: 9px;
-  font-weight: 800;
-  margin-top: 12px;
-}
-.light-button span {
-  padding-left: 13px;
-}
 .text-button {
   background: none;
   border: 0;
@@ -404,16 +339,6 @@ small {
 }
 .activity:last-child {
   border: 0;
-}
-.activity-icon {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  background: var(--bg-tertiary);
-  color: var(--primary-dark);
-  flex: 0 0 auto;
 }
 .activity > div {
   display: grid;
@@ -781,15 +706,6 @@ textarea::placeholder {
   position: relative;
   overflow: hidden;
 }
-.login-art:after {
-  content: "✦";
-  position: absolute;
-  color: var(--primary-dark);
-  opacity: 0.3;
-  font-size: 34rem;
-  right: -14rem;
-  bottom: -15rem;
-}
 .login-art .large {
   font-size: 1.8rem;
 }
@@ -806,10 +722,6 @@ textarea::placeholder {
 }
 .login-art > div {
   z-index: 1;
-}
-.art-footer {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
 }
 .login-form {
   display: grid;
@@ -840,15 +752,12 @@ textarea::placeholder {
   display: grid;
   place-items: center;
   padding: 20px;
-  background:
-    radial-gradient(circle at 20% 20%, var(--bg-tertiary), transparent 35%),
-    var(--bg-secondary);
+  background: var(--bg-secondary);
 }
 .sign-card {
   width: min(100%, 580px);
   background: var(--bg-primary);
   border: 1px solid var(--bg-tertiary);
-  box-shadow: 0 20px 70px rgb(15 23 42 / 0.1);
   border-radius: 20px;
   padding: 38px;
 }
@@ -994,9 +903,6 @@ textarea::placeholder {
   }
   .login-art h1 {
     font-size: 2.4rem;
-  }
-  .art-footer {
-    display: none;
   }
 }
 @media (max-width: 570px) {

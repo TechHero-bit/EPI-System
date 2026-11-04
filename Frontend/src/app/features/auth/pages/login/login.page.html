@@ -1,31 +1,43 @@
 <div class="login-shell">
   <div class="login-art">
     <div class="brand large">
-      <span class="brand-icon" aria-hidden="true">E</span
+      <svg class="brand-icon" viewBox="0 0 32 32" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M16 2.5 28 7v8.1c0 6.5-4.5 11.1-12 14.4C8.5 26.2 4 21.6 4 15.1V7z"
+        />
+        <path
+          d="m10.5 16 3.5 3.5 7.5-8"
+          fill="none"
+          stroke="var(--brand-mark-ink)"
+          stroke-width="2.25"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        /></svg
       ><span class="brand-name"
-        ><span class="brand-title">EPI -</span
+        ><span class="brand-title">EPI System</span
         ><span class="brand-subtitle">Controle de Proteção</span></span
       >
     </div>
     <div>
-      <span class="eyebrow">PROTEÇÃO EM CADA ETAPA</span>
-      <h1>Pessoas protegidas.<br />Gestão conectada.</h1>
+      <h1>Controle de entrega de EPIs</h1>
       <p>
-        Do estoque à entrega, acompanhe os equipamentos e cuide de quem faz a
-        sua empresa acontecer.
+        Consulte o estoque, emita fichas de EPI e acompanhe as assinaturas e a
+        entrega dos equipamentos.
       </p>
     </div>
-    <div class="art-footer">RH · Almoxarifado</div>
+    <ol class="login-flow" aria-label="Etapas da entrega de EPI">
+      <li><strong>Estoque</strong><span>Equipamentos e tamanhos</span></li>
+      <li><strong>Ficha de EPI</strong><span>Registro e assinatura</span></li>
+      <li><strong>Entrega</strong><span>Confirmação do recebimento</span></li>
+    </ol>
   </div>
   <div class="login-form">
     <div class="public-theme-toolbar"><epi-theme-toggle /></div>
     <div class="login-box">
-      <span class="eyebrow">{{
-        s.demo ? "EXPLORE A PLATAFORMA" : "ACESSO À PLATAFORMA"
-      }}</span>
       <h2>
         {{
-          recovery ? "Nova senha" : s.demo ? "Conheça o portal" : "Boas-vindas"
+          recovery ? "Nova senha" : s.demo ? "Demonstração" : "Entrar no portal"
         }}
       </h2>
       <p class="muted">

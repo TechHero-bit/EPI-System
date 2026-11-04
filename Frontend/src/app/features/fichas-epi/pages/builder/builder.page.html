@@ -5,7 +5,6 @@
   aria-describedby="selection-description"
 >
   <div class="selection-dialog-heading">
-    <span class="eyebrow">CONFERÊNCIA DOS EQUIPAMENTOS</span>
     <h2 id="selection-title">Confirmar seleção</h2>
     <p id="selection-description">
       Confira todos os itens de {{ employee?.name }} antes de avançar. Cada
@@ -43,8 +42,7 @@
 </dialog>
 <div class="page-head">
   <div>
-    <span class="eyebrow">FICHAS DE EPI</span>
-    <h1>Uma ficha. Cada proteção.</h1>
+    <h1>Montar ficha de EPI</h1>
     <p>
       Selecione os equipamentos por cartões. Cada seleção adiciona uma unidade.
     </p>
@@ -137,6 +135,7 @@
               class="person-option"
               [disabled]="!!preparedId"
               [class.selected]="employeeId === e.id"
+              [attr.aria-pressed]="employeeId === e.id"
               (click)="employeeId = e.id"
             >
               <span class="avatar">{{ e.name.slice(0, 1) }}</span
@@ -146,7 +145,13 @@
                   >{{ e.registration }} · {{ e.job_title }} ·
                   {{ e.department }}</small
                 ></span
-              ><span>{{ employeeId === e.id ? "✓" : "+" }}</span>
+              ><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  [attr.d]="
+                    employeeId === e.id ? 'm5 12 4 4L19 6' : 'M5 12h14M12 5v14'
+                  "
+                />
+              </svg>
             </button>
           } @empty {
             <div class="empty">Nenhum colaborador ativo encontrado.</div>

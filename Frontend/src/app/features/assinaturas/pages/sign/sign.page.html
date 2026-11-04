@@ -2,13 +2,25 @@
   <section class="sign-card">
     <div class="sign-theme-toolbar"><epi-theme-toggle /></div>
     <div class="brand">
-      <span class="brand-icon" aria-hidden="true">E</span
+      <svg class="brand-icon" viewBox="0 0 32 32" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M16 2.5 28 7v8.1c0 6.5-4.5 11.1-12 14.4C8.5 26.2 4 21.6 4 15.1V7z"
+        />
+        <path
+          d="m10.5 16 3.5 3.5 7.5-8"
+          fill="none"
+          stroke="var(--brand-mark-ink)"
+          stroke-width="2.25"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        /></svg
       ><span class="brand-name"
-        ><span class="brand-title">EPI -</span
+        ><span class="brand-title">EPI System</span
         ><span class="brand-subtitle">Controle de Proteção</span></span
       >
     </div>
-    <span class="eyebrow">PORTAL DO COLABORADOR</span>
+
     <h1>
       {{ s.demo ? "Simulação de assinatura" : "Assinatura da ficha de EPI" }}
     </h1>
@@ -28,7 +40,10 @@
     }
     @if (done) {
       <div class="success-panel">
-        <span class="big-check">✓</span>
+        <span class="big-check" aria-hidden="true"
+          ><svg class="ui-icon" viewBox="0 0 24 24">
+            <path d="m5 12 4 4L19 6" /></svg
+        ></span>
         <h2>{{ s.demo ? "Simulação concluída" : "Assinatura registrada" }}</h2>
         <p>A entrega física continua pendente de confirmação separada.</p>
         <p class="signature-preview" [style.font-family]="signatureFont">

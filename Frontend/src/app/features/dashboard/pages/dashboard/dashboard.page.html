@@ -1,19 +1,27 @@
-<div class="page-head">
+<div class="page-head dashboard-head">
   <div>
-    <span class="eyebrow">{{
-      isWarehouse ? "ALMOXARIFADO" : "RECURSOS HUMANOS"
-    }}</span>
     <h1>{{ title }}</h1>
     <p>
       {{
         isWarehouse
-          ? "Acompanhe equipamentos, tamanhos e movimentações."
-          : "Acompanhe colaboradores, fichas, assinaturas e
-      entregas."
+          ? "Acompanhe o catálogo, as movimentações e os prazos dos CAs."
+          : "Acompanhe fichas emitidas, assinaturas e confirmações de entrega."
       }}
     </p>
   </div>
-  <span class="date-pill">{{ date | date: "dd/MM/yyyy" }}</span>
+  @if (isWarehouse) {
+    <a class="primary button-link" routerLink="/almoxarifado/equipamentos/novo"
+      >Cadastrar equipamento <span aria-hidden="true">+</span></a
+    >
+  } @else {
+    <a class="primary button-link" routerLink="/rh/fichas/nova"
+      >Montar nova ficha <span aria-hidden="true">+</span></a
+    >
+  }
+</div>
+<div class="dashboard-scope">
+  <h2>Visão geral</h2>
+  <time class="date-pill">{{ date | date: "dd/MM/yyyy" }}</time>
 </div>
 <div class="stats">
   @for (metric of metrics; track metric.label) {
@@ -24,207 +32,179 @@
     </div>
   }
 </div>
-<div class="two-col">
-  <section class="panel hero-panel">
-    <span class="eyebrow">{{
-      isWarehouse
-        ? "ROTINA DO ALMOXARIFADO"
-        : "CUIDADO QUE SE TRANSFORMA EM
-      AÇÃO"
-    }}</span>
-    <h2>
-      {{
-        isWarehouse
-          ? "Equipamentos e tamanhos organizados."
-          : "O próximo
-      EPI, na ficha certa."
-      }}
-    </h2>
-    <p>
-      {{
-        isWarehouse
-          ? "Mantenha o catálogo atualizado para preparar cada entrega."
-          : "Escolha o colaborador, selecione os
-      equipamentos e acompanhe cada etapa da ficha."
-      }}
-    </p>
+<div class="dashboard-grid">
+  <div class="dashboard-column">
     @if (isWarehouse) {
-      <a
-        class="light-button button-link"
-        routerLink="/almoxarifado/equipamentos/novo"
-        >Cadastrar equipamento →</a
-      >
-    } @else {
-      <a class="light-button button-link" routerLink="/rh/fichas/nova"
-        >Montar nova ficha →</a
-      >
-    }
-  </section>
-  @if (isWarehouse) {
-    <section class="panel">
-      <h2>Entradas e saídas · últimos 7 dias</h2>
-      <div class="chart" aria-label="Gráfico de movimentações">
-        @for (bar of bars; track bar.label) {
-          <div class="chart-column">
-            <div class="bar-pair">
-              <div
-                class="bar in"
-                [style.height.px]="bar.input * scale + 3"
-                [title]="'Entradas: ' + bar.input"
-              ></div>
-              <div
-                class="bar out"
-                [style.height.px]="bar.output * scale + 3"
-                [title]="'Saídas: ' + bar.output"
-              ></div>
+      <section class="panel">
+        <h2>Entradas e saídas · últimos 7 dias</h2>
+        <div class="chart" aria-label="Gráfico de movimentações">
+          @for (bar of bars; track bar.label) {
+            <div class="chart-column">
+              <div class="bar-pair">
+                <div
+                  class="bar in"
+                  [style.height.px]="bar.input * scale"
+                  [title]="'Entradas: ' + bar.input"
+                ></div>
+                <div
+                  class="bar out"
+                  [style.height.px]="bar.output * scale"
+                  [title]="'Saídas: ' + bar.output"
+                ></div>
+              </div>
+              <small>{{ bar.label }}</small>
             </div>
-            <small>{{ bar.label }}</small>
-          </div>
+          }
+        </div>
+        <div class="legend">
+          <span
+            ><i class="legend-swatch" aria-hidden="true"></i>Entradas
+            <strong>{{ input }} un.</strong></span
+          ><span
+            ><i class="legend-swatch out" aria-hidden="true"></i>Saídas
+            <strong>{{ output }} un.</strong></span
+          >
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Equipamentos por categoria</h2>
+        <div class="category-metrics">
+          @for (c of categoryCounts; track c.name) {
+            <div>
+              <strong>{{ c.count }}</strong
+              ><span>{{ c.name }}</span>
+            </div>
+          }
+        </div>
+      </section>
+    } @else {
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Fichas recentes</h2>
+          <a class="text-button" routerLink="/rh/fichas">Ver histórico</a>
+        </div>
+        @for (f of s.data().sheets.slice(0, 5); track f.id) {
+          <a class="activity" [routerLink]="['/rh/fichas', f.id]"
+            ><div>
+              <strong>{{
+                s.employee(f.employee_id)?.name || "Colaborador"
+              }}</strong
+              ><small
+                >{{ f.issued_at | date: "dd/MM HH:mm" }} · versão
+                {{ f.version }}</small
+              >
+            </div>
+            <epi-status [value]="s.state(f.id)?.signature_status || 'PENDING'"
+          /></a>
+        } @empty {
+          <div class="empty">As fichas emitidas aparecerão aqui.</div>
         }
-      </div>
-      <div class="legend">
-        <span>● Entradas {{ input }}</span
-        ><span>● Saídas {{ output }}</span>
-      </div>
-    </section>
-  } @else {
-    <section class="panel">
-      <div class="panel-title">
-        <h2>Status das assinaturas</h2>
-        <a class="text-button" routerLink="/rh/fichas">Ver fichas</a>
-      </div>
-      <a
-        class="activity"
-        routerLink="/rh/fichas"
-        [queryParams]="{ status: 'PENDING' }"
-        ><div>
-          <strong>Pendentes</strong
-          ><small>Conferir fichas que aguardam assinatura</small>
-        </div>
-        <span class="count">{{ signatureCount("PENDING") }}</span></a
-      >
-      <a
-        class="activity"
-        routerLink="/rh/fichas"
-        [queryParams]="{ status: 'SIGNED_MANUAL' }"
-        ><div>
-          <strong>Presenciais</strong
-          ><small>Assinaturas registradas pelo RH</small>
-        </div>
-        <span class="count">{{ signatureCount("SIGNED_MANUAL") }}</span></a
-      >
-      <a
-        class="activity"
-        routerLink="/rh/fichas"
-        [queryParams]="{ status: 'SIGNED_ELECTRONIC' }"
-        ><div>
-          <strong>Eletrônicas</strong
-          ><small>Assinaturas registradas por link</small>
-        </div>
-        <span class="count">{{ signatureCount("SIGNED_ELECTRONIC") }}</span></a
-      >
-    </section>
-  }
-</div>
-@if (isWarehouse) {
-  <div class="two-col">
-    <section class="panel">
-      <div class="panel-title">
-        <h2>Certificados de aprovação</h2>
-        <a routerLink="/almoxarifado/equipamentos" class="text-button"
-          >Ver equipamentos</a
-        >
-      </div>
-      <p class="note">
-        {{ expiring }} certificados de aprovação vencidos ou com vencimento nos
-        próximos 30 dias.
-      </p>
-    </section>
-    <section class="panel">
-      <div class="panel-title">
-        <h2>Movimentações recentes</h2>
-        <a class="text-button" routerLink="/almoxarifado/movimentacoes"
-          >Ver histórico</a
-        >
-      </div>
-      @for (m of s.data().movements.slice(0, 5); track m.id) {
-        <div class="activity">
-          <div>
-            <strong>{{ m.reason || "Movimentação de EPI" }}</strong
-            ><small
-              >{{ m.created_at | date: "dd/MM HH:mm" }} ·
-              {{ m.quantity }} un.</small
-            >
-          </div>
-          <epi-status [value]="m.type" />
-        </div>
-      } @empty {
-        <div class="empty">As movimentações aparecerão aqui.</div>
-      }
-    </section>
+      </section>
+    }
   </div>
-  <section class="panel">
-    <h2>Equipamentos por categoria</h2>
-    <div class="category-metrics">
-      @for (c of categoryCounts; track c.name) {
-        <div>
-          <strong>{{ c.count }}</strong
-          ><span>{{ c.name }}</span>
+  <div class="dashboard-column">
+    @if (isWarehouse) {
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Certificados de aprovação</h2>
+          <a routerLink="/almoxarifado/equipamentos" class="text-button"
+            >Ver equipamentos</a
+          >
         </div>
-      }
-    </div>
-  </section>
-} @else {
-  <div class="two-col">
-    <section class="panel">
-      <div class="panel-title">
-        <h2>Fichas recentes</h2>
-        <a class="text-button" routerLink="/rh/fichas">Ver histórico</a>
-      </div>
-      @for (f of s.data().sheets.slice(0, 5); track f.id) {
-        <a class="activity" [routerLink]="['/rh/fichas', f.id]"
-          ><div>
-            <strong>{{
-              s.employee(f.employee_id)?.name || "Colaborador"
-            }}</strong
-            ><small
-              >{{ f.issued_at | date: "dd/MM HH:mm" }} · versão
-              {{ f.version }}</small
-            >
+        <p class="note">
+          {{ expiring }} certificados de aprovação vencidos ou com vencimento
+          nos próximos 30 dias.
+        </p>
+      </section>
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Movimentações recentes</h2>
+          <a class="text-button" routerLink="/almoxarifado/movimentacoes"
+            >Ver histórico</a
+          >
+        </div>
+        @for (m of s.data().movements.slice(0, 5); track m.id) {
+          <div class="activity">
+            <div>
+              <strong>{{ m.reason || "Movimentação de EPI" }}</strong
+              ><small
+                >{{ m.created_at | date: "dd/MM HH:mm" }} ·
+                {{ m.quantity }} un.</small
+              >
+            </div>
+            <epi-status [value]="m.type" />
           </div>
-          <epi-status [value]="s.state(f.id)?.signature_status || 'PENDING'"
-        /></a>
-      } @empty {
-        <div class="empty">As fichas emitidas aparecerão aqui.</div>
-      }
-    </section>
-    <section class="panel">
-      <div class="panel-title">
-        <h2>Entregas a confirmar</h2>
+        } @empty {
+          <div class="empty">As movimentações aparecerão aqui.</div>
+        }
+      </section>
+    } @else {
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Entregas a confirmar</h2>
+          <a
+            class="text-button"
+            routerLink="/rh/fichas"
+            [queryParams]="{ status: 'UNCONFIRMED' }"
+            >Ver todas ({{ pendingDeliveries.length }})</a
+          >
+        </div>
+        @for (f of pendingDeliveries.slice(0, 5); track f.id) {
+          <a class="activity" [routerLink]="['/rh/fichas', f.id]"
+            ><div>
+              <strong>{{
+                s.employee(f.employee_id)?.name || "Colaborador"
+              }}</strong
+              ><small>Conferir evidência da entrega física</small>
+            </div>
+            <epi-status value="UNCONFIRMED"
+          /></a>
+        } @empty {
+          <div class="empty">Nenhuma entrega pendente.</div>
+        }
+        <p class="note">
+          A assinatura é acompanhada separadamente da entrega física dos
+          equipamentos.
+        </p>
+      </section>
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Status das assinaturas</h2>
+          <a class="text-button" routerLink="/rh/fichas">Ver fichas</a>
+        </div>
         <a
-          class="text-button"
+          class="activity"
           routerLink="/rh/fichas"
-          [queryParams]="{ status: 'UNCONFIRMED' }"
-          >Ver todas ({{ pendingDeliveries.length }})</a
-        >
-      </div>
-      @for (f of pendingDeliveries.slice(0, 5); track f.id) {
-        <a class="activity" [routerLink]="['/rh/fichas', f.id]"
+          [queryParams]="{ status: 'PENDING' }"
           ><div>
-            <strong>{{
-              s.employee(f.employee_id)?.name || "Colaborador"
-            }}</strong
-            ><small>Conferir evidência da entrega física</small>
+            <strong>Pendentes</strong
+            ><small>Conferir fichas que aguardam assinatura</small>
           </div>
-          <epi-status value="UNCONFIRMED"
-        /></a>
-      } @empty {
-        <div class="empty">Nenhuma entrega pendente.</div>
-      }
-      <p class="note">
-        A assinatura é acompanhada separadamente da entrega física dos
-        equipamentos.
-      </p>
-    </section>
+          <span class="count">{{ signatureCount("PENDING") }}</span></a
+        >
+        <a
+          class="activity"
+          routerLink="/rh/fichas"
+          [queryParams]="{ status: 'SIGNED_MANUAL' }"
+          ><div>
+            <strong>Presenciais</strong
+            ><small>Assinaturas registradas pelo RH</small>
+          </div>
+          <span class="count">{{ signatureCount("SIGNED_MANUAL") }}</span></a
+        >
+        <a
+          class="activity"
+          routerLink="/rh/fichas"
+          [queryParams]="{ status: 'SIGNED_ELECTRONIC' }"
+          ><div>
+            <strong>Eletrônicas</strong
+            ><small>Assinaturas registradas por link</small>
+          </div>
+          <span class="count">{{
+            signatureCount("SIGNED_ELECTRONIC")
+          }}</span></a
+        >
+      </section>
+    }
   </div>
-}
+</div>

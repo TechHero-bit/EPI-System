@@ -1,31 +1,3 @@
-/* Palette from CENTAURO-ERP: index.css and components/shared/Sidebar.jsx. */
-:root {
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-soft: #dbeafe;
-  --secondary: #64748b;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --border: #e2e8f0;
-  --sidebar-bg: #13151b;
-  --sidebar-hover: #1f212e;
-  --nav-active: #dc2626;
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
-}
 :root {
   color: var(--text-primary);
   background: var(--bg-secondary);
@@ -48,9 +20,6 @@ a {
 .brand-icon {
   background: var(--primary);
   color: #fff;
-}
-.brand-light {
-  color: var(--primary-soft);
 }
 .sidebar nav {
   gap: 3px;
@@ -83,9 +52,6 @@ a {
 .workspace-name {
   white-space: normal;
 }
-.eyebrow {
-  color: var(--primary);
-}
 .primary {
   background: var(--primary);
   border-color: var(--primary);
@@ -98,24 +64,9 @@ a {
   border-color: var(--bg-tertiary);
   background: var(--bg-secondary);
 }
-.hero-panel {
-  background: linear-gradient(115deg, var(--primary-dark), var(--primary-dark));
-}
-.hero-panel .eyebrow {
-  color: var(--border);
-}
-.hero-panel p {
-  color: var(--border);
-}
-.light-button {
-  background: var(--bg-primary);
-  color: var(--primary-dark);
-  width: max-content;
-}
 .stat,
 .panel {
   border-color: var(--bg-tertiary);
-  box-shadow: 0 4px 20px #0f172a05;
 }
 .avatar {
   background: var(--bg-tertiary);
@@ -405,14 +356,8 @@ a {
   justify-content: space-between;
   align-items: center;
 }
-.login-art {
-  background: linear-gradient(140deg, var(--text-primary), var(--primary-dark));
-}
 .login-art p {
   color: var(--border);
-}
-.login-art:after {
-  color: var(--primary);
 }
 .note {
   background: var(--bg-secondary);
@@ -701,7 +646,6 @@ h2,
 .sign-card {
   background: var(--bg-primary);
   border-color: var(--border);
-  box-shadow: var(--shadow);
   border-radius: 12px;
 }
 .topbar {
@@ -740,22 +684,12 @@ input::placeholder,
 textarea::placeholder {
   color: var(--text-muted);
 }
-.hero-panel,
 .login-art {
   background: var(--sidebar-bg);
   color: #fff;
 }
-.hero-panel .eyebrow,
-.login-art .eyebrow {
-  color: #93c5fd;
-}
-.hero-panel p,
-.login-art p,
-.art-footer {
+.login-art p {
   color: #cbd5e1;
-}
-.login-art:after {
-  color: var(--sidebar-hover);
 }
 .login-art .brand.large {
   font-size: 1rem;
