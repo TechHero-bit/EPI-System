@@ -30,7 +30,9 @@ test("listas de equipamentos, tamanhos e categorias seguem ordem alfabética", a
   await login(page, "ALMOXARIFADO");
   await page.goto("/almoxarifado/equipamentos");
   await expect(page.locator("main")).not.toContainText(/\blotes?\b/i);
-  for (const select of await page.locator("select").all())
+  for (const select of await page
+    .locator('select:not([aria-label="Filtrar tamanho"])')
+    .all())
     await alphabetical(
       select,
       (await select.getAttribute("name")) !== "operation",
@@ -55,7 +57,7 @@ test("tamanho cadastrado com equipamento fica disponível nas movimentações", 
   await page
     .getByLabel("Categoria", { exact: true })
     .selectOption("Botas de segurança");
-  await page.getByLabel("Tamanho", { exact: true }).fill("41");
+  await page.getByLabel("Tamanho", { exact: true }).selectOption("41");
   await expect(
     page.getByRole("textbox", { name: /SKU|código interno/i }),
   ).toHaveCount(0);
@@ -88,7 +90,7 @@ test("tamanho cadastrado com equipamento fica disponível nas movimentações", 
   const row = page
     .locator("tbody tr")
     .filter({ hasText: "Bota cadastrada com tamanho · 41" });
-  await expect(row.locator("td").nth(3)).toHaveText("+5");
+  await expect(row.getByRole("cell", { name: "+5", exact: true })).toBeVisible();
   await expect(page.locator("main")).not.toContainText(/\blotes?\b/i);
   await page.screenshot({ path: "dist/estoque-sem-lotes.png", fullPage: true });
 });

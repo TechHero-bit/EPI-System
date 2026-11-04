@@ -81,7 +81,7 @@ before(async () => {
 after(async () => {
   await db.close();
 });
-test("arquivos de migrations são numerados de 001 a 008 sem lacunas", async () => {
+test("arquivos de migrations são numerados de 001 a 009 sem lacunas", async () => {
   const files = (await readdir("database/supabase/migrations"))
     .filter((name) => name.endsWith(".sql"))
     .sort();
@@ -94,6 +94,7 @@ test("arquivos de migrations são numerados de 001 a 008 sem lacunas", async () 
     "006_inventory_without_lots.sql",
     "007_manual_receipt.sql",
     "008_typed_signature.sql",
+    "009_standard_equipment_sizes.sql",
   ]);
   for (const [index, file] of files.entries()) {
     const source = await readFile(
@@ -636,7 +637,11 @@ test("link com hash, OTP, expiração e uso único mantém entrega física pende
   const state = await one("select * from sheet_state where sheet_id=$1", [id]);
   assert.equal(state.signature_status, "SIGNED_ELECTRONIC");
   assert.equal(state.receipt_status, "UNCONFIRMED");
-  const evidence = (await one("select evidence from signature_evidences where sheet_id=$1", [id])).evidence;
+  const evidence = (
+    await one("select evidence from signature_evidences where sheet_id=$1", [
+      id,
+    ])
+  ).evidence;
   assert.equal(evidence.signerName, signerName);
   assert.equal(evidence.signatureStyle, "classic");
   assert.equal(evidence.termsVersion, SIGNATURE_TERMS_VERSION);

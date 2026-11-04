@@ -1,4 +1,9 @@
 import { Component, inject } from "@angular/core";
+import {
+  SIZE_GROUPS,
+  sizeGroupsFor,
+  isEquipmentSize,
+} from "../../../../../../../contracts/equipment-sizes.mjs";
 import { DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, RouterLink } from "@angular/router";
@@ -22,6 +27,27 @@ export class InventoryComponent {
   }
   query = "";
   category = "";
+  size = "";
+  sizeGroups = SIZE_GROUPS;
+  get filterSizeGroups() {
+    const products = new Set(
+      this.s
+        .data()
+        .products.filter((p) => !this.category || p.category === this.category)
+        .map((p) => p.id),
+    );
+    return sizeGroupsFor(
+      this.s
+        .data()
+        .variants.filter((v) => products.has(v.product_id))
+        .map((v) => v.size),
+    );
+  }
+  categoryChanged(category: string) {
+    this.category = category;
+    if (!this.filterSizeGroups.some((g) => g.sizes.includes(this.size)))
+      this.size = "";
+  }
   kind = "";
   categories = categories;
   editing = "";
@@ -48,6 +74,12 @@ export class InventoryComponent {
       .products.filter(
         (p) =>
           (!this.category || p.category === this.category) &&
+          (!this.size ||
+            this.s
+              .data()
+              .variants.some(
+                (v) => v.product_id === p.id && v.size === this.size,
+              )) &&
           `${p.description} ${p.ca ?? ""} ${p.brand} ${this.s
             .data()
             .variants.filter((v) => v.product_id === p.id)
@@ -71,6 +103,21 @@ export class InventoryComponent {
       this.s.data().variants,
       (v) => `${this.s.product(v.product_id)?.description} · ${v.size}`,
     );
+  }
+  productStock(productId: string) {
+    const variants = new Set(
+      this.s
+        .data()
+        .variants.filter((v) => v.product_id === productId)
+        .map((v) => v.id),
+    );
+    return this.s
+      .data()
+      .inventory.reduce(
+        (quantity, balance) =>
+          quantity + (variants.has(balance.id) ? balance.stock_quantity : 0),
+        0,
+      );
   }
   get movements() {
     return this.s
@@ -104,8 +151,8 @@ export class InventoryComponent {
   }
   async save() {
     await this.s.action(async () => {
-      if (this.initialVariantPending && !this.initialSize.trim())
-        throw new Error("Informe o tamanho do equipamento.");
+      if (this.initialVariantPending && !isEquipmentSize(this.initialSize))
+        throw new Error("Selecione um tamanho válido da lista.");
       const value = await this.s.saveProduct(
         {
           ...this.product,

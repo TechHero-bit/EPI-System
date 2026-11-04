@@ -159,7 +159,7 @@ export const postemployeesIdSendVerification: RequestHandler<{
   );
   await sendEmail(
     employee.personal_email,
-    "Confirmação de e-mail - EPI ERP",
+    "Confirmação de e-mail - EPI - Controle de Proteção",
     `Seu código de confirmação é ${code}. Validade: 10 minutos. Não compartilhe.`,
   );
   await audit(c, "EMPLOYEE_EMAIL_VERIFICATION_SENT", "employee", employee.id);

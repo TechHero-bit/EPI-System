@@ -86,7 +86,7 @@ export const postsignTokenCode: RequestHandler<{
   );
   await sendEmail(
     employee.personal_email,
-    "Código para assinatura - EPI ERP",
+    "Código para assinatura - EPI - Controle de Proteção",
     `Seu código para visualizar e assinar a ficha de EPI é ${code}. Validade: 10 minutos. Se não solicitou, ignore.`,
   );
   res.json({

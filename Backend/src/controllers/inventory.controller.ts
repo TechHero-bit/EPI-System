@@ -15,6 +15,7 @@ import {
 import { token } from "../services/security.service.js";
 
 import { productSchema } from "../schemas/product.schema.js";
+import { equipmentSizeSchema } from "../schemas/equipment-size.schema.js";
 
 export const postproducts: RequestHandler<{
   id: string;
@@ -118,7 +119,7 @@ export const postvariants: RequestHandler<{
   const body = z
     .object({
       productId: uuid,
-      size: required.max(30),
+      size: equipmentSizeSchema,
       sku: required.max(80),
       minimumStock: z.number().int().min(0),
     })

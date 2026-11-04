@@ -3,9 +3,10 @@ import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { PortalStore } from "../../../../core/services/portal.service";
 import { type Role } from "../../../../core/models/portal.model";
+import { ThemeToggleComponent } from "../../../../shared/components/theme-toggle.component";
 @Component({
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, ThemeToggleComponent],
   templateUrl: "./login.page.html",
 })
 export class LoginComponent {

@@ -2,13 +2,14 @@ import { Component, inject, OnInit } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute } from "@angular/router";
 import { PortalStore } from "../../../../core/services/portal.service";
+import { ThemeToggleComponent } from "../../../../shared/components/theme-toggle.component";
 import {
   SIGNATURE_STYLES,
   normalizeSignerName,
 } from "../../../../../../../contracts/signature.mjs";
 @Component({
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, ThemeToggleComponent],
   templateUrl: "./sign.page.html",
 })
 export class SignComponent implements OnInit {

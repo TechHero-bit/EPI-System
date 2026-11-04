@@ -18,7 +18,12 @@
             "polyfills": ["zone.js"],
             "allowedCommonJsDependencies": ["exceljs", "pako"],
             "tsConfig": "tsconfig.app.json",
-            "styles": ["src/tailwind.css", "src/styles.css", "src/portal.css"],
+            "styles": [
+              "src/tailwind.css",
+              "src/styles.css",
+              "src/portal.css",
+              "src/themes.css"
+            ],
             "assets": [{ "glob": "**/*", "input": "public" }]
           },
           "configurations": {

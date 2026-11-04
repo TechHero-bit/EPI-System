@@ -7,9 +7,15 @@
     ></button>
   }
   <aside class="sidebar">
-    <a class="brand" routerLink="/dashboard"
-      ><span class="brand-icon">E</span
-      ><span>EPI<span class="brand-light">ERP</span></span></a
+    <a
+      class="brand"
+      routerLink="/dashboard"
+      aria-label="EPI - Controle de Proteção"
+      ><span class="brand-icon" aria-hidden="true">E</span
+      ><span class="brand-name"
+        ><span class="brand-title">EPI -</span
+        ><span class="brand-subtitle">Controle de Proteção</span></span
+      ></a
     >
     <div class="workspace-tag">ESPAÇO DE TRABALHO</div>
     <div class="workspace-name">{{ s.data().organization.name }}</div>
@@ -49,6 +55,7 @@
         Gestão de proteção <span>/</span> {{ s.roleName }}
       </div>
       <div class="top-right">
+        <epi-theme-toggle />
         <span class="live-dot"></span
         >{{ s.demo ? "Ambiente demonstrativo" : "Ambiente conectado"
         }}<button

@@ -1,6 +1,7 @@
 import { Injectable, signal } from "@angular/core";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DemoRepository, makeDemoData } from "./demo-repository.service";
+import { isEquipmentSize } from "../../../../../contracts/equipment-sizes.mjs";
 import {
   emptyData,
   type Role,
@@ -212,6 +213,8 @@ export class PortalStore {
     }
   }
   async addVariant(body: any) {
+    if (!isEquipmentSize(body.size))
+      throw new Error("Selecione um tamanho válido da lista.");
     if (this.demo) {
       if (!["ADMIN", "ALMOXARIFADO"].includes(this.role))
         throw new Error("Acesso negado.");

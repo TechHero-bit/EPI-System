@@ -165,17 +165,32 @@
     @if (step === 2) {
       <section class="panel">
         <h2>Escolha os equipamentos e tamanhos</h2>
-        <div class="toolbar">
-          <input
-            aria-label="Buscar equipamento"
-            [(ngModel)]="query"
-            placeholder="Buscar nome, CA ou tamanho…"
-          /><select aria-label="Categoria" [(ngModel)]="category">
+        <div class="toolbar equipment-filters">
+          <select
+            aria-label="Categoria"
+            [ngModel]="category"
+            (ngModelChange)="categoryChanged($event)"
+          >
             <option value="">Todas as categorias</option>
             @for (c of categories; track c) {
               <option>{{ c }}</option>
             }
           </select>
+          <select aria-label="Tamanho" [(ngModel)]="size">
+            <option value="">Todos os tamanhos</option>
+            @for (group of sizeGroups; track group.label) {
+              <optgroup [label]="group.label">
+                @for (size of group.sizes; track size) {
+                  <option [value]="size">{{ size }}</option>
+                }
+              </optgroup>
+            }
+          </select>
+          <input
+            aria-label="Buscar equipamento"
+            [(ngModel)]="query"
+            placeholder="Buscar nome, C.A. ou marca..."
+          />
         </div>
         <div class="equipment-grid">
           @for (v of variants; track v.id) {

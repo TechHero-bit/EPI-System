@@ -6,9 +6,10 @@ import {
   RouterOutlet,
 } from "@angular/router";
 import { PortalStore } from "../../core/services/portal.service";
+import { ThemeToggleComponent } from "../../shared/components/theme-toggle.component";
 @Component({
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, ThemeToggleComponent],
   templateUrl: "./app-shell.component.html",
 })
 export class ShellComponent {

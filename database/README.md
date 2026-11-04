@@ -4,7 +4,19 @@ A fonte SQL está em `supabase/migrations/`. Escolha uma forma de instalação; 
 
 ## Índice numerado das migrations
 
-Os arquivos vão de **001 a 008**, na ordem de aplicação. A migration 007 confirma entrega e assinatura presencial na mesma transação. A 008 adiciona nome, estilo e termo versionado à assinatura eletrônica. Em bancos com 001 a 007 aplicadas, execute somente a 008 antes de publicar a API atualizada.
+Os arquivos vão de **001 a 009**, na ordem de aplicação. A 009 padroniza os tamanhos. Em banco com 001 a 008 aplicadas, execute somente a 009 antes de publicar a API atualizada.
+
+### Tamanhos padronizados
+
+Novos cadastros aceitam somente `Único`, letras `PP, P, M, G, GG, XG, XGG, XXG, XXXG` e números inteiros de `1` a `70`, sem zeros à esquerda. O contrato compartilhado é `contracts/equipment-sizes.mts`; a API, o modo demonstrativo e a constraint `variants_standard_size` seguem a mesma lista. Os seletores separam letras e números; a montagem da ficha e o catálogo filtram na ordem categoria → tamanho → busca. Trocar a categoria limpa um tamanho que não exista nela.
+
+Antes de aplicar a 009, confira valores legados com a consulta abaixo. Caso retorne linhas, revise cada tamanho e corrija somente o cadastro correspondente para um valor autorizado. A migration rejeita valores fora da lista; não converte tamanhos desconhecidos nem reescreve snapshots de fichas antigas.
+
+```sql
+select id, product_id, size from public.variants
+where size not in ('Único','PP','P','M','G','GG','XG','XGG','XXG','XXXG')
+  and size !~ '^([1-9]|[1-6][0-9]|70)$';
+```
 
 | Nº  | Arquivo                                                                                  | Finalidade                                                                                                                                                                                 |
 | --- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -16,12 +28,13 @@ Os arquivos vão de **001 a 008**, na ordem de aplicação. A migration 007 conf
 | 006 | [006_inventory_without_lots.sql](supabase/migrations/006_inventory_without_lots.sql)     | Estoque por equipamento/tamanho, lotes históricos somente leitura e Nº de Registro igual à matrícula textual. Cria sua própria validação de matrícula, sem depender de contador por ficha. |
 | 007 | [007_manual_receipt.sql](supabase/migrations/007_manual_receipt.sql) | Confirmação conjunta da entrega e assinatura presencial, com evidência, auditoria e idempotência. |
 | 008 | [008_typed_signature.sql](supabase/migrations/008_typed_signature.sql) | Nome, estilo de assinatura e aceite do termo versionado, com validação transacional e evidência imutável. |
+| 009 | [009_standard_equipment_sizes.sql](supabase/migrations/009_standard_equipment_sizes.sql) | Tamanhos padronizados no catálogo |
 
 A antiga `202610210001_sheet_register.sql` foi removida: o contador por ficha ficou sem uso. A nova instalação não cria `sheet_number_counters`, `sheet_number_allocations`, `reserve_sheet_number` nem a coluna numérica `sheets.record_number`. A antiga 007 passou a ser a atual 006, com as dependências corrigidas. As outras cinco migrations continuam necessárias; não foram removidas apenas por conterem funções que evoluem nas seguintes.
 
-`setup.sql` não é uma migration adicional: é o consolidado das oito migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais. O modelo corporativo PDF/Excel está no Backend, não no SQL. Em banco existente, aplique somente as migrations pendentes em ordem: a 007 habilita a confirmação presencial conjunta e a 008 habilita o novo registro de assinatura eletrônica.
+`setup.sql` não é uma migration adicional: é o consolidado das nove migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais. O modelo corporativo PDF/Excel está no Backend, não no SQL. Em banco existente, aplique somente as migrations pendentes em ordem: a 007 habilita a confirmação presencial conjunta a 008 habilita o novo registro de assinatura eletrônica e a 009 restringe os tamanhos do catálogo.
 
-Para futuras migrations, use o próximo número disponível, como `009_descricao.sql`, e atualize este índice. Depois da primeira aplicação em um ambiente, não renumere nem reescreva o histórico desse ambiente; acrescente uma nova migration. O gerador do consolidado verifica nomes e sequência sem lacunas.
+Para futuras migrations, use o próximo número disponível, como `010_descricao.sql`, e atualize este índice. Depois da primeira aplicação em um ambiente, não renumere nem reescreva o histórico desse ambiente; acrescente uma nova migration. O gerador do consolidado verifica nomes e sequência sem lacunas.
 
 ## SQL Editor: projeto novo
 

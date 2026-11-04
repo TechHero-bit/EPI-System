@@ -16,6 +16,7 @@ import {
 import { PortalStore } from "../../../../core/services/portal.service";
 import { today, type DraftItem } from "../../../../core/models/portal.model";
 import { restoreReviewDraft } from "../../../../shared/utils/review-draft";
+import { sizeGroupsFor } from "../../../../../../../contracts/equipment-sizes.mjs";
 @Component({
   standalone: true,
   imports: [FormsModule, DatePipe],
@@ -31,6 +32,26 @@ export class BuilderComponent implements OnInit, OnDestroy {
   employeeQuery = "";
   query = "";
   category = "";
+  size = "";
+  get sizeGroups() {
+    return sizeGroupsFor(
+      this.s
+        .data()
+        .variants.filter((v) => {
+          const product = this.s.product(v.product_id);
+          return (
+            product?.active &&
+            (!this.category || product.category === this.category)
+          );
+        })
+        .map((v) => v.size),
+    );
+  }
+  categoryChanged(category: string) {
+    this.category = category;
+    if (!this.sizeGroups.some((group) => group.sizes.includes(this.size)))
+      this.size = "";
+  }
   step = 1;
   date = today();
   method = "MANUAL";
@@ -297,7 +318,8 @@ export class BuilderComponent implements OnInit, OnDestroy {
         return (
           p?.active &&
           (!this.category || p.category === this.category) &&
-          `${p.description} ${p.ca} ${v.size}`
+          (!this.size || v.size === this.size) &&
+          `${p.description} ${p.ca} ${p.brand} ${v.size}`
             .toLowerCase()
             .includes(this.query.toLowerCase())
         );
