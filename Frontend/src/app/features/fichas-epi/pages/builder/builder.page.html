@@ -172,13 +172,14 @@
         <h2>Escolha os equipamentos e tamanhos</h2>
         <div class="toolbar equipment-filters">
           <select
+            #categorySelect
             aria-label="Categoria"
             [ngModel]="category"
-            (ngModelChange)="categoryChanged($event)"
+            (change)="categoryChanged(categorySelect.value)"
           >
             <option value="">Todas as categorias</option>
             @for (c of categories; track c) {
-              <option>{{ c }}</option>
+              <option [value]="c">{{ c }}</option>
             }
           </select>
           <select aria-label="Tamanho" [(ngModel)]="size">
@@ -221,7 +222,7 @@
             ← Voltar para colaborador
           </button>
           <button
-            class="primary spaced"
+            class="primary"
             [disabled]="(!draft.length && !preparedId) || s.busy()"
             (click)="goTo(3)"
           >

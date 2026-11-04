@@ -18,11 +18,18 @@ test("temas seguem o sistema, persistem e cobrem login, ficha, modal e assinatur
   await page.getByRole("button", { name: "Ativar modo escuro" }).click();
   await expect(page.locator("body")).toHaveCSS(
     "background-color",
-    "rgb(23, 24, 25)",
+    "rgb(19, 21, 27)",
   );
   await expect(page.locator(".panel").first()).toHaveCSS(
     "background-color",
-    "rgb(32, 34, 35)",
+    "rgb(31, 33, 46)",
+  );
+  await expect(
+    page.getByRole("link", { name: "Dashboard", exact: true }),
+  ).toHaveCSS("background-color", "rgb(220, 38, 38)");
+  await expect(page.getByRole("link", { name: "Montar nova ficha" })).toHaveCSS(
+    "background-color",
+    "rgb(37, 99, 235)",
   );
   await expect(page.locator(".stat").first()).toHaveCSS(
     "background-color",
@@ -42,11 +49,11 @@ test("temas seguem o sistema, persistem e cobrem login, ficha, modal e assinatur
     .click();
   await expect(page.locator(".equipment-card").first()).toHaveCSS(
     "background-color",
-    "rgb(32, 34, 35)",
+    "rgb(31, 33, 46)",
   );
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toHaveCSS("background-color", "rgb(32, 34, 35)");
+  await expect(dialog).toHaveCSS("background-color", "rgb(31, 33, 46)");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "dist/theme-dark-modal-mobile.png" });
   await dialog.getByRole("button", { name: "Confirmar e avançar →" }).click();
@@ -63,7 +70,7 @@ test("temas seguem o sistema, persistem e cobrem login, ficha, modal e assinatur
   await expect(signer.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(signer.locator(".sign-card")).toHaveCSS(
     "background-color",
-    "rgb(32, 34, 35)",
+    "rgb(31, 33, 46)",
   );
   await signer.screenshot({ path: "dist/theme-dark-sign.png", fullPage: true });
   await signer.getByRole("button", { name: "Ativar modo claro" }).click();

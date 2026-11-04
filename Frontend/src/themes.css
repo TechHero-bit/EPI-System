@@ -39,30 +39,31 @@
 }
 
 :root[data-theme="dark"] {
-  --primary: #84bdd2;
-  --primary-dark: #a2cee0;
-  --primary-soft: #2e383c;
-  --success: #78ccaa;
-  --warning: #efba78;
-  --danger: #f2a6a8;
-  --bg-primary: #202223;
-  --bg-secondary: #171819;
-  --bg-tertiary: #282a2b;
-  --text-primary: #f1f3f4;
-  --text-secondary: #c1c9cc;
-  --text-muted: #a6b0b4;
-  --border: #383c3e;
-  --row-rule: #303334;
-  --control-border: #5b6469;
-  --active: #323739;
-  --link: #9ccfe1;
-  --action: #d5e9f0;
-  --action-hover: #b9dbe7;
-  --action-ink: #172d3b;
-  --focus: #91c9dd;
-  --brand-mark: #91c9dd;
-  --brand-mark-ink: #172d3b;
-  --chart-out: #899499;
+  /* CENTAURO ERP: index.css, Sidebar.jsx and Users.jsx. */
+  --primary: #60a5fa;
+  --primary-dark: #93c5fd;
+  --primary-soft: #334155;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #fca5a5;
+  --bg-primary: #1f212e;
+  --bg-secondary: #13151b;
+  --bg-tertiary: #2a2d3d;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border: #2a2d3d;
+  --row-rule: #2a2d3d;
+  --control-border: #64748b;
+  --active: #334155;
+  --nav-active: #dc2626;
+  --nav-active-ink: #fff;
+  --link: #93c5fd;
+  --action: #2563eb;
+  --action-hover: #1d4ed8;
+  --focus: #93c5fd;
+  --brand-mark: var(--nav-active);
+  --chart-out: var(--success);
   color-scheme: dark;
 }
 
@@ -148,13 +149,13 @@ a,
 :root[data-theme="dark"] .alert.error,
 :root[data-theme="dark"] .coral,
 :root[data-theme="dark"] .remove {
-  color: #fca5a5;
+  color: var(--danger);
   background: var(--bg-tertiary);
   border-color: var(--border);
 }
 :root[data-theme="dark"] .negative,
 :root[data-theme="dark"] .stock-tag.out {
-  color: #fca5a5;
+  color: var(--danger);
 }
 :root[data-theme="dark"] .stock-tag:not(.out) {
   color: var(--success);
@@ -162,6 +163,9 @@ a,
 :root[data-theme="dark"] input:disabled,
 :root[data-theme="dark"] select:disabled {
   opacity: 0.7;
+}
+:root[data-theme="dark"] :is(input, select, textarea) {
+  background-color: #12131a;
 }
 @media (max-width: 800px) {
   .topbar .theme-toggle-label {
@@ -372,8 +376,8 @@ table,
   color: var(--text-primary);
 }
 .sidebar nav a.active {
-  background: var(--active);
-  color: var(--text-primary);
+  background: var(--nav-active);
+  color: var(--nav-active-ink, var(--text-primary));
   font-weight: 650;
 }
 .sidebar-bottom {
