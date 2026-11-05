@@ -2,7 +2,6 @@
 :root {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  --duration-feedback: 160ms;
   --duration-surface: 250ms;
   --ui-font:
     -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -259,7 +258,7 @@ textarea {
   transition:
     background-color 150ms ease,
     color 150ms ease,
-    transform var(--duration-feedback) var(--ease-out);
+    opacity 100ms var(--ease-out);
 }
 :is(
     .primary,
@@ -269,7 +268,7 @@ textarea {
     .mobile-menu,
     .logout
   ):active:not(:disabled) {
-  transform: scale(0.98);
+  opacity: 0.85;
   transition-duration: 100ms;
 }
 .primary,
@@ -858,16 +857,6 @@ a.activity:hover {
   :is(.primary, .secondary, .theme-toggle, .refresh, .mobile-menu, .logout) {
     transition: none;
   }
-  :is(
-      .primary,
-      .secondary,
-      .theme-toggle,
-      .refresh,
-      .mobile-menu,
-      .logout
-    ):active:not(:disabled) {
-    transform: none;
-  }
 }
 
 /* Occasional feedback surfaces. Data and route content stay stationary. */
@@ -884,11 +873,11 @@ a.activity:hover {
 }
 .person-option,
 button.equipment-card {
-  transition: transform var(--duration-feedback) var(--ease-out);
+  transition: opacity 100ms var(--ease-out);
 }
 .person-option:active:not(:disabled),
 button.equipment-card:active:not(:disabled) {
-  transform: scale(0.98);
+  opacity: 0.85;
 }
 .loading {
   display: flex;
@@ -915,10 +904,6 @@ button.equipment-card:active:not(:disabled) {
   button.equipment-card {
     transition: none;
   }
-  .person-option:active:not(:disabled),
-  button.equipment-card:active:not(:disabled) {
-    transform: none;
-  }
   .loading::before {
     animation: none;
   }
@@ -938,17 +923,4 @@ epi-root.keyboard-input
     .success-panel
   ) {
   transition: none;
-}
-epi-root.keyboard-input
-  :is(
-    .primary,
-    .secondary,
-    .theme-toggle,
-    .refresh,
-    .mobile-menu,
-    .logout,
-    .person-option,
-    button.equipment-card
-  ):active {
-  transform: none;
 }

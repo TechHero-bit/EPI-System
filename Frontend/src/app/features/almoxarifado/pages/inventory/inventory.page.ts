@@ -1,4 +1,4 @@
-import { Component, inject } from "@angular/core";
+import { Component, computed, inject } from "@angular/core";
 import {
   SIZE_GROUPS,
   sizeGroupsFor,
@@ -98,12 +98,21 @@ export class InventoryComponent {
       ]),
     ].sort(compareLabels);
   }
-  get variantOptions() {
-    return alphabetical(
+  readonly variantOptions = computed(() =>
+    alphabetical(
       this.s.data().variants,
       (v) => `${this.s.product(v.product_id)?.description} · ${v.size}`,
-    );
-  }
+    ),
+  );
+  readonly variantsByProduct = computed(() => {
+    const grouped = new Map<string, any[]>();
+    for (const variant of this.variantOptions()) {
+      const variants = grouped.get(variant.product_id) ?? [];
+      variants.push(variant);
+      grouped.set(variant.product_id, variants);
+    }
+    return grouped;
+  });
   productStock(productId: string) {
     const variants = new Set(
       this.s

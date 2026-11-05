@@ -417,7 +417,7 @@ test("cadastro simplificado cria e filtra uma categoria sem emotes", async ({
   await page
     .getByLabel("Nome da nova categoria", { exact: true })
     .fill("Proteção auditiva");
-  await page.getByLabel("Tamanho", { exact: true }).fill("M");
+  await page.getByLabel("Tamanho", { exact: true }).selectOption("M");
   await page
     .getByRole("button", { name: "Salvar equipamento", exact: true })
     .click();
@@ -543,7 +543,7 @@ test("cadastro exige tamanho sem solicitar código interno", async ({
   await page
     .getByLabel("Categoria", { exact: true })
     .selectOption("Luvas de proteção");
-  await page.getByLabel("Tamanho", { exact: true }).fill("");
+  await page.getByLabel("Tamanho", { exact: true }).selectOption([]);
   await page
     .getByRole("button", { name: "Salvar equipamento", exact: true })
     .click();
@@ -552,7 +552,7 @@ test("cadastro exige tamanho sem solicitar código interno", async ({
       () => JSON.parse(localStorage.getItem("epi-demo-v3")!).products.length,
     ),
   ).toBe(8);
-  await page.getByLabel("Tamanho", { exact: true }).fill("G");
+  await page.getByLabel("Tamanho", { exact: true }).selectOption("G");
   await page
     .getByRole("button", { name: "Salvar equipamento", exact: true })
     .click();

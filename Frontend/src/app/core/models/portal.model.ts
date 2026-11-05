@@ -19,10 +19,10 @@ export const categories = [
   "Luvas de proteção",
   "Cintos de segurança",
 ];
-export const today = () =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
-    new Date(),
-  );
+const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+});
+export const today = () => dateFormatter.format(new Date());
 export interface DraftItem {
   variantId: string;
   quantity: 1;

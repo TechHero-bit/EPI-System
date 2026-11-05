@@ -236,7 +236,7 @@ export class BuilderComponent implements OnInit, OnDestroy {
     this.url = await this.s.signingLink(this.preparedId);
     this.qr = "";
     try {
-      const qr = await import("qrcode");
+      const { default: qr } = await import("qrcode");
       this.qr = await qr.toDataURL(this.url, {
         width: 256,
         margin: 4,

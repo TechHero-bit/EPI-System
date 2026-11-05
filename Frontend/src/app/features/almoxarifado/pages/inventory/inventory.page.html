@@ -176,10 +176,8 @@
             ><strong>{{ p.description }}</strong
             ><small>CA {{ p.ca || "Não informado" }} · {{ p.brand }}</small>
             <div class="variant-chips">
-              @for (v of variantOptions; track v.id) {
-                @if (v.product_id === p.id) {
-                  <span class="chip">{{ v.size }}</span>
-                }
+              @for (v of variantsByProduct().get(p.id) || []; track v.id) {
+                <span class="chip">{{ v.size }}</span>
               }
             </div>
             <div class="catalog-card-footer">
@@ -253,7 +251,7 @@
             required
           >
             <option value="">Selecionar</option>
-            @for (v of variantOptions; track v.id) {
+            @for (v of variantOptions(); track v.id) {
               <option [value]="v.id">{{ variantName(v.id) }}</option>
             }
           </select></label

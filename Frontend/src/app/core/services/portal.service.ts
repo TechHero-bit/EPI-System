@@ -1,4 +1,4 @@
-import { Injectable, signal } from "@angular/core";
+import { computed, Injectable, signal } from "@angular/core";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DemoRepository, makeDemoData } from "./demo-repository.service";
 import { isEquipmentSize } from "../../../../../contracts/equipment-sizes.mjs";
@@ -19,6 +19,23 @@ export class PortalStore {
   readonly mode = window.EPI_ERP_CONFIG?.appMode ?? "demo";
   readonly demo = this.mode === "demo";
   readonly data = signal(emptyData());
+  private readonly productsById = computed(
+    () => new Map(this.data().products.map((product) => [product.id, product])),
+  );
+  private readonly variantsById = computed(
+    () => new Map(this.data().variants.map((variant) => [variant.id, variant])),
+  );
+  private readonly employeesById = computed(
+    () =>
+      new Map(this.data().employees.map((employee) => [employee.id, employee])),
+  );
+  private readonly statesBySheet = computed(
+    () => new Map(this.data().states.map((state) => [state.sheet_id, state])),
+  );
+  private readonly inventoryById = computed(
+    () =>
+      new Map(this.data().inventory.map((balance) => [balance.id, balance])),
+  );
   readonly user = signal("");
   readonly busy = signal(false);
   readonly failure = signal("");
@@ -162,16 +179,16 @@ export class PortalStore {
     }
   }
   product(id: string) {
-    return this.data().products.find((p) => p.id === id);
+    return this.productsById().get(id);
   }
   variant(id: string) {
-    return this.data().variants.find((v) => v.id === id);
+    return this.variantsById().get(id);
   }
   employee(id: string) {
-    return this.data().employees.find((e) => e.id === id);
+    return this.employeesById().get(id);
   }
   state(id: string) {
-    return this.data().states.find((s) => s.sheet_id === id);
+    return this.statesBySheet().get(id);
   }
   available(balance: any) {
     return (
@@ -181,7 +198,7 @@ export class PortalStore {
     );
   }
   stock(id: string) {
-    const row = this.data().inventory.find((row) => row.id === id);
+    const row = this.inventoryById().get(id);
     return row ? this.available(row) : 0;
   }
   async saveProduct(body: any, id?: string) {

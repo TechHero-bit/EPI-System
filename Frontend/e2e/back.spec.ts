@@ -135,9 +135,8 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
   await page
     .getByRole("button", { name: "Avançar para ficha final", exact: true })
     .click();
-  await page
-    .getByRole("link", { name: "← Voltar à revisão", exact: true })
-    .click();
+  const finalId = page.url().split("/").pop();
+  await page.goto(`/rh/fichas/nova?ficha=${finalId}`);
   await expect(
     page.getByRole("heading", { name: "Revisar ficha e assinatura" }),
   ).toBeVisible();
@@ -150,9 +149,10 @@ test("voltar de ficha assinada permite consultar todas as etapas sem alterar ou 
 }) => {
   await login(page);
   await page.goto("/rh/fichas/sheet-2");
-  await page
-    .getByRole("link", { name: "← Voltar à revisão", exact: true })
-    .click();
+  await expect(
+    page.getByRole("link", { name: "← Voltar à revisão", exact: true }),
+  ).toHaveCount(0);
+  await page.goto("/rh/fichas/nova?ficha=sheet-2");
   await expect(
     page.getByRole("combobox", { name: "Método de assinatura", exact: true }),
   ).toBeDisabled();

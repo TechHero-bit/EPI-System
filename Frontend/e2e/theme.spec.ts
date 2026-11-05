@@ -1,5 +1,54 @@
 import { test, expect } from "@playwright/test";
 
+test("alternar entre teclado e mouse mantém o seletor e o login funcionando", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  const profile = page.getByLabel("Explorar como");
+  await profile.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator("epi-root")).toHaveClass(/keyboard-input/);
+  await profile.click();
+  await expect(profile).toBeFocused();
+  await expect(page.locator("epi-root")).not.toHaveClass(/keyboard-input/);
+  await expect
+    .poll(() => profile.evaluate((select) => select.matches(":open")))
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  await profile.selectOption("ALMOXARIFADO");
+  await page.getByRole("button", { name: "Entrar na demonstração" }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Dashboard do Almoxarifado",
+      exact: true,
+    }),
+  ).toBeVisible();
+});
+
+test("cliques próximos à borda selecionam colaborador e equipamento", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  await page.getByLabel("Explorar como").selectOption("RH");
+  await page.getByRole("button", { name: "Entrar na demonstração" }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await page.goto("/rh/fichas/nova");
+  const employee = page.getByRole("button", { name: /Ana Martins/ });
+  await employee.click({ position: { x: 1, y: 30 }, delay: 180 });
+  await expect(employee).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Escolher equipamentos →" }).click({
+    position: { x: 1, y: 20 },
+    delay: 180,
+  });
+  await page.getByRole("button", { name: /Bota de segurança em couro/ }).click({
+    position: { x: 1, y: 30 },
+    delay: 180,
+  });
+  await expect(
+    page.getByRole("button", { name: "Revisar seleção →" }),
+  ).toBeEnabled();
+});
+
 test("temas seguem o sistema, persistem e cobrem login, ficha, modal e assinatura", async ({
   page,
   context,
