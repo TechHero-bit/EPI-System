@@ -498,7 +498,6 @@ a:focus-visible {
     top: 0;
     width: 246px;
     height: 100vh;
-    transition: left 0.15s;
   }
   .nav-open .sidebar {
     left: 0;

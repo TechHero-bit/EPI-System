@@ -8,13 +8,61 @@
   color: inherit;
   background: var(--bg-primary);
   box-shadow: 0 24px 80px #10233f40;
+  opacity: 0;
+  transform: scale(0.97);
+  transition:
+    opacity var(--duration-surface) var(--ease-out),
+    transform var(--duration-surface) var(--ease-out),
+    display var(--duration-surface) allow-discrete,
+    overlay var(--duration-surface) allow-discrete;
 }
 .selection-dialog[open] {
   display: flex;
   flex-direction: column;
+  opacity: 1;
+  transform: scale(1);
 }
 .selection-dialog::backdrop {
   background: #13151b80;
+  opacity: 0;
+  transition:
+    opacity var(--duration-surface) var(--ease-out),
+    display var(--duration-surface) allow-discrete,
+    overlay var(--duration-surface) allow-discrete;
+}
+.selection-dialog[open]::backdrop {
+  opacity: 1;
+}
+.selection-dialog:not([open]),
+.selection-dialog:not([open])::backdrop {
+  pointer-events: none;
+}
+@starting-style {
+  .selection-dialog[open] {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  .selection-dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .selection-dialog {
+    transform: none;
+    transition:
+      opacity 160ms var(--ease-out),
+      display 160ms allow-discrete,
+      overlay 160ms allow-discrete;
+  }
+  @starting-style {
+    .selection-dialog[open] {
+      transform: none;
+    }
+  }
+}
+:host-context(.keyboard-input) .selection-dialog,
+:host-context(.keyboard-input) .selection-dialog::backdrop {
+  transition: none;
 }
 .selection-dialog-heading {
   padding: 24px 24px 16px;

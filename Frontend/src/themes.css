@@ -1,5 +1,9 @@
 /* Framed Sheet. A cool outer frame and a quiet surface for operational data. */
 :root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-feedback: 160ms;
+  --duration-surface: 250ms;
   --ui-font:
     -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --primary: #226a87;
@@ -255,7 +259,7 @@ textarea {
   transition:
     background-color 150ms ease,
     color 150ms ease,
-    transform 150ms ease-out;
+    transform var(--duration-feedback) var(--ease-out);
 }
 :is(
     .primary,
@@ -266,7 +270,7 @@ textarea {
     .logout
   ):active:not(:disabled) {
   transform: scale(0.98);
-  transition-duration: 70ms;
+  transition-duration: 100ms;
 }
 .primary,
 .primary:hover:not(:disabled) {
@@ -694,8 +698,8 @@ a.activity:hover {
     visibility: hidden;
     transform: translateX(-100%);
     transition:
-      transform 190ms ease-out,
-      visibility 190ms;
+      transform var(--duration-surface) var(--ease-drawer),
+      visibility var(--duration-surface);
   }
   .nav-open .sidebar {
     visibility: visible;
@@ -864,4 +868,87 @@ a.activity:hover {
     ):active:not(:disabled) {
     transform: none;
   }
+}
+
+/* Occasional feedback surfaces. Data and route content stay stationary. */
+.alert,
+.success-panel {
+  opacity: 1;
+  transition: opacity 200ms var(--ease-out);
+}
+@starting-style {
+  .alert,
+  .success-panel {
+    opacity: 0;
+  }
+}
+.person-option,
+button.equipment-card {
+  transition: transform var(--duration-feedback) var(--ease-out);
+}
+.person-option:active:not(:disabled),
+button.equipment-card:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.loading::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: pending-rotation 800ms linear infinite;
+}
+@keyframes pending-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .person-option,
+  button.equipment-card {
+    transition: none;
+  }
+  .person-option:active:not(:disabled),
+  button.equipment-card:active:not(:disabled) {
+    transform: none;
+  }
+  .loading::before {
+    animation: none;
+  }
+}
+epi-root.keyboard-input
+  :is(
+    .sidebar,
+    .primary,
+    .secondary,
+    .theme-toggle,
+    .refresh,
+    .mobile-menu,
+    .logout,
+    .person-option,
+    button.equipment-card,
+    .alert,
+    .success-panel
+  ) {
+  transition: none;
+}
+epi-root.keyboard-input
+  :is(
+    .primary,
+    .secondary,
+    .theme-toggle,
+    .refresh,
+    .mobile-menu,
+    .logout,
+    .person-option,
+    button.equipment-card
+  ):active {
+  transform: none;
 }
