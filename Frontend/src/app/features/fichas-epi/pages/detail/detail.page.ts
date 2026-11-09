@@ -5,6 +5,10 @@ import { ActivatedRoute, RouterLink } from "@angular/router";
 import { PortalStore } from "../../../../core/services/portal.service";
 import { StatusComponent } from "../../../../shared/components/status-badge/status-badge.component";
 import { SIGNATURE_STYLES } from "../../../../../../../contracts/signature.mjs";
+import {
+  RETURNABLE_RESERVATION_STATUS,
+  returnReasonLabel,
+} from "../../../../../../../contracts/returns.mjs";
 @Component({
   standalone: true,
   imports: [DatePipe, FormsModule, RouterLink, StatusComponent],
@@ -19,6 +23,21 @@ export class DetailComponent implements OnInit, OnDestroy {
     return SIGNATURE_STYLES.find(
       (style) => style.id === this.sheet?.electronic_signature?.signatureStyle,
     )?.font;
+  }
+  reasonLabel = returnReasonLabel;
+  get returnable() {
+    const returned = new Set(
+      (this.sheet?.returns ?? []).flatMap((r: any) => r.items.map((i: any) => i.item_index)),
+    );
+    return (
+      (RETURNABLE_RESERVATION_STATUS as readonly string[]).includes(
+        this.state?.reservation_status ?? "",
+      ) && returned.size < (this.sheet?.snapshot?.items?.length ?? 0)
+    );
+  }
+  itemDescription(index: number) {
+    const item = this.sheet?.snapshot?.items?.[index];
+    return item ? `${item.description} · Tam. ${item.size}` : `Linha ${index + 1}`;
   }
   receiptNote = "";
   cancelNote = "";

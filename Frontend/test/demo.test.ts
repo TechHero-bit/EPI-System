@@ -145,11 +145,14 @@ test("link aleatório da revisão exige conferência e aceite e não confirma en
   r.publicSigning(token, "code");
   r.publicSigning(token, "preview");
   assert.throws(() => r.publicSigning(token, "confirm", false), /aceite/);
-  assert.throws(() => r.publicSigning(token, "confirm", true), /nome completo/);
+  // Com o CPF de teste cadastrado, a falha é genérica e não indica o campo.
+  assert.throws(() => r.publicSigning(token, "confirm", true), /não conferem/);
   r.publicSigning(token, "confirm", true, {
     signerName: "Ana Martins",
     signatureStyle: "classic",
     termsVersion: "EPI-ELECTRONIC-SIMPLE-V2",
+    cpfStart: "934",
+    cpfEnd: "010",
   });
   assert.equal(f.electronic_signature.signerName, "Ana Martins");
   assert.equal(f.electronic_signature.acceptedTerms, true);
@@ -272,9 +275,12 @@ test("entrada e ajuste nunca geram saldo negativo", () => {
   const r = new DemoRepository();
   const l = r.data.inventory[0];
   const before = l.stock_quantity;
-  r.movement(l.id, 3, "Entrada");
+  r.movement(l.id, "RECEIPT", 3, "Entrada por nota fiscal");
   assert.equal(l.stock_quantity, before + 3);
-  assert.throws(() => r.movement(l.id, -999, "Inventário", true), /Saldo/);
+  assert.throws(
+    () => r.movement(l.id, "ADJUSTMENT", -999, "Inventário"),
+    /Saldo/,
+  );
 });
 test("ficha com múltiplos EPIs reserva uma unidade por linha e é idempotente", () => {
   const r = new DemoRepository();

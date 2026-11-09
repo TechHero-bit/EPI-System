@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "EPI System API",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Autenticação via Supabase Auth. Perfis por organização. Estoque físico só baixa na entrega."
   },
   "servers": [
@@ -42,6 +42,103 @@
             "type": "string",
             "format": "date",
             "description": "Data da entrega editável por item; usa documentDate se omitida"
+          }
+        }
+      },
+      "SheetReturn": {
+        "type": "object",
+        "required": [
+          "returnedOn",
+          "note",
+          "idempotencyKey",
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "returnedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Evidência da assinatura presencial"
+          },
+          "termination": {
+            "type": "boolean",
+            "default": false
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "required": [
+                "index",
+                "reasonCode",
+                "destination"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Posição do item no snapshot"
+                },
+                "reasonCode": {
+                  "enum": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    13,
+                    14
+                  ]
+                },
+                "destination": {
+                  "enum": [
+                    "RESTOCK",
+                    "DISCARD"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "InventoryMovement": {
+        "type": "object",
+        "required": [
+          "quantity",
+          "reason",
+          "idempotencyKey"
+        ],
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 300
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -114,6 +211,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -150,6 +250,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -184,6 +287,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -220,6 +326,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -254,6 +363,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -299,6 +411,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -341,6 +456,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -375,6 +493,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -411,6 +532,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -420,9 +544,9 @@
         }
       }
     },
-    "/inventory/{id}/receive": {
-      "post": {
-        "summary": "Entrada idempotente, exige idempotencyKey UUID",
+    "/products/{id}/sizes": {
+      "put": {
+        "summary": "Definir a grade de tamanhos do equipamento; tamanho com saldo, reserva ou histórico é desativado, não removido",
         "parameters": [
           {
             "name": "id",
@@ -454,6 +578,170 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/ca/{number}": {
+      "get": {
+        "summary": "Consultar C.A. na base CAEPI importada (ADMIN/ALMOXARIFADO/RH/SEGURANCA_TRABALHO); 404 permite cadastro manual",
+        "parameters": [
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/inventory/{id}/receive": {
+      "post": {
+        "summary": "Entrada idempotente com quantidade e justificativa obrigatória (idempotencyKey UUID)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryMovement"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/inventory/{id}/withdraw": {
+      "post": {
+        "summary": "Retirada fora de ficha, idempotente, com justificativa obrigatória",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryMovement"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -466,7 +754,204 @@
     },
     "/inventory/{id}/adjust": {
       "post": {
-        "summary": "Ajuste idempotente por equipamento/tamanho com justificativa",
+        "summary": "Ajuste para mais ou para menos, idempotente, com justificativa obrigatória",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryMovement"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/admin/lists/{kind}": {
+      "post": {
+        "summary": "Incluir cliente, unidade de trabalho ou RAC (kind: clients, work-units, racs; ADMIN)",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/admin/lists/{kind}/{id}": {
+      "patch": {
+        "summary": "Renomear, desativar ou reativar item da lista (ADMIN)",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/kits": {
+      "put": {
+        "summary": "Criar ou substituir o kit de EPIs de um par cliente e função (ADMIN/RH)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/kits/{id}": {
+      "delete": {
+        "summary": "Remover kit (ADMIN/RH)",
         "parameters": [
           {
             "name": "id",
@@ -498,6 +983,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -533,6 +1021,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -578,6 +1069,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -619,6 +1113,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -664,6 +1161,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -699,6 +1199,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -745,6 +1248,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -788,6 +1294,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -833,6 +1342,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -876,6 +1388,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -921,6 +1436,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -964,6 +1482,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -1009,6 +1530,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1053,6 +1577,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1064,7 +1591,7 @@
     },
     "/sheets/{id}/cancel": {
       "post": {
-        "summary": "Cancelar reserva e invalidar links",
+        "summary": "Cancelar ficha pendente com motivo obrigatório: libera reservas, invalida links e audita",
         "parameters": [
           {
             "name": "id",
@@ -1096,6 +1623,66 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sheets/{id}/returns": {
+      "post": {
+        "summary": "Registrar devolução de ficha entregue, somente acréscimo: motivo (M.D.) e destino por item, assinatura presencial",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SheetReturn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -1141,6 +1728,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1184,6 +1774,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -1230,6 +1823,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1274,6 +1870,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -1320,6 +1919,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1331,7 +1933,7 @@
     },
     "/sign/{token}/confirm": {
       "post": {
-        "summary": "Confirmar OTP e aceite; assinatura não confirma entrega",
+        "summary": "Confirmar OTP, aceite e, se houver CPF cadastrado, nome completo + 3 primeiros e 3 últimos dígitos (cpfStart, cpfEnd). Cinco erros bloqueiam o link (423). A assinatura não confirma entrega",
         "security": [],
         "parameters": [
           {
@@ -1364,6 +1966,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -1400,6 +2005,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1435,6 +2043,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1469,6 +2080,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"
@@ -1514,6 +2128,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1549,6 +2166,9 @@
           "410": {
             "description": "Link expirado ou consumido"
           },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
           "429": {
             "description": "Limite de tentativas"
           },
@@ -1583,6 +2203,9 @@
           },
           "410": {
             "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
           },
           "429": {
             "description": "Limite de tentativas"

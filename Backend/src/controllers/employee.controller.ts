@@ -16,6 +16,41 @@ import {
 import { otp, secretHash, token } from "../services/security.service.js";
 
 import { employeeSchema } from "../schemas/employee.schema.js";
+// Links to managed lists. The legacy free-text work_unit mirrors the chosen unit name.
+async function linkFields(
+  c: Awaited<ReturnType<typeof context>>,
+  body: { clientId?: string | null; workUnitId?: string | null },
+) {
+  const fields: Record<string, unknown> = {};
+  if (body.clientId !== undefined) {
+    if (body.clientId) await owned(c, "clients", body.clientId);
+    fields["client_id"] = body.clientId || null;
+  }
+  if (body.workUnitId !== undefined) {
+    const unit = body.workUnitId
+      ? await owned<{ name: string }>(c, "work_units", body.workUnitId)
+      : null;
+    fields["work_unit_id"] = body.workUnitId || null;
+    fields["work_unit"] = unit?.name ?? "";
+  }
+  return fields;
+}
+async function setRacs(
+  c: Awaited<ReturnType<typeof context>>,
+  employeeId: string,
+  racIds?: string[],
+) {
+  if (racIds === undefined) return;
+  dbOk(
+    await c.admin.rpc("set_employee_racs", {
+      p_org: c.orgId,
+      p_actor: c.userId,
+      p_employee: employeeId,
+      p_racs: [...new Set(racIds)],
+    }),
+  );
+}
+
 export const postemployees: RequestHandler<{
   id: string;
   token: string;
@@ -38,10 +73,12 @@ export const postemployees: RequestHandler<{
         work_unit: body.workUnit,
         facial_opt_in: body.facialOptIn,
         cpf: body.cpf || null,
+        ...(await linkFields(c, body)),
       })
       .select()
       .single(),
   );
+  await setRacs(c, data.id, body.racIds);
   await audit(c, "EMPLOYEE_CREATED", "employee", data.id);
   res.status(201).json(data);
 };
@@ -69,6 +106,7 @@ export const patchemployeesId: RequestHandler<{
   } as const;
   for (const [key, column] of Object.entries(map))
     if ((body as any)[key] !== undefined) payload[column] = (body as any)[key];
+  Object.assign(payload, await linkFields(c, body));
   if ("personal_email" in payload) payload["email_verified_at"] = null;
   const data = dbResult(
     await c.admin
@@ -79,6 +117,7 @@ export const patchemployeesId: RequestHandler<{
       .select()
       .single(),
   );
+  await setRacs(c, data.id, body.racIds);
   if ("personal_email" in payload)
     dbOk(
       await c.admin

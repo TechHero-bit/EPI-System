@@ -6,8 +6,8 @@ categories text[]:=array['Botas de segurança','Capacetes de proteção','Luvas 
 begin
 insert into public.organizations(id,name)values(org,'Horizonte - Empresa fictícia')on conflict(id)do nothing;
 for i in 1..10 loop
- insert into public.employees(id,organization_id,name,registration,department,job_title,admission_date,work_unit)
- values(md5('epi-demo-employee-'||i)::uuid,org,names[i],'DEMO-'||i,'Operações','Operador(a)',current_date-90,'Unidade fictícia')on conflict(id)do nothing;
+ insert into public.employees(id,organization_id,name,registration,department,job_title,admission_date,work_unit,cpf)
+ values(md5('epi-demo-employee-'||i)::uuid,org,names[i],'DEMO-'||i,'Operações','Operador(a)',current_date-90,'Unidade fictícia','93492854010')on conflict(id)do nothing;
 end loop;
 for i in 1..8 loop
  p:=md5('epi-demo-product-'||i)::uuid;v:=md5('epi-demo-variant-'||i)::uuid;l:=md5('epi-demo-lot-'||i)::uuid;

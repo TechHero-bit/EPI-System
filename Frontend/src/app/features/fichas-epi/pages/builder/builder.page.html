@@ -170,52 +170,123 @@
     @if (step === 2) {
       <section class="panel">
         <h2>Escolha os equipamentos e tamanhos</h2>
-        <div class="toolbar equipment-filters">
-          <select
-            #categorySelect
-            aria-label="Categoria"
-            [ngModel]="category"
-            (change)="categoryChanged(categorySelect.value)"
-          >
-            <option value="">Todas as categorias</option>
-            @for (c of categories; track c) {
-              <option [value]="c">{{ c }}</option>
-            }
-          </select>
-          <select aria-label="Tamanho" [(ngModel)]="size">
-            <option value="">Todos os tamanhos</option>
-            @for (group of sizeGroups; track group.label) {
-              <optgroup [label]="group.label">
-                @for (size of group.sizes; track size) {
-                  <option [value]="size">{{ size }}</option>
-                }
-              </optgroup>
-            }
-          </select>
-          <input
-            aria-label="Buscar equipamento"
-            [(ngModel)]="query"
-            placeholder="Buscar nome, C.A. ou marca..."
-          />
-        </div>
-        <div class="equipment-grid">
-          @for (v of variants; track v.id) {
-            <button
-              class="equipment-card"
-              [disabled]="!!preparedId || !available(v.id)"
-              (click)="add(v)"
+        <div class="builder-browse">
+          <div class="toolbar equipment-filters filters-side">
+            <select
+              aria-label="Categoria"
+              [ngModel]="category"
+              (ngModelChange)="categoryChanged($event)"
             >
-              <strong>{{ s.product(v.product_id)?.description }}</strong
-              ><small
-                >CA {{ s.product(v.product_id)?.ca || "N/A" }} · Tam.
-                {{ v.size }}</small
-              ><span class="stock-tag" [class.out]="!available(v.id)"
-                >{{ available(v.id) }} disponíveis · + 1 un.</span
-              >
+              <option value="">Todas as categorias</option>
+              @for (c of categories; track c) {
+                <option [value]="c">{{ c }}</option>
+              }
+            </select>
+            <select
+              aria-label="Tamanho"
+              [ngModel]="size"
+              (ngModelChange)="sizeChanged($event)"
+            >
+              <option value="">Todos os tamanhos</option>
+              @for (group of sizeGroups; track group.label) {
+                <optgroup [label]="group.label">
+                  @for (size of group.sizes; track size) {
+                    <option [value]="size">{{ size }}</option>
+                  }
+                </optgroup>
+              }
+            </select>
+            <input
+              aria-label="Buscar equipamento"
+              [ngModel]="query"
+              (ngModelChange)="queryChanged($event)"
+              placeholder="Buscar nome, C.A. ou marca..."
+            />
+            <button class="secondary" type="button" (click)="showAll()">
+              Ver todos os equipamentos
             </button>
-          } @empty {
-            <div class="empty">Nenhum equipamento encontrado.</div>
-          }
+            <button class="text-button" type="button" (click)="clearFilters()">
+              Limpar filtros
+            </button>
+          </div>
+          <div>
+            @if (kit && kitRows.length && !preparedId) {
+              <section class="kit-panel" aria-labelledby="kit-title">
+                <h3 id="kit-title">
+                  Kit de {{ s.listName("clients", kit.client_id) }} ·
+                  {{ kit.job_title }}
+                </h3>
+                <p class="muted small">
+                  Itens do kit já vêm marcados. Escolha o tamanho de cada um;
+                  você pode desmarcar itens e adicionar outros abaixo.
+                </p>
+                @for (row of kitRows; track $index) {
+                  <div class="kit-row" [class.out]="!kitHasStock(row.productId)">
+                    <label class="checkline"
+                      ><input
+                        type="checkbox"
+                        [(ngModel)]="row.include"
+                        [disabled]="!kitHasStock(row.productId)"
+                        [attr.aria-label]="
+                          'Incluir ' + s.product(row.productId)?.description
+                        "
+                      />{{ s.product(row.productId)?.description }}</label
+                    >
+                    <select
+                      [attr.aria-label]="
+                        'Tamanho de ' + s.product(row.productId)?.description
+                      "
+                      [(ngModel)]="row.size"
+                      [disabled]="!row.include"
+                    >
+                      <option value="">Escolher tamanho</option>
+                      @for (v of kitSizes(row.productId); track v.id) {
+                        <option [value]="v.size" [disabled]="available(v.id) < 1">
+                          {{ v.size }} · {{ available(v.id) }} disp.
+                        </option>
+                      }
+                    </select>
+                    @if (!kitHasStock(row.productId)) {
+                      <small class="stock-tag out" role="note"
+                        >Sem estoque — não pode ser incluído</small
+                      >
+                    }
+                  </div>
+                }
+                <button class="primary spaced" type="button" (click)="addKit()">
+                  Adicionar itens marcados à ficha
+                </button>
+              </section>
+            }
+            @if (browsing) {
+              <div class="equipment-grid">
+                @for (v of variants; track v.id) {
+                  <button
+                    class="equipment-card"
+                    [disabled]="!!preparedId || !available(v.id)"
+                    (click)="add(v)"
+                  >
+                    <strong>{{ s.product(v.product_id)?.description }}</strong
+                    ><small
+                      >CA {{ s.product(v.product_id)?.ca || "N/A" }} · Tam.
+                      {{ v.size }}</small
+                    ><span class="stock-tag" [class.out]="!available(v.id)">{{
+                      available(v.id)
+                        ? available(v.id) + " disponíveis · + 1 un."
+                        : unavailableReason(v.id)
+                    }}</span>
+                  </button>
+                } @empty {
+                  <div class="empty">Nenhum equipamento encontrado.</div>
+                }
+              </div>
+            } @else {
+              <div class="empty">
+                Pesquise ou filtre por categoria e tamanho para ver os
+                equipamentos, ou use “Ver todos os equipamentos”.
+              </div>
+            }
+          </div>
         </div>
         <div class="toolbar spaced">
           <button class="secondary" (click)="back()" [disabled]="s.busy()">

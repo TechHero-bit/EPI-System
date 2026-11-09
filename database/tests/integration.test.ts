@@ -81,7 +81,7 @@ before(async () => {
 after(async () => {
   await db.close();
 });
-test("arquivos de migrations são numerados de 001 a 009 sem lacunas", async () => {
+test("arquivos de migrations são numerados a partir de 001 sem lacunas", async () => {
   const files = (await readdir("database/supabase/migrations"))
     .filter((name) => name.endsWith(".sql"))
     .sort();
@@ -95,6 +95,10 @@ test("arquivos de migrations são numerados de 001 a 009 sem lacunas", async () 
     "007_manual_receipt.sql",
     "008_typed_signature.sql",
     "009_standard_equipment_sizes.sql",
+    "010_catalog_ca_inventory.sql",
+    "011_managed_lists_kits.sql",
+    "012_sheet_returns.sql",
+    "013_signer_identity_check.sql",
   ]);
   for (const [index, file] of files.entries()) {
     const source = await readFile(
@@ -601,6 +605,22 @@ test("link com hash, OTP, expiração e uso único mantém entrega física pende
     SIGNATURE_TERMS_VERSION,
     SIGNATURE_TERMS,
   ];
+  // Seed employees carry the fictitious test CPF: the link needs the API's identity check.
+  await assert.rejects(
+    one("select complete_signature($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+      link,
+      code,
+      null,
+      "test",
+      ...consent,
+      true,
+    ]),
+    /identidade/,
+  );
+  assert.equal(
+    (await one("select record_identity_check($1,true)as r", [link])).r,
+    "OK",
+  );
   await assert.rejects(
     one("select complete_signature($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
       link,

@@ -16,6 +16,12 @@ O Nº de Registro é a matrícula textual do cadastro, inclusive zeros à esquer
 
 O preenchimento é realizado por `company-form.service.ts`, compartilhado pela API e pela demonstração. O funcionamento da aplicação não depende de Excel, Python ou arquivos em Downloads. Matrícula e C.A. são texto para preservar zeros à esquerda. Admissão, demissão e entrega são datas nativas no XLSX; a data por extenso abaixo da declaração é a data de emissão em Brasília.
 
+## Devoluções e assinatura digital (09/11/2026)
+
+A cópia para impressão (PDF e XLSX) preenche as colunas que o modelo já tinha em branco quando há devolução registrada: **Data da Devolução**, **M.D.** (código da legenda do próprio modelo) e **Assinatura/Rubrica** da devolução ("Assinatura presencial"). Os dois formatos usam o mesmo planejamento de linhas e páginas. O rodapé "Assinado digitalmente" continua restrito às fichas assinadas eletronicamente.
+
+Avaliação de versão: **não foi criada uma V5**. O layout, o workbook-base e a impressão de fundo continuam os mesmos; as mudanças são dados preenchidos somente na cópia para impressão, a partir do snapshot congelado mais os registros de devolução e de assinatura. O PDF original armazenado, o snapshot e os hashes de fichas já emitidas não são reescritos. Novas emissões continuam com `COMPANY_EPI_2026_V4`.
+
 ## Reconstrução do asset (desenvolvimento, Windows)
 
 1. `node --import tsx Backend/scripts/prepare-company-template.ts "C:/Users/kevindesouza/Downloads/MODELO FICHA DE EPI 2026.xlsx"`

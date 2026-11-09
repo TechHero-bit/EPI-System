@@ -25,12 +25,31 @@ const methods: Record<string, Record<string, string>> = {
   },
   "/categories": { get: "Categorias utilizadas na organização" },
   "/variants": { post: "Cadastrar tamanho/SKU" },
+  "/products/{id}/sizes": {
+    put: "Definir a grade de tamanhos do equipamento; tamanho com saldo, reserva ou histórico é desativado, não removido",
+  },
+  "/ca/{number}": {
+    get: "Consultar C.A. na base CAEPI importada (ADMIN/ALMOXARIFADO/RH/SEGURANCA_TRABALHO); 404 permite cadastro manual",
+  },
   "/inventory/{id}/receive": {
-    post: "Entrada idempotente, exige idempotencyKey UUID",
+    post: "Entrada idempotente com quantidade e justificativa obrigatória (idempotencyKey UUID)",
+  },
+  "/inventory/{id}/withdraw": {
+    post: "Retirada fora de ficha, idempotente, com justificativa obrigatória",
   },
   "/inventory/{id}/adjust": {
-    post: "Ajuste idempotente por equipamento/tamanho com justificativa",
+    post: "Ajuste para mais ou para menos, idempotente, com justificativa obrigatória",
   },
+  "/admin/lists/{kind}": {
+    post: "Incluir cliente, unidade de trabalho ou RAC (kind: clients, work-units, racs; ADMIN)",
+  },
+  "/admin/lists/{kind}/{id}": {
+    patch: "Renomear, desativar ou reativar item da lista (ADMIN)",
+  },
+  "/kits": {
+    put: "Criar ou substituir o kit de EPIs de um par cliente e função (ADMIN/RH)",
+  },
+  "/kits/{id}": { delete: "Remover kit (ADMIN/RH)" },
   "/employees": { post: "Cadastrar colaborador (ADMIN/RH/SEGURANCA_TRABALHO)" },
   "/employees/{id}": {
     patch: "Editar colaborador",
@@ -58,7 +77,12 @@ const methods: Record<string, Record<string, string>> = {
   "/sheets/{id}/receipt": {
     post: "Confirmar entrega física e baixar reserva atomicamente",
   },
-  "/sheets/{id}/cancel": { post: "Cancelar reserva e invalidar links" },
+  "/sheets/{id}/cancel": {
+    post: "Cancelar ficha pendente com motivo obrigatório: libera reservas, invalida links e audita",
+  },
+  "/sheets/{id}/returns": {
+    post: "Registrar devolução de ficha entregue, somente acréscimo: motivo (M.D.) e destino por item, assinatura presencial",
+  },
   "/sheets/{id}/attachment": { post: "Anexar PDF presencial base64, até 5 MB" },
   "/sheets/{id}/attachments": {
     get: "Links autenticados temporários dos anexos",
@@ -69,7 +93,7 @@ const methods: Record<string, Record<string, string>> = {
     post: "Verificar OTP e obter URL do PDF exato por 60 segundos",
   },
   "/sign/{token}/confirm": {
-    post: "Confirmar OTP e aceite; assinatura não confirma entrega",
+    post: "Confirmar OTP, aceite e, se houver CPF cadastrado, nome completo + 3 primeiros e 3 últimos dígitos (cpfStart, cpfEnd). Cinco erros bloqueiam o link (423). A assinatura não confirma entrega",
   },
   "/reports": { get: "Indicadores da organização" },
   "/audit": { get: "Auditoria paginada por offset e limit" },
@@ -80,11 +104,18 @@ const methods: Record<string, Record<string, string>> = {
   },
   "/face-match/verify": { post: "Retorna 503 enquanto não configurado" },
 };
+const bodies: Record<string, string> = {
+  "post /sheets": "IssueSheet",
+  "post /sheets/{id}/returns": "SheetReturn",
+  "post /inventory/{id}/receive": "InventoryMovement",
+  "post /inventory/{id}/withdraw": "InventoryMovement",
+  "post /inventory/{id}/adjust": "InventoryMovement",
+};
 export const openapi = {
   openapi: "3.1.0",
   info: {
     title: "EPI System API",
-    version: "0.2.0",
+    version: "0.3.0",
     description:
       "Autenticação via Supabase Auth. Perfis por organização. Estoque físico só baixa na entrega.",
   },
@@ -94,6 +125,41 @@ export const openapi = {
     securitySchemes: { Bearer: { type: "http", scheme: "bearer" } },
     schemas: {
       SheetItem: item,
+      SheetReturn: {
+        type: "object",
+        required: ["returnedOn", "note", "idempotencyKey", "items"],
+        additionalProperties: false,
+        properties: {
+          returnedOn: { type: "string", format: "date" },
+          note: { type: "string", maxLength: 500, description: "Evidência da assinatura presencial" },
+          termination: { type: "boolean", default: false },
+          idempotencyKey: { type: "string", format: "uuid" },
+          items: {
+            type: "array",
+            minItems: 1,
+            maxItems: 30,
+            items: {
+              type: "object",
+              required: ["index", "reasonCode", "destination"],
+              additionalProperties: false,
+              properties: {
+                index: { type: "integer", minimum: 0, description: "Posição do item no snapshot" },
+                reasonCode: { enum: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14] },
+                destination: { enum: ["RESTOCK", "DISCARD"] },
+              },
+            },
+          },
+        },
+      },
+      InventoryMovement: {
+        type: "object",
+        required: ["quantity", "reason", "idempotencyKey"],
+        properties: {
+          quantity: { type: "integer", minimum: -100000, maximum: 100000 },
+          reason: { type: "string", minLength: 5, maxLength: 300 },
+          idempotencyKey: { type: "string", format: "uuid" },
+        },
+      },
       IssueSheet: {
         type: "object",
         required: [
@@ -141,13 +207,15 @@ export const openapi = {
               required: true,
               schema: { type: "string" },
             })),
-            ...(path === "/sheets" && method === "post"
+            ...(bodies[`${method} ${path}`]
               ? {
                   requestBody: {
                     required: true,
                     content: {
                       "application/json": {
-                        schema: { $ref: "#/components/schemas/IssueSheet" },
+                        schema: {
+                          $ref: `#/components/schemas/${bodies[`${method} ${path}`]}`,
+                        },
                       },
                     },
                   },
@@ -161,6 +229,7 @@ export const openapi = {
               "403": { description: "Perfil não autorizado" },
               "409": { description: "Conflito de estado ou saldo" },
               "410": { description: "Link expirado ou consumido" },
+              "423": { description: "Link bloqueado por tentativas de confirmação" },
               "429": { description: "Limite de tentativas" },
               "503": { description: "Integração indisponível" },
             },

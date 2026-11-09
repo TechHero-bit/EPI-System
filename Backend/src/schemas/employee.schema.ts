@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { required, isoDate } from "../services/portal.service.js";
+import { required, isoDate, uuid } from "../services/portal.service.js";
 export const employeeSchema = z.object({
   name: required.min(2).max(160),
   registration: required.max(50),
@@ -11,6 +11,9 @@ export const employeeSchema = z.object({
   phone: z.string().max(30).default(""),
   workUnit: z.string().trim().max(120).default(""),
   facialOptIn: z.boolean().default(false),
+  clientId: uuid.nullable().optional(),
+  workUnitId: uuid.nullable().optional(),
+  racIds: z.array(uuid).max(50).optional(),
   cpf: z
     .string()
     .transform((v) => v.replace(/\D/g, ""))

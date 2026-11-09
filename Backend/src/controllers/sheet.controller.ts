@@ -25,10 +25,51 @@ import {
 import {
   renderPdf,
   renderXlsx,
-  renderSignedPdf,
+  renderPrintablePdf,
   type SignaturePrintEvidence,
   type SheetSnapshot,
+  type SheetReturnPrint,
 } from "../services/document.service.js";
+import { sheetReturnSchema } from "../schemas/sheet.schema.js";
+
+/** Devoluções registradas (somente acréscimo), com seus itens. */
+async function sheetReturns(c: Context, sheetId: string) {
+  const returns = dbResult(
+    await c.admin
+      .from("sheet_returns")
+      .select("id,returned_on,termination,signature_method,signature_note,recorded_by,created_at")
+      .eq("sheet_id", sheetId)
+      .eq("organization_id", c.orgId)
+      .order("created_at"),
+  ) as any[];
+  const items = returns.length
+    ? (dbResult(
+        await c.admin
+          .from("sheet_return_items")
+          .select("return_id,item_index,reason_code,destination,variant_id")
+          .in(
+            "return_id",
+            returns.map((r) => r.id),
+          ),
+      ) as any[])
+    : [];
+  return returns.map((r) => ({
+    ...r,
+    items: items
+      .filter((i) => i.return_id === r.id)
+      .sort((a, b) => a.item_index - b.item_index),
+  }));
+}
+const printReturns = (
+  returns: Awaited<ReturnType<typeof sheetReturns>>,
+): SheetReturnPrint[] =>
+  returns.flatMap((r) =>
+    r.items.map((i: any) => ({
+      index: i.item_index,
+      date: r.returned_on,
+      reasonCode: i.reason_code,
+    })),
+  );
 
 async function printSignature(
   c: Context,
@@ -185,9 +226,12 @@ export const getsheetsIdPdf: RequestHandler<{
   if (sha256(bytes) !== sheet.pdf_sha256)
     throw error("Integridade do documento comprometida.", 500);
   const signature = await printSignature(c, sheet);
-  const printable = signature
-    ? await renderSignedPdf(bytes, sheet.snapshot, signature)
-    : bytes;
+  const returns = printReturns(await sheetReturns(c, sheet.id));
+  const printable = await renderPrintablePdf(
+    bytes,
+    { ...sheet.snapshot, returns },
+    signature,
+  );
   res
     .type("application/pdf")
     .set("Content-Disposition", `attachment; filename="ficha-${sheet.id}.pdf"`)
@@ -200,8 +244,9 @@ export const getsheetsIdXlsx: RequestHandler<{
 }> = async (req, res) => {
   const c = await context(req);
   const sheet = await getSheet(c, req.params.id);
+  const returns = printReturns(await sheetReturns(c, sheet.id));
   const bytes = await renderXlsx(
-    sheet.snapshot,
+    { ...sheet.snapshot, returns },
     await printSignature(c, sheet),
   );
   res
@@ -322,6 +367,7 @@ export const getsheetsId: RequestHandler<{
   const evidence = signature.data;
   res.json({
     ...sheet,
+    returns: await sheetReturns(c, sheet.id),
     electronic_signature: evidence?.signer_name
       ? {
           signerName: evidence.signer_name,
@@ -441,4 +487,30 @@ export const getsheetsIdAttachments: RequestHandler<{
       })),
     ),
   );
+};
+
+export const postsheetsIdReturns: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+) => {
+  const c = await context(req, ["ADMIN", "RH", "SEGURANCA"]);
+  const sheet = await getSheet(c, req.params.id);
+  const body = sheetReturnSchema.parse(req.body);
+  const id = dbResult(
+    await c.admin.rpc("register_sheet_return", {
+      p_org: c.orgId,
+      p_actor: c.userId,
+      p_sheet: sheet.id,
+      p_returned_on: body.returnedOn,
+      p_note: body.note,
+      p_items: body.items.map((i) => ({
+        item_index: i.index,
+        reason_code: i.reasonCode,
+        destination: i.destination,
+      })),
+      p_termination: body.termination,
+      p_key: body.idempotencyKey,
+    }),
+  );
+  res.status(201).json({ id });
 };

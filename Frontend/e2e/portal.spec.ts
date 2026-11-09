@@ -53,6 +53,7 @@ test("confirmação da seleção lista todas as unidades e só avança após con
   await page.goto("/rh/fichas/nova");
   await page.getByRole("button", { name: /Ana Martins/ }).click();
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   for (let i = 0; i < 2; i++)
     await page
       .getByRole("button", { name: /Bota de segurança em couro/ })
@@ -108,6 +109,7 @@ test("QR na revisão aguarda aceite em outra aba antes da ficha final", async ({
   await page.goto("/rh/fichas/nova");
   await page.getByRole("button", { name: /Ana Martins/ }).click();
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   await page
     .getByRole("button", { name: /Bota de segurança em couro/ })
     .click();
@@ -170,10 +172,20 @@ test("QR na revisão aguarda aceite em outra aba antes da ficha final", async ({
     signer.getByRole("button", { name: "Simular aceite" }),
   ).toBeDisabled();
   await signer.getByRole("checkbox").check();
+  // Confirmação por CPF de teste: 3 primeiros e 3 últimos dígitos.
+  await expect(
+    signer.getByRole("button", { name: "Simular aceite" }),
+  ).toBeDisabled();
+  await signer.getByLabel("3 primeiros dígitos").fill("934");
+  await signer.getByLabel("3 últimos dígitos").fill("010");
+  await signer.getByRole("checkbox").check();
   await signer.getByRole("button", { name: "Simular aceite" }).click();
   await expect(
     signer.getByRole("heading", { name: "Simulação concluída" }),
   ).toBeVisible();
+  await expect(signer.locator(".sign-card")).toContainText(
+    "Assinado digitalmente",
+  );
   await expect(signer.locator(".sign-card")).toContainText(
     "entrega física continua pendente",
   );
@@ -223,6 +235,7 @@ test("ficha final oferece apenas detalhes e confirma entrega junto da assinatura
   await page.goto("/rh/fichas/nova");
   await page.getByRole("button", { name: /Ana Martins/ }).click();
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   await page
     .getByRole("button", { name: /Bota de segurança em couro/ })
     .click();
@@ -417,7 +430,11 @@ test("cadastro simplificado cria e filtra uma categoria sem emotes", async ({
   await page
     .getByLabel("Nome da nova categoria", { exact: true })
     .fill("Proteção auditiva");
-  await page.getByLabel("Tamanho", { exact: true }).selectOption("M");
+  await page
+    .getByRole("radiogroup", { name: "Grade de tamanhos" })
+    .getByRole("radio", { name: "Letras" })
+    .check();
+  await page.getByRole("checkbox", { name: "Tamanho M", exact: true }).check();
   await page
     .getByRole("button", { name: "Salvar equipamento", exact: true })
     .click();
@@ -439,7 +456,7 @@ test("cadastro simplificado cria e filtra uma categoria sem emotes", async ({
   await expect(page.locator(".catalog")).toContainText(
     "Protetor auditivo de teste",
   );
-  await expect(page.locator(".catalog .variant-chips")).toHaveText("M");
+  await expect(page.locator(".catalog .variant-chips")).toHaveText("M 0 un.");
   await page.reload();
   const equipment = page
     .locator(".catalog .equipment-card")
@@ -543,7 +560,11 @@ test("cadastro exige tamanho sem solicitar código interno", async ({
   await page
     .getByLabel("Categoria", { exact: true })
     .selectOption("Luvas de proteção");
-  await page.getByLabel("Tamanho", { exact: true }).selectOption([]);
+  await page
+    .getByRole("radiogroup", { name: "Grade de tamanhos" })
+    .getByRole("radio", { name: "Letras" })
+    .check();
+  await expect(page.locator(".size-options input:checked")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Salvar equipamento", exact: true })
     .click();
@@ -552,7 +573,7 @@ test("cadastro exige tamanho sem solicitar código interno", async ({
       () => JSON.parse(localStorage.getItem("epi-demo-v3")!).products.length,
     ),
   ).toBe(8);
-  await page.getByLabel("Tamanho", { exact: true }).selectOption("G");
+  await page.getByRole("checkbox", { name: "Tamanho G", exact: true }).check();
   await page
     .getByRole("button", { name: "Salvar equipamento", exact: true })
     .click();
@@ -562,5 +583,5 @@ test("cadastro exige tamanho sem solicitar código interno", async ({
     .locator(".catalog .equipment-card")
     .filter({ hasText: "Equipamento com tamanho obrigatório" });
   await expect(cards).toHaveCount(1);
-  await expect(cards.locator(".variant-chips")).toHaveText("G");
+  await expect(cards.locator(".variant-chips")).toHaveText("G 0 un.");
 });

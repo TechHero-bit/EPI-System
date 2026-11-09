@@ -16,6 +16,7 @@ router.get(
   controller.getsheetsIdSignatureStatus,
 );
 router.post("/sheets/:id/cancel", controller.postsheetsIdCancel);
+router.post("/sheets/:id/returns", controller.postsheetsIdReturns);
 router.post("/sheets/:id/attachment", controller.postsheetsIdAttachment);
 router.get("/sheets/:id/attachments", controller.getsheetsIdAttachments);
 export default router;

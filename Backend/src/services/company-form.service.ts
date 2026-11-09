@@ -14,6 +14,10 @@ import type {
   SheetSnapshot,
   SignaturePrintEvidence,
 } from "./document.service.js";
+// Duplicated from document.service.ts to avoid a circular runtime import.
+const RETURN_SIGNATURE_TEXT = "Assinatura presencial";
+const returnFor = (s: SheetSnapshot, index: number) =>
+  s.returns?.find((r) => r.index === index);
 
 // V4 fills the company's printed form. V3 remains available for historical sheets.
 export const COMPANY_FORM_TEMPLATE = "COMPANY_EPI_2026_V4" as const;
@@ -166,7 +170,10 @@ function headerFields(s: SheetSnapshot) {
     ["A17:F17", "A17", `Rio de Janeiro, ${date}.`],
   ] as const;
 }
-function itemValues(item: SheetSnapshot["items"][number]) {
+function itemValues(
+  item: SheetSnapshot["items"][number],
+  returned?: { date: string; reasonCode: number },
+) {
   return [
     dateBR(item.date),
     "1",
@@ -175,13 +182,14 @@ function itemValues(item: SheetSnapshot["items"][number]) {
     item.brand,
     "",
     item.risk,
-    "/       /",
-    "",
-    "",
+    returned ? dateBR(returned.date) : "/       /",
+    returned ? String(returned.reasonCode) : "",
+    returned ? RETURN_SIGNATURE_TEXT : "",
   ];
 }
 type PlannedItem = {
   item: SheetSnapshot["items"][number];
+  index: number;
   slot: number;
   slots: number;
   lines: string[][];
@@ -189,10 +197,10 @@ type PlannedItem = {
 function plan(s: SheetSnapshot, font: PDFFont): PlannedItem[][] {
   const pages: PlannedItem[][] = [[]];
   let used = 0;
-  for (const item of s.items) {
+  for (const [index, item] of s.items.entries()) {
     if (item.quantity !== 1)
       throw new Error("Cada EPI deve ter quantidade igual a 1.");
-    const lines = itemValues(item).map((value, i) =>
+    const lines = itemValues(item, returnFor(s, index)).map((value, i) =>
       i === 7
         ? [value]
         : wrap(value, font, bodySize, box(columns[i]![0]).width - 2 * padding),
@@ -211,7 +219,7 @@ function plan(s: SheetSnapshot, font: PDFFont): PlannedItem[][] {
       pages.push([]);
       used = 0;
     }
-    pages.at(-1)!.push({ item, slot: used, slots, lines });
+    pages.at(-1)!.push({ item, index, slot: used, slots, lines });
     used += slots;
   }
   return pages;
@@ -304,6 +312,7 @@ export async function renderExactCompanyXlsx(
       const start = firstRow + entry.slot;
       const end = start + entry.slots - 1;
       ws.unMergeCells(`A${start}:O${end}`);
+      const returned = returnFor(s, entry.index);
       const values: ExcelJS.CellValue[] = [
         dateValue(entry.item.date),
         1,
@@ -312,9 +321,9 @@ export async function renderExactCompanyXlsx(
         entry.item.brand,
         signature ? styledSignature || "Assinado digitalmente" : null,
         entry.item.risk,
-        "/       /",
-        null,
-        null,
+        returned ? dateValue(returned.date) : "/       /",
+        returned ? returned.reasonCode : null,
+        returned ? RETURN_SIGNATURE_TEXT : null,
       ];
       for (const [i, [, left, right]] of columns.entries()) {
         for (let row = start; row <= end; row++)
@@ -327,7 +336,12 @@ export async function renderExactCompanyXlsx(
         // be overwritten when the following equipment cells are formatted.
         cell.style = structuredClone(cell.style);
         cell.value = values[i]!;
-        cell.numFmt = i === 0 ? "dd/mm/yyyy" : i === 1 ? "0" : "@";
+        cell.numFmt =
+          i === 0 || (i === 7 && returned)
+            ? "dd/mm/yyyy"
+            : i === 1 || (i === 8 && returned)
+              ? "0"
+              : "@";
         cell.font = { name: "Times New Roman", size: 12 };
         cell.alignment = {
           horizontal: "center",

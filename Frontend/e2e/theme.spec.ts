@@ -40,6 +40,7 @@ test("cliques próximos à borda selecionam colaborador e equipamento", async ({
     position: { x: 1, y: 20 },
     delay: 180,
   });
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   await page.getByRole("button", { name: /Bota de segurança em couro/ }).click({
     position: { x: 1, y: 30 },
     delay: 180,
@@ -93,6 +94,7 @@ test("temas seguem o sistema, persistem e cobrem login, ficha, modal e assinatur
   await page.goto("/rh/fichas/nova");
   await page.getByRole("button", { name: /Ana Martins/ }).click();
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   await page
     .getByRole("button", { name: /Bota de segurança em couro/ })
     .click();

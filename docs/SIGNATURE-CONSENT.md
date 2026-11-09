@@ -18,3 +18,12 @@ Nome, estilo, texto e versão do termo, data e hash do PDF são registrados na a
 A demonstração é fictícia, sem validade jurídica. No ambiente real, a visualização do documento exige validação do código enviado ao e-mail.
 
 Em bancos existentes com 001 a 007 aplicadas, executar somente `database/supabase/migrations/008_typed_signature.sql` antes de publicar a API atualizada. `database/setup.sql` é apenas para banco novo.
+
+## Confirmação por nome e CPF (09/11/2026)
+
+Na página pública, quando o colaborador tem CPF cadastrado, a confirmação passa a exigir, além do código enviado ao e-mail verificado: o nome completo e os 3 primeiros e os 3 últimos dígitos do CPF. A comparação é feita somente na API, contra o CPF cadastrado, por HMAC de tamanho fixo em tempo constante. A mensagem de erro é genérica e não indica qual campo falhou. O CPF, ou parte dele, nunca é devolvido à página pública nem gravado em log, auditoria, link ou evidência; a página recebe apenas a indicação de que a etapa é necessária. Cada link aceita até 5 tentativas incorretas, contadas no Postgres (`signing_links.identity_attempts`); na quinta, o link é bloqueado (HTTP 423), o evento `SIGNING_LINK_BLOCKED` é auditado e o RH gera outro link. Os limites anteriores continuam: link de 24 horas, código de 10 minutos, 5 tentativas do código, 3 envios e limitação de requisições. Colaborador sem CPF cadastrado mantém o fluxo anterior. A evidência registra `authentication = VERIFIED_EMAIL_OTP+NAME_CPF_DIGITS` quando a etapa foi usada.
+
+## Indicação "Assinado digitalmente"
+
+A indicação no rodapé do PDF e do XLSX das fichas assinadas eletronicamente já existia (cópia para impressão) e foi mantida. A tela de aceite agora informa, antes da confirmação, que a ficha será marcada como "Assinado digitalmente" e, ao concluir, exibe a mesma indicação com a única referência legal já documentada acima: assinatura eletrônica simples, MP 2.200-2/2001, art. 10, § 2º, sem certificado ICP-Brasil. Fichas assinadas presencialmente não recebem a indicação. Não foi criado texto jurídico novo e o termo continua em `EPI-ELECTRONIC-SIMPLE-V2`.
+

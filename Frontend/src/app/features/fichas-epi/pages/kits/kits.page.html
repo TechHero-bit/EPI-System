@@ -1,0 +1,116 @@
+<div class="page-head">
+  <div>
+    <h1>Kits de EPI</h1>
+    <p>
+      Conjunto de EPIs por cliente e função. Ao montar a ficha, os itens do kit
+      vêm marcados e o operador escolhe o tamanho de cada um.
+    </p>
+  </div>
+</div>
+@if (canEdit) {
+  <section class="panel">
+    <h2>{{ editingId ? "Editar kit" : "Novo kit" }}</h2>
+    <form (ngSubmit)="save()">
+      <div class="form-grid">
+        <label class="field"
+          >Cliente<select name="client" [(ngModel)]="clientId" required>
+            <option value="">Selecionar</option>
+            @for (c of clients; track c.id) {
+              <option [value]="c.id">{{ c.name }}</option>
+            }
+          </select></label
+        >
+        <label class="field"
+          >Função<input
+            name="jobTitle"
+            [(ngModel)]="jobTitle"
+            list="kit-job-titles"
+            maxlength="120"
+            required
+        /></label>
+        <datalist id="kit-job-titles">
+          @for (job of jobTitles; track job) {
+            <option [value]="job"></option>
+          }
+        </datalist>
+      </div>
+      <fieldset class="size-grid spaced">
+        <legend>EPIs e quantidade de unidades</legend>
+        <div class="kit-products">
+          @for (p of products; track p.id) {
+            <label class="field"
+              >{{ p.description }}<input
+                type="number"
+                min="0"
+                max="15"
+                [name]="'qty-' + p.id"
+                [attr.aria-label]="'Quantidade de ' + p.description"
+                [(ngModel)]="quantities[p.id]"
+            /></label>
+          }
+        </div>
+        <p class="note">
+          Total: {{ total }} de 15 unidades (limite da ficha). Deixe em branco ou
+          0 os EPIs que não fazem parte do kit.
+        </p>
+      </fieldset>
+      <div class="toolbar spaced">
+        <button
+          class="primary"
+          [disabled]="s.busy() || !clientId || !jobTitle.trim() || !total || total > 15"
+        >
+          Salvar kit
+        </button>
+        @if (editingId) {
+          <button type="button" class="secondary" (click)="reset()">
+            Cancelar edição
+          </button>
+        }
+      </div>
+    </form>
+  </section>
+}
+<section class="panel">
+  <h2>Kits cadastrados</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Cliente</th>
+          <th scope="col">Função</th>
+          <th scope="col">Itens</th>
+          @if (canEdit) {
+            <th scope="col">Ações</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (k of kits; track k.id) {
+          <tr>
+            <td>{{ k.client || "—" }}</td>
+            <td>{{ k.job_title }}</td>
+            <td>
+              @for (i of k.items; track i.product_id) {
+                <div>{{ i.quantity }} × {{ productName(i.product_id) }}</div>
+              }
+            </td>
+            @if (canEdit) {
+              <td>
+                <button class="secondary" (click)="edit(k)">Editar</button>
+                <button class="secondary" (click)="remove(k)" [disabled]="s.busy()">
+                  Remover
+                </button>
+              </td>
+            }
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="canEdit ? 4 : 3" class="empty">
+              Nenhum kit cadastrado.
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

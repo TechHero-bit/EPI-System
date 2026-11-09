@@ -3,6 +3,13 @@ import { DatePipe } from "@angular/common";
 import { RouterLink } from "@angular/router";
 import { PortalStore } from "../../../../core/services/portal.service";
 import { StatusComponent } from "../../../../shared/components/status-badge/status-badge.component";
+import { today } from "../../../../core/models/portal.model";
+import {
+  caAlertLevel,
+  caAlertLabel,
+  daysUntil,
+  CA_ALERT_LEVELS,
+} from "../../../../../../../contracts/ca-alerts.mjs";
 @Component({
   standalone: true,
   imports: [RouterLink, DatePipe, StatusComponent],
@@ -82,14 +89,27 @@ export class DashboardComponent {
       );
     });
   }
-  get expiring() {
+  /** C.A. vencidos ou a vencer em 30, 15 e 7 dias, do mais urgente ao menos urgente. */
+  get caAlerts() {
+    const order = CA_ALERT_LEVELS.map((l) => l.id as string);
     return this.s
       .data()
-      .products.filter(
-        (l) =>
-          l.ca_expires_at &&
-          new Date(l.ca_expires_at).getTime() < Date.now() + 30 * 86400000,
-      ).length;
+      .products.filter((p) => p.active)
+      .map((p) => ({ product: p, level: caAlertLevel(p.ca_expires_at, today()) }))
+      .filter((a) => a.level)
+      .map((a) => ({
+        ...a,
+        label: caAlertLabel(a.level!),
+        days: daysUntil(a.product.ca_expires_at, today()),
+      }))
+      .sort((a, b) => order.indexOf(a.level!) - order.indexOf(b.level!) || a.days - b.days);
+  }
+  caCount(level: string) {
+    return this.caAlerts.filter((a) => a.level === level).length;
+  }
+  readonly caLevels = CA_ALERT_LEVELS;
+  get expiring() {
+    return this.caAlerts.length;
   }
   get categoryCounts() {
     return [...new Set(this.s.data().products.map((p) => p.category))].map(

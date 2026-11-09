@@ -49,6 +49,11 @@
         <p class="signature-preview" [style.font-family]="signatureFont">
           {{ signerName }}
         </p>
+        <p class="digital-mark"><strong>Assinado digitalmente</strong></p>
+        <p class="muted small">
+          Assinatura eletrônica simples (MP 2.200-2/2001, art. 10, § 2º). Não
+          utiliza certificado ICP-Brasil.
+        </p>
         <p>O nome, o estilo e o aceite foram registrados com a ficha.</p>
       </div>
     } @else if (!sent) {
@@ -155,6 +160,37 @@
         @if (signerName.trim() && !validName) {
           <p role="alert">O nome deve corresponder ao titular da ficha.</p>
         }
+        @if (previewData.identityRequired) {
+          <fieldset class="cpf-check spaced" aria-describedby="cpf-help">
+            <legend>Confirme seu CPF</legend>
+            <p id="cpf-help" class="muted small">
+              Digite os 3 primeiros e os 3 últimos dígitos do seu CPF. Após 5
+              tentativas incorretas o link é bloqueado.
+            </p>
+            <div class="cpf-digits">
+              <label class="field" for="cpf-start">3 primeiros dígitos</label>
+              <input
+                id="cpf-start"
+                [(ngModel)]="cpfStart"
+                (ngModelChange)="resetConsent()"
+                inputmode="numeric"
+                maxlength="3"
+                autocomplete="off"
+                pattern="[0-9]{3}"
+              />
+              <label class="field" for="cpf-end">3 últimos dígitos</label>
+              <input
+                id="cpf-end"
+                [(ngModel)]="cpfEnd"
+                (ngModelChange)="resetConsent()"
+                inputmode="numeric"
+                maxlength="3"
+                autocomplete="off"
+                pattern="[0-9]{3}"
+              />
+            </div>
+          </fieldset>
+        }
         <label class="field" for="signature-style">Estilo da assinatura</label>
         <select
           id="signature-style"
@@ -190,9 +226,14 @@
             esta ficha.</span
           >
         </label>
+        <p class="note">
+          Ao concluir, a ficha será marcada como
+          <strong>“Assinado digitalmente”</strong> (assinatura eletrônica
+          simples, MP 2.200-2/2001, art. 10, § 2º).
+        </p>
         <button
           class="primary wide"
-          [disabled]="s.busy() || !accepted || !validName"
+          [disabled]="s.busy() || !accepted || !validName || !identityReady"
           (click)="confirm()"
         >
           {{ s.demo ? "Simular aceite" : "Concluir assinatura" }}

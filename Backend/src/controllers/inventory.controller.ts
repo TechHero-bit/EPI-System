@@ -2,9 +2,8 @@ import { RequestHandler } from "express";
 import { z } from "zod";
 
 import {
-  admin,
   uuid,
-  isoDate,
+  error,
   required,
   context,
   owned,
@@ -12,7 +11,7 @@ import {
   dbOk,
   audit,
 } from "../services/portal.service.js";
-import { token } from "../services/security.service.js";
+import { normalizeCaNumber } from "../services/ca-registry.service.js";
 
 import { productSchema } from "../schemas/product.schema.js";
 import { equipmentSizeSchema } from "../schemas/equipment-size.schema.js";
@@ -141,61 +140,77 @@ export const postvariants: RequestHandler<{
   res.status(201).json(data);
 };
 
-export const postInventoryReceive: RequestHandler<{
-  id: string;
-  token: string;
-}> = async (req, res) => {
+const movementSchema = z.object({
+  quantity: z.number().int().min(-100000).max(100000).refine((v) => v !== 0),
+  reason: required.min(5).max(300),
+  idempotencyKey: uuid,
+});
+
+// Every manual movement outside a sheet requires a justification (entry, withdrawal, adjustment).
+const moveInventory =
+  (operation: "RECEIPT" | "WITHDRAWAL" | "ADJUSTMENT"): RequestHandler<{
+    id: string;
+  }> =>
+  async (req, res) => {
+    const c = await context(req, ["ADMIN", "ALMOXARIFADO"]);
+    const body = movementSchema.parse(req.body);
+    if (operation !== "ADJUSTMENT" && body.quantity < 1)
+      throw error("Informe uma quantidade positiva.");
+    const stock = dbResult(
+      await c.admin.rpc("move_inventory", {
+        p_org: c.orgId,
+        p_actor: c.userId,
+        p_variant: uuid.parse(req.params.id),
+        p_operation: operation,
+        p_quantity: body.quantity,
+        p_reason: body.reason,
+        p_key: body.idempotencyKey,
+      }),
+    );
+    res.json({ stockQuantity: stock });
+  };
+export const postInventoryReceive = moveInventory("RECEIPT");
+export const postInventoryWithdraw = moveInventory("WITHDRAWAL");
+export const postInventoryAdjust = moveInventory("ADJUSTMENT");
+
+export const putProductSizes: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+) => {
   const c = await context(req, ["ADMIN", "ALMOXARIFADO"]);
   const body = z
-    .object({
-      quantity: z.number().int().positive().max(100000),
-      reason: z.string().max(300).default(""),
-      idempotencyKey: uuid,
-    })
+    .object({ sizes: z.array(equipmentSizeSchema).min(1).max(81) })
     .parse(req.body);
-  const data = dbResult(
-    await c.admin.rpc("operate_inventory", {
+  await owned(c, "products", req.params.id);
+  const changes = dbResult(
+    await c.admin.rpc("sync_product_sizes", {
       p_org: c.orgId,
       p_actor: c.userId,
-      p_variant: uuid.parse(req.params.id),
-      p_quantity: body.quantity,
-      p_reason: body.reason,
-      p_adjust: false,
-      p_key: body.idempotencyKey,
+      p_product: req.params.id,
+      p_sizes: [...new Set(body.sizes)],
     }),
   );
-  res.json({ stockQuantity: data });
+  res.json({ changes });
 };
 
-export const postInventoryAdjust: RequestHandler<{
-  id: string;
-  token: string;
-}> = async (req, res) => {
-  const c = await context(req, ["ADMIN", "ALMOXARIFADO"]);
-  const b = z
-    .object({
-      quantity: z
-        .number()
-        .int()
-        .min(-100000)
-        .max(100000)
-        .refine((v) => v !== 0),
-      reason: required.min(5).max(300),
-      idempotencyKey: uuid,
-    })
-    .parse(req.body);
-  const stock = dbResult(
-    await c.admin.rpc("operate_inventory", {
-      p_org: c.orgId,
-      p_actor: c.userId,
-      p_variant: uuid.parse(req.params.id),
-      p_quantity: b.quantity,
-      p_reason: b.reason,
-      p_adjust: true,
-      p_key: b.idempotencyKey,
-    }),
-  );
-  res.json({ stockQuantity: stock });
+export const getCaRegistry: RequestHandler<{ number: string }> = async (
+  req,
+  res,
+) => {
+  const c = await context(req, ["ADMIN", "ALMOXARIFADO", "RH", "SEGURANCA"]);
+  const ca = normalizeCaNumber(req.params.number);
+  if (!ca) throw error("Informe somente os números do C.A.");
+  const result = await c.admin
+    .from("ca_registry")
+    .select(
+      "ca_number,expires_at,status,equipment_name,equipment_description,manufacturer,brand,imported_at",
+    )
+    .eq("ca_number", ca)
+    .maybeSingle();
+  dbOk(result);
+  if (!result.data)
+    throw error("C.A. não encontrado na base importada. Preencha manualmente.", 404);
+  res.json(result.data);
 };
 
 export const getcategories: RequestHandler<{

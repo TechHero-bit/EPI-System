@@ -9,6 +9,7 @@ import employeeRoutes from "./routes/employee.routes.js";
 import sheetRoutes from "./routes/sheet.routes.js";
 import signatureRoutes from "./routes/signature.routes.js";
 import administrationRoutes from "./routes/administration.routes.js";
+import listRoutes from "./routes/lists.routes.js";
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
@@ -24,7 +25,7 @@ app.use(
       const allowed = process.env.APP_ORIGIN || "http://localhost:4200";
       callback(null, {
         origin: req.header("origin") === allowed ? allowed : false,
-        methods: ["GET", "POST", "PATCH", "DELETE"],
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
         allowedHeaders: ["Authorization", "Content-Type", "X-Organization-Id"],
       });
     } catch (e) {
@@ -40,6 +41,7 @@ app.use("/api", employeeRoutes);
 app.use("/api", sheetRoutes);
 app.use("/api", signatureRoutes);
 app.use("/api", administrationRoutes);
+app.use("/api", listRoutes);
 app.use((_req, res) =>
   res.status(404).json({ error: "Endpoint não encontrado." }),
 );

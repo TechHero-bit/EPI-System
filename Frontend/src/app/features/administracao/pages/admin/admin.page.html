@@ -59,6 +59,60 @@
     </p>
   }
 </section>
+<section class="panel" aria-labelledby="lists-title">
+  <h2 id="lists-title">Listas gerenciadas</h2>
+  <p class="muted">
+    Clientes, unidades de trabalho e RACs usados no cadastro de colaboradores e
+    nos kits de EPI. Itens desativados continuam nos cadastros existentes, mas
+    não aparecem para novas escolhas.
+  </p>
+  <div class="lists-grid">
+    @for (list of listKinds; track list.kind) {
+      <section class="list-admin" [attr.aria-label]="list.label">
+        <h3>{{ list.label }}</h3>
+        <form class="copy-row" (ngSubmit)="addItem(list.kind)">
+          <input
+            [name]="'new-' + list.kind"
+            [attr.aria-label]="'Novo ' + list.singular"
+            [(ngModel)]="drafts[list.kind]"
+            maxlength="160"
+            [placeholder]="'Nome do ' + list.singular"
+          /><button
+            class="secondary"
+            [disabled]="s.busy() || !(drafts[list.kind] || '').trim()"
+          >
+            Incluir
+          </button>
+        </form>
+        <ul class="list-items">
+          @for (row of rows(list.key); track row.id) {
+            <li [class.inactive]="!row.active">
+              <input
+                #name
+                [attr.aria-label]="'Nome: ' + row.name"
+                [value]="row.name"
+                maxlength="160"
+                (change)="renameItem(list.kind, row, name.value)"
+              />
+              <button
+                class="secondary"
+                [disabled]="s.busy()"
+                (click)="toggleItem(list.kind, row)"
+              >
+                {{ row.active ? "Desativar" : "Reativar" }}
+              </button>
+              @if (!row.active) {
+                <small>Inativo</small>
+              }
+            </li>
+          } @empty {
+            <li class="empty">Nenhum item cadastrado.</li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+</section>
 <div class="two-col">
   <section class="panel">
     <h2>FaceMatch</h2>
@@ -76,8 +130,8 @@
     </p>
     <p class="muted">
       Modelo corporativo Centauro baseado no Excel fornecido. O Nº de Registro
-      corresponde à matrícula do colaborador. Quantidade fixa em 1; rubrica por
-      linha, devolução e M.D. não aparecem no assistente.
+      corresponde à matrícula do colaborador. Quantidade fixa em 1. Devoluções
+      são registradas a partir da ficha entregue.
     </p>
     @if (s.demo) {
       <button class="secondary" (click)="s.resetDemo()">

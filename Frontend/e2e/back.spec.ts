@@ -18,6 +18,7 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
   await page.getByRole("link", { name: "+ Montar ficha", exact: true }).click();
   await page.getByRole("button", { name: /Ana Martins/ }).click();
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   await page
     .getByRole("button", { name: /Bota de segurança em couro/ })
     .click();
@@ -31,6 +32,7 @@ test("voltar preserva o rascunho e permite trocar assinatura após cancelar a re
     /selected/,
   );
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   await page.getByRole("button", { name: "Revisar seleção →" }).click();
   await page.getByRole("button", { name: "Confirmar e avançar →" }).click();
   await expect(

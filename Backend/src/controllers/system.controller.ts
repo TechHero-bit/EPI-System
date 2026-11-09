@@ -166,8 +166,46 @@ export const getbootstrap: RequestHandler<{
         await c.admin.from("sheet_state").select("*").in("sheet_id", sheetIds),
       )
     : [];
+  // Managed lists and kits are HR data; the warehouse profile does not receive them.
+  const hr = c.role !== "ALMOXARIFADO";
+  const list = async (table: string, columns = "*") =>
+    hr
+      ? dbResult(
+          await c.admin
+            .from(table)
+            .select(columns)
+            .eq("organization_id", c.orgId)
+            .order(table === "epi_kits" ? "job_title" : "name"),
+        )
+      : [];
+  const [clients, workUnits, racs, kits] = await Promise.all([
+    list("clients"),
+    list("work_units"),
+    list("racs"),
+    list("epi_kits"),
+  ]);
+  const employeeIds = hr ? (employees.data ?? []).map((e: any) => e.id) : [];
+  const employeeRacs = employeeIds.length
+    ? dbResult(
+        await c.admin.from("employee_racs").select("*").in("employee_id", employeeIds),
+      )
+    : [];
+  const kitItems = kits.length
+    ? dbResult(
+        await c.admin
+          .from("epi_kit_items")
+          .select("*")
+          .in("kit_id", kits.map((k: any) => k.id)),
+      )
+    : [];
   res.json({
     organization: org.data,
+    clients,
+    workUnits,
+    racs,
+    employeeRacs,
+    kits,
+    kitItems,
     role: c.role,
     employees: employees.data,
     products: products.data,

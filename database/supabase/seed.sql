@@ -8,8 +8,9 @@ begin
 insert into public.organizations(id,name)values(org,'Horizonte - Empresa fictícia')on conflict(id)do nothing;
 select exists(select 1 from public.audit_events where organization_id=org and action='DEVELOPMENT_STOCK_SEEDED')into seeded;
 for i in 1..10 loop
- insert into public.employees(id,organization_id,name,registration,department,job_title,admission_date,work_unit)
- values(md5('epi-demo-employee-'||i)::uuid,org,names[i],'DEMO-'||i,case when i%2=0 then 'Manutenção'else 'Operações'end,'Operador(a)',current_date-90,'Unidade fictícia')on conflict(id)do nothing;
+ -- CPF de teste fictício (válido no dígito verificador), igual para todos. Nunca use CPF real.
+ insert into public.employees(id,organization_id,name,registration,department,job_title,admission_date,work_unit,cpf)
+ values(md5('epi-demo-employee-'||i)::uuid,org,names[i],'DEMO-'||i,case when i%2=0 then 'Manutenção'else 'Operações'end,'Operador(a)',current_date-90,'Unidade fictícia','93492854010')on conflict(id)do nothing;
 end loop;
 for i in 1..8 loop
  p:=md5('epi-demo-product-'||i)::uuid;v:=md5('epi-demo-variant-'||i)::uuid;

@@ -967,3 +967,20 @@ textarea::placeholder {
   font-weight: 400;
   font-display: block;
 }
+.cpf-check {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.cpf-digits {
+  display: grid;
+  grid-template-columns: auto 90px;
+  gap: 6px 12px;
+  align-items: center;
+}
+.cpf-digits .field {
+  margin: 0;
+}
+.digital-mark {
+  margin: 4px 0 0;
+}

@@ -1,11 +1,17 @@
 import { computed, Injectable, signal } from "@angular/core";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { DemoRepository, makeDemoData } from "./demo-repository.service";
+import {
+  DemoRepository,
+  makeDemoData,
+  type MovementOperation,
+} from "./demo-repository.service";
 import { isEquipmentSize } from "../../../../../contracts/equipment-sizes.mjs";
 import {
   emptyData,
   type Role,
   type DraftItem,
+  type ListKind,
+  normalizeJobTitle,
   roleNames,
 } from "../models/portal.model";
 
@@ -256,24 +262,96 @@ export class PortalStore {
       await this.load();
     }
   }
-  async movement(
-    id: string,
-    quantity: number,
-    reason: string,
-    adjust: boolean,
-    key: string,
-  ) {
+  async saveListItem(kind: ListKind, body: { name?: string; active?: boolean }, id?: string) {
     if (this.demo) {
-      this.repository.movement(id, quantity, reason, adjust);
+      this.repository.listItem(kind, body, id);
       this.persist();
     } else {
       await this.request(
-        `/api/inventory/${id}/${adjust ? "adjust" : "receive"}`,
-        "POST",
-        { quantity, reason, idempotencyKey: key },
+        id ? `/api/admin/lists/${kind}/${id}` : `/api/admin/lists/${kind}`,
+        id ? "PATCH" : "POST",
+        body,
       );
       await this.load();
     }
+  }
+  async saveKit(clientId: string, jobTitle: string, items: { productId: string; quantity: number }[]) {
+    if (this.demo) {
+      this.repository.saveKit(clientId, jobTitle, items);
+      this.persist();
+    } else {
+      await this.request("/api/kits", "PUT", { clientId, jobTitle, items });
+      await this.load();
+    }
+  }
+  async deleteKit(id: string) {
+    if (this.demo) {
+      this.repository.deleteKit(id);
+      this.persist();
+    } else {
+      await this.request(`/api/kits/${id}`, "DELETE");
+      await this.load();
+    }
+  }
+  /** Kit do par cliente e função do colaborador, se houver. */
+  kitFor(employee: any) {
+    if (!employee?.client_id) return undefined;
+    const kit = (this.data().kits ?? []).find(
+      (k) =>
+        k.client_id === employee.client_id &&
+        normalizeJobTitle(k.job_title) === normalizeJobTitle(employee.job_title),
+    );
+    if (!kit) return undefined;
+    return {
+      ...kit,
+      items: (this.data().kitItems ?? []).filter((i) => i.kit_id === kit.id),
+    };
+  }
+  listName(kind: "clients" | "workUnits" | "racs", id: string | null | undefined) {
+    return ((this.data()[kind] ?? []) as any[]).find((row) => row.id === id)?.name ?? "";
+  }
+  employeeRacIds(employeeId: string) {
+    return (this.data().employeeRacs ?? [])
+      .filter((r) => r.employee_id === employeeId)
+      .map((r) => r.rac_id);
+  }
+  async movement(
+    id: string,
+    operation: MovementOperation,
+    quantity: number,
+    reason: string,
+    key: string,
+  ) {
+    if (this.demo) {
+      this.repository.movement(id, operation, quantity, reason);
+      this.persist();
+    } else {
+      const path = { RECEIPT: "receive", WITHDRAWAL: "withdraw", ADJUSTMENT: "adjust" }[operation];
+      await this.request(`/api/inventory/${id}/${path}`, "POST", {
+        quantity,
+        reason,
+        idempotencyKey: key,
+      });
+      await this.load();
+    }
+  }
+  async syncSizes(productId: string, sizes: string[]) {
+    let changes;
+    if (this.demo) {
+      changes = this.repository.syncSizes(productId, sizes);
+      this.persist();
+    } else {
+      changes = (
+        await this.request(`/api/products/${productId}/sizes`, "PUT", { sizes })
+      ).changes;
+      await this.load();
+    }
+    return changes as { size: string; result: string }[];
+  }
+  /** Consulta a base de C.A. importada (modo real) ou o conjunto fictício (demo). */
+  async caLookup(ca: string) {
+    if (this.demo) return this.repository.caLookup(ca);
+    return this.request(`/api/ca/${encodeURIComponent(ca.trim())}`);
   }
   async issue(
     employeeId: string,
@@ -305,9 +383,23 @@ export class PortalStore {
     return value;
   }
   async sheet(id: string) {
-    return this.demo
-      ? this.data().sheets.find((s) => s.id === id)
-      : this.request(`/api/sheets/${id}`);
+    if (!this.demo) return this.request(`/api/sheets/${id}`);
+    const sheet = this.data().sheets.find((s) => s.id === id);
+    return sheet
+      ? {
+          ...sheet,
+          returns: (this.data().returns ?? []).filter((r) => r.sheet_id === id),
+        }
+      : undefined;
+  }
+  async registerReturn(sheetId: string, body: any) {
+    if (this.demo) {
+      this.repository.registerReturn(sheetId, body);
+      this.persist();
+    } else {
+      await this.request(`/api/sheets/${sheetId}/returns`, "POST", body);
+      await this.load();
+    }
   }
   async receipt(id: string, note: string) {
     if (this.demo) {
@@ -356,10 +448,7 @@ export class PortalStore {
     let bytes: Blob;
     if (this.demo) {
       const { demoDocument } = await import("../../shared/utils/demo-document");
-      bytes = await demoDocument(
-        this.data().sheets.find((s) => s.id === id),
-        kind,
-      );
+      bytes = await demoDocument(await this.sheet(id), kind);
     } else {
       const session = (await this.client!.auth.getSession()).data.session;
       const res = await fetch(`${this.base}/api/sheets/${id}/${kind}`, {

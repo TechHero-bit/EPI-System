@@ -45,7 +45,16 @@ export type SheetSnapshot = {
   requestKey?: string;
   organizationName?: string;
   demonstration?: boolean;
+  /** Somente para a cópia de impressão; nunca faz parte do snapshot emitido. */
+  returns?: SheetReturnPrint[];
 };
+/** Devolução registrada para um item (posição no snapshot), mostrada na cópia impressa. */
+export type SheetReturnPrint = {
+  index: number;
+  date: string;
+  reasonCode: number;
+};
+export const RETURN_SIGNATURE_TEXT = "Assinatura presencial";
 export type SignaturePrintEvidence = {
   signerName: string;
   signatureStyle?: string | null;
@@ -65,6 +74,20 @@ export async function renderSignedPdf(
     printable,
     signature,
   );
+}
+/**
+ * Cópia para impressão: o original armazenado (sem assinatura nem devoluções) ou,
+ * quando houver assinatura eletrônica ou devoluções, o layout V4 preenchido.
+ * O PDF original e o seu hash não são alterados.
+ */
+export async function renderPrintablePdf(
+  original: Uint8Array,
+  s: SheetSnapshot,
+  signature?: SignaturePrintEvidence,
+) {
+  if (signature) return renderSignedPdf(original, s, signature);
+  if (!s.returns?.length) return original;
+  return renderExactCompanyPdf({ ...s, template: "COMPANY_EPI_2026_V4" });
 }
 export const generationDate = (timestamp: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
@@ -270,7 +293,7 @@ export async function renderXlsx(
   signature?: SignaturePrintEvidence,
 ): Promise<Uint8Array> {
   if (s.items.length > 15) throw new Error("Limite de 15 itens por ficha.");
-  if (signature)
+  if (signature || s.returns?.length)
     return renderExactCompanyXlsx(
       { ...s, template: "COMPANY_EPI_2026_V4" },
       signature,

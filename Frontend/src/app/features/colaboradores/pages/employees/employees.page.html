@@ -42,9 +42,23 @@
             name="department"
             [(ngModel)]="form.department" /></label
         ><label class="field"
-          >Unidade de trabalho<input
-            name="unit"
-            [(ngModel)]="form.workUnit" /></label
+          >Cliente<select name="client" [(ngModel)]="form.clientId">
+            <option value="">Sem cliente</option>
+            @for (c of options("clients", [form.clientId]); track c.id) {
+              <option [value]="c.id">
+                {{ c.name }}{{ c.active ? "" : " (inativo)" }}
+              </option>
+            }
+          </select></label
+        ><label class="field"
+          >Unidade de trabalho<select name="unit" [(ngModel)]="form.workUnitId">
+            <option value="">Sem unidade</option>
+            @for (u of options("workUnits", [form.workUnitId]); track u.id) {
+              <option [value]="u.id">
+                {{ u.name }}{{ u.active ? "" : " (inativo)" }}
+              </option>
+            }
+          </select></label
         ><label class="field"
           >E-mail pessoal<input
             name="email"
@@ -68,6 +82,23 @@
             [(ngModel)]="form.terminationDate"
         /></label>
       </div>
+      <fieldset class="rac-choice spaced">
+        <legend>RACs</legend>
+        @for (r of options("racs", form.racIds); track r.id) {
+          <label class="checkline"
+            ><input
+              type="checkbox"
+              [name]="'rac-' + r.id"
+              [checked]="form.racIds.includes(r.id)"
+              (change)="toggleRac(r.id, $any($event.target).checked)"
+            />{{ r.name }}{{ r.active ? "" : " (inativo)" }}</label
+          >
+        } @empty {
+          <small class="muted"
+            >Nenhum RAC cadastrado. A Administração gerencia esta lista.</small
+          >
+        }
+      </fieldset>
       <p class="note">
         A matrícula é exclusiva deste colaborador na empresa e será o Nº de
         Registro de suas fichas. Informe o código completo, incluindo zeros à
@@ -113,6 +144,24 @@
         <option value="active">Ativos</option>
         <option value="inactive">Inativos</option>
       </select>
+      <select aria-label="Filtrar cliente" [(ngModel)]="clientFilter">
+        <option value="">Todos os clientes</option>
+        @for (c of allOptions("clients"); track c.id) {
+          <option [value]="c.id">{{ c.name }}</option>
+        }
+      </select>
+      <select aria-label="Filtrar unidade" [(ngModel)]="unitFilter">
+        <option value="">Todas as unidades</option>
+        @for (u of allOptions("workUnits"); track u.id) {
+          <option [value]="u.id">{{ u.name }}</option>
+        }
+      </select>
+      <select aria-label="Filtrar RAC" [(ngModel)]="racFilter">
+        <option value="">Todos os RACs</option>
+        @for (r of allOptions("racs"); track r.id) {
+          <option [value]="r.id">{{ r.name }}</option>
+        }
+      </select>
     </div>
     <div class="table-wrap">
       <table>
@@ -122,7 +171,9 @@
             <th>Cargo / setor</th>
             <th>Admissão</th>
             <th>Situação</th>
+            <th>Cliente / RACs</th>
             <th>Fichas</th>
+            <th>Última ficha assinada</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -143,9 +194,24 @@
                 }}</span>
               </td>
               <td>
+                {{ s.listName("clients", e.client_id) || "—" }}<br /><small>{{
+                  racNames(e.id) || "Sem RAC"
+                }}</small>
+              </td>
+              <td>
                 <a routerLink="/rh/fichas" [queryParams]="{ employee: e.id }"
                   >{{ sheetCount(e.id) }} fichas</a
                 >
+              </td>
+              <td>
+                @if (lastSigned(e.id); as last) {
+                  <a [routerLink]="['/rh/fichas', last.id]"
+                    >Versão {{ last.version }} ·
+                    {{ last.issued_at | date: "dd/MM/yyyy" }}</a
+                  >
+                } @else {
+                  <small class="muted">Nenhuma</small>
+                }
               </td>
               <td>
                 <button class="secondary" (click)="edit(e)">Editar</button>
@@ -153,7 +219,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="empty">Nenhum colaborador encontrado.</td>
+              <td colspan="8" class="empty">Nenhum colaborador encontrado.</td>
             </tr>
           }
         </tbody>
@@ -200,4 +266,37 @@
       </button>
     </div>
   </section>
+}
+@if (terminated) {
+  <div class="modal-backdrop">
+    <section
+      class="panel modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="termination-title"
+    >
+      <h2 id="termination-title">Gerar devolução demissional?</h2>
+      @if (terminated.sheet) {
+        <p>
+          {{ terminated.employee.name }} teve a data de desligamento
+          registrada. Deseja abrir a devolução demissional com os itens da
+          última ficha assinada (versão {{ terminated.sheet.version }}, emitida
+          em {{ terminated.sheet.issued_at | date: "dd/MM/yyyy" }}) para o
+          colaborador assinar?
+        </p>
+        <div class="toolbar spaced">
+          <button class="primary" (click)="startTerminationReturn()">
+            Gerar devolução demissional
+          </button>
+          <button class="secondary" (click)="terminated = null">Agora não</button>
+        </div>
+      } @else {
+        <p>
+          {{ terminated.employee.name }} não tem ficha assinada com entrega
+          confirmada. Não há itens para devolução demissional.
+        </p>
+        <button class="secondary spaced" (click)="terminated = null">Fechar</button>
+      }
+    </section>
+  </div>
 }

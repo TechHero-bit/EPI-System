@@ -17,6 +17,7 @@
     "db:setup": "node database/scripts/build-setup.mjs",
     "db:check": "node database/scripts/build-setup.mjs --check",
     "api:docs": "node --import tsx Backend/scripts/write-openapi.ts",
+    "ca:import": "node --env-file-if-exists=.env --env-file-if-exists=Backend/.env --import tsx Backend/scripts/import-ca.ts",
     "documents:preview": "node --import tsx Backend/scripts/preview-document.ts",
     "typecheck": "npm run typecheck -w @epi/backend && npm run typecheck -w @epi/frontend"
   },

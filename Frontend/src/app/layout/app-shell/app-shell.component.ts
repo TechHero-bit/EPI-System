@@ -59,6 +59,12 @@ export class ShellComponent {
       roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
     },
     {
+      path: "/rh/kits",
+      label: "Kits de EPI",
+      icon: "M4 7h16v13H4zM9 7V4h6v3M4 12h16",
+      roles: ["ADMIN", "RH", "SEGURANCA_TRABALHO"],
+    },
+    {
       path: "/relatorios",
       label: "Relatórios",
       icon: "M4 3v17h17M8 16v-4m5 4V7m5 9v-6",

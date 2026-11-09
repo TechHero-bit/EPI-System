@@ -97,12 +97,30 @@ export const routes: Routes = [
         redirectTo: "/rh/fichas?status=PENDING",
       },
       {
+        path: "rh/kits",
+        canActivate: [access],
+        data: { roles: HR },
+        loadComponent: () =>
+          import("./features/fichas-epi/pages/kits/kits.page").then(
+            (m) => m.KitsComponent,
+          ),
+      },
+      {
         path: "rh/fichas/nova",
         canActivate: [access],
         data: { roles: HR },
         loadComponent: () =>
           import("./features/fichas-epi/pages/builder/builder.page").then(
             (m) => m.BuilderComponent,
+          ),
+      },
+      {
+        path: "rh/fichas/:id/devolucao",
+        canActivate: [access],
+        data: { roles: HR },
+        loadComponent: () =>
+          import("./features/fichas-epi/pages/return/return.page").then(
+            (m) => m.ReturnComponent,
           ),
       },
       {

@@ -18,5 +18,7 @@ export class StatusComponent {
     RECEIPT: "Entrada",
     ISSUE: "Saída",
     ADJUSTMENT: "Ajuste",
+    WITHDRAWAL: "Retirada",
+    RETURN: "Devolução",
   };
 }

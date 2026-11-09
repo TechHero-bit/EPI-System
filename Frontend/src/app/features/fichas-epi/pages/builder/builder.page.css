@@ -102,3 +102,43 @@
     width: 100%;
   }
 }
+.builder-browse {
+  display: grid;
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.toolbar.equipment-filters.filters-side {
+  grid-template-columns: 1fr;
+  margin-bottom: 0;
+}
+.filters-side select {
+  max-width: none;
+  width: 100%;
+}
+.kit-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel, 12px);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.kit-panel h3 {
+  margin: 0 0 4px;
+}
+.kit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 200px);
+  gap: 6px 12px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--row-rule, var(--border));
+}
+.kit-row .stock-tag {
+  grid-column: 1 / -1;
+}
+@media (max-width: 800px) {
+  .builder-browse,
+  .kit-row {
+    grid-template-columns: 1fr;
+  }
+}

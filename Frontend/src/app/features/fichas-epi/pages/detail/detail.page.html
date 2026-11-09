@@ -169,6 +169,48 @@
       />
     }
   </section>
+  <section class="panel" aria-labelledby="returns-title">
+    <div class="panel-title">
+      <h2 id="returns-title">Devoluções</h2>
+      @if (returnable) {
+        <a
+          class="secondary button-link"
+          [routerLink]="['/rh/fichas', id, 'devolucao']"
+          >Registrar devolução</a
+        >
+      }
+    </div>
+    @for (r of sheet.returns || []; track r.id) {
+      <div class="activity">
+        <div>
+          <strong
+            >{{ r.returned_on | date: "dd/MM/yyyy" }} ·
+            {{ r.termination ? "Devolução demissional" : "Devolução" }}</strong
+          >
+          @for (i of r.items; track i.item_index) {
+            <small
+              >{{ itemDescription(i.item_index) }} · M.D. {{ i.reason_code }} –
+              {{ reasonLabel(i.reason_code) }} ·
+              {{
+                i.destination === "RESTOCK"
+                  ? "voltou ao estoque"
+                  : "baixa como descarte/avaria"
+              }}</small
+            >
+          }
+          <small>Assinatura presencial: {{ r.signature_note }}</small>
+        </div>
+      </div>
+    } @empty {
+      <p class="muted">
+        {{
+          returnable
+            ? "Nenhuma devolução registrada."
+            : "Devolução disponível após a confirmação da entrega física."
+        }}
+      </p>
+    }
+  </section>
   <section class="panel">
     <h2>Histórico da ficha</h2>
     @if (sheet.electronic_signature; as signature) {

@@ -8,13 +8,16 @@ test("tamanhos fixos no cadastro e filtros de categoria, tamanho e busca na fich
   await page.getByRole("button", { name: "Entrar na demonstração" }).click();
   await page.waitForURL("**/dashboard");
   await page.goto("/almoxarifado/equipamentos/novo");
-  const size = page.getByLabel("Tamanho", { exact: true });
-  await expect(size).toHaveJSProperty("tagName", "SELECT");
-  await expect(size.locator("optgroup")).toHaveCount(3);
-  await expect(size.locator('optgroup[label="Números"] option')).toHaveCount(
-    70,
-  );
-  await size.selectOption("41");
+  const grid = page.getByRole("radiogroup", { name: "Grade de tamanhos" });
+  await expect(grid.getByRole("radio")).toHaveCount(3);
+  await grid.getByRole("radio", { name: "Números" }).check();
+  await expect(page.locator(".size-options input[type=checkbox]")).toHaveCount(70);
+  await page.getByLabel("Do número").fill("38");
+  await page.getByLabel("Até o número").fill("44");
+  await page.getByRole("button", { name: "Marcar intervalo" }).click();
+  await expect(page.locator(".size-options input:checked")).toHaveCount(7);
+  await page.getByRole("checkbox", { name: "Tamanho 44" }).uncheck();
+  await expect(page.locator("#size-help")).toContainText("Marcados: 38, 39, 40, 41, 42, 43.");
   await page
     .getByLabel("Descrição de E.P.I.", { exact: true })
     .fill("Bota teste padronizada");
@@ -39,6 +42,7 @@ test("tamanhos fixos no cadastro e filtros de categoria, tamanho e busca na fich
   await page.goto("/rh/fichas/nova");
   await page.getByRole("button", { name: /Ana Martins/ }).click();
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   const filters = page.locator(".equipment-filters");
   expect(
     await filters
@@ -51,7 +55,13 @@ test("tamanhos fixos no cadastro e filtros de categoria, tamanho e busca na fich
     .getByLabel("Categoria", { exact: true })
     .selectOption("Botas de segurança");
   await page.getByLabel("Tamanho", { exact: true }).selectOption("40");
-  await expect(page.locator(".equipment-grid .equipment-card")).toHaveCount(1);
+  // A bota cadastrada acima (38 a 43) também tem 40, mas sem saldo: aparece bloqueada.
+  await expect(page.locator(".equipment-grid .equipment-card")).toHaveCount(2);
+  const empty = page
+    .locator(".equipment-grid .equipment-card")
+    .filter({ hasText: "Bota teste padronizada" });
+  await expect(empty).toBeDisabled();
+  await expect(empty).toContainText("Sem estoque");
   await page
     .getByRole("button", { name: /Bota de segurança em couro/ })
     .click();

@@ -765,3 +765,184 @@ textarea::placeholder {
     display: none;
   }
 }
+
+/* Grade de tamanhos por equipamento e seletor de tamanho na movimentação. */
+.size-grid,
+.size-choice {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 10px);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.size-grid legend,
+.size-choice legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+.size-grid-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.size-range input {
+  max-width: 110px;
+}
+.size-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+}
+.size-option {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--bg-secondary);
+}
+.size-option > input {
+  margin: 0;
+}
+.size-option.checked {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.size-option small {
+  color: var(--text-muted);
+}
+.movement-picker {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+  gap: 14px;
+  align-items: start;
+}
+.size-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.size-choice .size-option {
+  min-width: 78px;
+}
+@media (max-width: 800px) {
+  .movement-picker {
+    grid-template-columns: 1fr;
+  }
+}
+.panel.inset {
+  box-shadow: none;
+  border: 1px dashed var(--border);
+  margin-top: 14px;
+}
+.chip.inactive {
+  opacity: 0.7;
+  text-decoration: line-through;
+}
+.variant-chips .chip b {
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+/* Alertas de validade do C.A.: texto sempre presente; destaque cresce com a urgência. */
+.ca-alert {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 0.76rem;
+  color: var(--warning);
+}
+.ca-alert.level-D15 {
+  font-weight: 600;
+  border-color: var(--warning);
+}
+.ca-alert.level-D7 {
+  font-weight: 700;
+  color: var(--danger);
+  border: 2px solid var(--danger);
+}
+.ca-alert.level-EXPIRED {
+  font-weight: 700;
+  color: var(--bg-secondary);
+  background: var(--danger);
+  border: 2px solid var(--danger);
+}
+.ca-alert-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.ca-alert-list .ca-alert {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.ca-alert-list .ca-alert span {
+  font-weight: 400;
+}
+.equipment-card.ca-flag {
+  border-color: var(--warning);
+}
+.ca-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.list-items {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 6px;
+}
+.list-items li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.list-items li input {
+  flex: 1;
+  min-width: 0;
+}
+.list-items li.inactive input {
+  opacity: 0.65;
+}
+.kit-products {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 14px;
+}
+.rac-choice {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 10px);
+  padding: 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.45);
+}
+.panel.modal {
+  max-width: 520px;
+  width: 100%;
+  margin: 0;
+}

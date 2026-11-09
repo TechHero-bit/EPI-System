@@ -41,7 +41,23 @@ export interface PortalData {
   audits: any[];
   signingLinks?: any[];
   members?: any[];
+  clients?: any[];
+  workUnits?: any[];
+  racs?: any[];
+  employeeRacs?: { employee_id: string; rac_id: string }[];
+  kits?: any[];
+  kitItems?: { kit_id: string; product_id: string; quantity: number }[];
+  returns?: any[];
 }
+export const LIST_KINDS = {
+  clients: { key: "clients", label: "Clientes", singular: "cliente" },
+  "work-units": { key: "workUnits", label: "Unidades de trabalho", singular: "unidade" },
+  racs: { key: "racs", label: "RACs", singular: "RAC" },
+} as const;
+export type ListKind = keyof typeof LIST_KINDS;
+/** Normalização usada para casar a função do colaborador com o kit. */
+export const normalizeJobTitle = (value: string | null | undefined) =>
+  (value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
 export const emptyData = (): PortalData => ({
   organization: { id: "", name: "" },
   role: "ADMIN",
@@ -53,4 +69,11 @@ export const emptyData = (): PortalData => ({
   states: [],
   movements: [],
   audits: [],
+  clients: [],
+  workUnits: [],
+  racs: [],
+  employeeRacs: [],
+  kits: [],
+  kitItems: [],
+  returns: [],
 });

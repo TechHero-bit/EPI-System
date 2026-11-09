@@ -4,7 +4,7 @@ A fonte SQL está em `supabase/migrations/`. Escolha uma forma de instalação; 
 
 ## Índice numerado das migrations
 
-Os arquivos vão de **001 a 009**, na ordem de aplicação. A 009 padroniza os tamanhos. Em banco com 001 a 008 aplicadas, execute somente a 009 antes de publicar a API atualizada.
+Os arquivos vão de **001 a 013**, na ordem de aplicação. Em banco com 001 a 009 aplicadas, execute somente 010, 011, 012 e 013, nessa ordem, antes de publicar a API atualizada (a API passa a chamar `move_inventory`, `sync_product_sizes`, `register_sheet_return` e `record_identity_check`).
 
 ### Tamanhos padronizados
 
@@ -29,10 +29,23 @@ where size not in ('Único','PP','P','M','G','GG','XG','XGG','XXG','XXXG')
 | 007 | [007_manual_receipt.sql](supabase/migrations/007_manual_receipt.sql) | Confirmação conjunta da entrega e assinatura presencial, com evidência, auditoria e idempotência. |
 | 008 | [008_typed_signature.sql](supabase/migrations/008_typed_signature.sql) | Nome, estilo de assinatura e aceite do termo versionado, com validação transacional e evidência imutável. |
 | 009 | [009_standard_equipment_sizes.sql](supabase/migrations/009_standard_equipment_sizes.sql) | Tamanhos padronizados no catálogo |
+| 010 | [010_catalog_ca_inventory.sql](supabase/migrations/010_catalog_ca_inventory.sql) | Grade de tamanhos por produto (`variants.active`, `sync_product_sizes`: tamanho com saldo, reserva ou histórico é desativado, não removido), `issue_sheet` recusa tamanho inativo, tabela pública `ca_registry` com `import_ca_batch` idempotente, e `move_inventory` (entrada, retirada fora de ficha e ajuste, todos com justificativa). `operate_inventory` deixa de ser executável pelo serviço. |
+| 011 | [011_managed_lists_kits.sql](supabase/migrations/011_managed_lists_kits.sql) | Listas gerenciadas `clients`, `work_units`, `racs`, vínculos do colaborador (`client_id`, `work_unit_id`, `employee_racs`) e kits `epi_kits`/`epi_kit_items` por cliente e função. Converte os textos existentes de `employees.work_unit` em itens de `work_units` e vincula cada colaborador; a coluna textual é mantida. |
+| 012 | [012_sheet_returns.sql](supabase/migrations/012_sheet_returns.sql) | Devolução de fichas entregues (`sheet_returns`, `sheet_return_items`, `register_sheet_return`), somente acréscimo, motivo M.D. e destino por item. Desenho em `docs/DEVOLUCAO-DESENHO-20261109.md`. |
+| 013 | [013_signer_identity_check.sql](supabase/migrations/013_signer_identity_check.sql) | Confirmação do signatário por nome e dígitos do CPF: tentativas contadas no link (`record_identity_check`), bloqueio na quinta falha e exigência em `complete_signature` quando há CPF cadastrado. |
+
+### Atualização de 09/11/2026 (010 a 013)
+
+- **010:** antes de aplicar em banco existente, nada precisa ser convertido. Movimentos antigos continuam com os tipos `RECEIPT`, `ISSUE` e `ADJUSTMENT`; os novos tipos são `WITHDRAWAL` (sempre negativo) e `RETURN`.
+- **011:** a conversão de `work_unit` agrupa valores iguais ignorando maiúsculas e espaços nas pontas, por organização. Valores vazios ficam sem unidade. Confira o resultado com `select work_unit, work_unit_id from public.employees;`.
+- **012:** só fichas `DELIVERED` ou `LEGACY_ISSUED` aceitam devolução. "Volta ao estoque" soma ao saldo físico; "descarte/avaria" não muda saldo. Saldo bloqueado histórico não é liberado.
+- **013:** colaboradores sem CPF mantêm o fluxo anterior. Nenhum dígito do CPF é gravado no link, na auditoria ou na evidência.
+- **Base CAEPI:** `npm run ca:import -- <arquivo>`; origem e frequência em `docs/CAEPI-IMPORTACAO.md`.
+- **CPF de teste:** `supabase/seed.sql` usa o CPF fictício `93492854010` para todos os colaboradores. Para um banco de desenvolvimento já populado, existe `scripts/dev-set-test-cpf.sql` (somente desenvolvimento, fora das migrations). Nunca coloque CPF em migration.
 
 A antiga `202610210001_sheet_register.sql` foi removida: o contador por ficha ficou sem uso. A nova instalação não cria `sheet_number_counters`, `sheet_number_allocations`, `reserve_sheet_number` nem a coluna numérica `sheets.record_number`. A antiga 007 passou a ser a atual 006, com as dependências corrigidas. As outras cinco migrations continuam necessárias; não foram removidas apenas por conterem funções que evoluem nas seguintes.
 
-`setup.sql` não é uma migration adicional: é o consolidado das nove migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais. O modelo corporativo PDF/Excel está no Backend, não no SQL. Em banco existente, aplique somente as migrations pendentes em ordem: a 007 habilita a confirmação presencial conjunta a 008 habilita o novo registro de assinatura eletrônica e a 009 restringe os tamanhos do catálogo.
+`setup.sql` não é uma migration adicional: é o consolidado de todas as migrations, gerado por `npm run db:setup`, para instalação em banco novo. `supabase/seed.sql` contém dados fictícios opcionais. O modelo corporativo PDF/Excel está no Backend, não no SQL. Em banco existente, aplique somente as migrations pendentes em ordem: a 007 habilita a confirmação presencial conjunta a 008 habilita o novo registro de assinatura eletrônica e a 009 restringe os tamanhos do catálogo.
 
 Para futuras migrations, use o próximo número disponível, como `010_descricao.sql`, e atualize este índice. Depois da primeira aplicação em um ambiente, não renumere nem reescreva o histórico desse ambiente; acrescente uma nova migration. O gerador do consolidado verifica nomes e sequência sem lacunas.
 

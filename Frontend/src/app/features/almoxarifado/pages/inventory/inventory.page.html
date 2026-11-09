@@ -17,114 +17,335 @@
     >
   }
 </div>
-@if (page === "new" || editing) {
-  <section class="panel">
-    <h2>{{ editing ? "Editar equipamento" : "Dados do equipamento" }}</h2>
-    <form #productForm="ngForm" (ngSubmit)="productForm.valid && save()">
-      <div class="form-grid">
-        <div class="field">
-          <label for="description">Descrição de E.P.I.</label
-          ><input
-            id="description"
-            name="description"
-            [(ngModel)]="product.description"
-            required
-            maxlength="180"
-          />
+
+<ng-template #productFormTpl>
+  <form #productForm="ngForm" (ngSubmit)="productForm.valid && save()">
+    <div class="form-grid">
+      <div class="field">
+        <label for="ca"
+          >C.A. — Certificado de Aprovação (quando aplicável)</label
+        >
+        <div class="copy-row">
+          <input
+            id="ca"
+            name="ca"
+            [(ngModel)]="product.ca"
+            maxlength="50"
+            inputmode="numeric"
+            (blur)="product.ca && !caInfo && lookupCa()"
+          /><button type="button" class="secondary" (click)="lookupCa()">
+            Consultar C.A.
+          </button>
         </div>
-        <div class="field">
-          <label for="category">Categoria</label
-          ><select
-            id="category"
-            name="category"
-            [(ngModel)]="categoryChoice"
-            required
-          >
-            <option value="" disabled>Selecione uma categoria</option>
-            @for (c of allCategories; track c) {
-              <option [value]="c">{{ c }}</option>
-            }
-            <option value="__new__">+ Adicionar nova categoria</option>
-          </select>
-        </div>
-        @if (categoryChoice === "__new__") {
-          <div class="field full">
-            <label for="new-category">Nome da nova categoria</label
-            ><input
-              id="new-category"
-              name="newCategory"
-              [(ngModel)]="newCategory"
-              required
-              maxlength="80"
-              placeholder="Ex.: Protetores auditivos"
-            />
-          </div>
+        @if (caMessage) {
+          <small class="helper" aria-live="polite">{{ caMessage }}</small>
         }
-        <div class="field">
-          <label for="brand">Marca</label
-          ><input
-            id="brand"
-            name="brand"
-            [(ngModel)]="product.brand"
-            maxlength="100"
-          />
-        </div>
-        <div class="field">
-          <label for="model">Modelo</label
-          ><input
-            id="model"
-            name="model"
-            [(ngModel)]="product.model"
-            maxlength="100"
-          />
-        </div>
-        <div class="field">
-          <label for="ca"
-            >C.A. — Certificado de Aprovação (quando aplicável)</label
-          ><input id="ca" name="ca" [(ngModel)]="product.ca" maxlength="50" />
-        </div>
-        <div class="field">
-          <label for="risk">Risco</label
-          ><input
-            id="risk"
-            name="risk"
-            [(ngModel)]="product.riskCode"
-            maxlength="30"
-          />
-        </div>
-        <div class="field">
-          <label for="ca-date">Validade do CA</label
-          ><input
-            id="ca-date"
-            name="caDate"
-            type="date"
-            [(ngModel)]="product.caExpiresAt"
-          />
-        </div>
-        @if (initialVariantPending) {
-          <div class="field">
-            <label for="initial-size">Tamanho</label>
-            <select
-              id="initial-size"
-              name="initialSize"
-              [(ngModel)]="initialSize"
-              required
-            >
-              @for (group of sizeGroups; track group.label) {
-                <optgroup [label]="group.label">
-                  @for (size of group.sizes; track size) {
-                    <option [value]="size">{{ size }}</option>
-                  }
-                </optgroup>
-              }
-            </select>
-          </div>
+        @if (caInfo) {
+          <small class="helper"
+            >{{ caInfo.equipment_name }} · {{ caInfo.manufacturer }}</small
+          >
         }
       </div>
+      <div class="field">
+        <label for="ca-date">Validade do CA</label
+        ><input
+          id="ca-date"
+          name="caDate"
+          type="date"
+          [(ngModel)]="product.caExpiresAt"
+        />
+      </div>
+      <div class="field">
+        <label for="description">Descrição de E.P.I.</label
+        ><input
+          id="description"
+          name="description"
+          [(ngModel)]="product.description"
+          required
+          maxlength="180"
+        />
+      </div>
+      <div class="field">
+        <label for="category">Categoria</label
+        ><select
+          id="category"
+          name="category"
+          [(ngModel)]="categoryChoice"
+          required
+        >
+          <option value="" disabled>Selecione uma categoria</option>
+          @for (c of allCategories; track c) {
+            <option [value]="c">{{ c }}</option>
+          }
+          <option value="__new__">+ Adicionar nova categoria</option>
+        </select>
+      </div>
+      @if (categoryChoice === "__new__") {
+        <div class="field full">
+          <label for="new-category">Nome da nova categoria</label
+          ><input
+            id="new-category"
+            name="newCategory"
+            [(ngModel)]="newCategory"
+            required
+            maxlength="80"
+            placeholder="Ex.: Protetores auditivos"
+          />
+        </div>
+      }
+      <div class="field">
+        <label for="brand">Marca</label
+        ><input
+          id="brand"
+          name="brand"
+          [(ngModel)]="product.brand"
+          maxlength="100"
+        />
+      </div>
+      <div class="field">
+        <label for="model">Modelo</label
+        ><input
+          id="model"
+          name="model"
+          [(ngModel)]="product.model"
+          maxlength="100"
+        />
+      </div>
+      <div class="field">
+        <label for="risk">Risco</label
+        ><input
+          id="risk"
+          name="risk"
+          [(ngModel)]="product.riskCode"
+          maxlength="30"
+        />
+      </div>
+    </div>
+    <fieldset class="size-grid spaced" aria-describedby="size-help">
+      <legend>Tamanhos que existem para este equipamento</legend>
+      <div class="size-grid-tabs" role="radiogroup" aria-label="Grade de tamanhos">
+        @for (group of sizeGroups; track group.label) {
+          <label class="checkline"
+            ><input
+              type="radio"
+              name="grid"
+              [value]="group.label"
+              [ngModel]="grid"
+              (ngModelChange)="gridChanged($event)"
+            />{{ group.label }}</label
+          >
+        }
+      </div>
+      @if (grid === "Números") {
+        <div class="toolbar size-range">
+          <input
+            aria-label="Do número"
+            name="rangeFrom"
+            type="number"
+            min="1"
+            max="70"
+            placeholder="De"
+            [(ngModel)]="rangeFrom"
+          /><input
+            aria-label="Até o número"
+            name="rangeTo"
+            type="number"
+            min="1"
+            max="70"
+            placeholder="Até"
+            [(ngModel)]="rangeTo"
+          /><button type="button" class="secondary" (click)="markRange()">
+            Marcar intervalo
+          </button>
+        </div>
+      }
+      <div class="size-options">
+        @for (size of gridSizes; track size) {
+          <label class="size-option" [class.checked]="selectedSizes.has(size)"
+            ><input
+              type="checkbox"
+              [name]="'size-' + size"
+              [attr.aria-label]="'Tamanho ' + size"
+              [checked]="selectedSizes.has(size)"
+              (change)="toggleSize(size, $any($event.target).checked)"
+            /><span>{{ size }}</span>
+            @if (editing && editingVariant(size); as v) {
+              <small
+                >{{ s.stock(v.id) }} un.{{
+                  v.active === false ? " · inativo" : ""
+                }}</small
+              >
+            }
+          </label>
+        }
+      </div>
+      <p id="size-help" class="note">
+        Marcados: {{ orderedSelection.join(", ") || "nenhum" }}. Cada tamanho
+        vira uma opção de estoque. Ao desmarcar um tamanho com saldo, reserva ou
+        histórico, ele é desativado em vez de removido.
+      </p>
+    </fieldset>
+    <div class="toolbar spaced">
       <button class="primary" [disabled]="s.busy()">Salvar equipamento</button>
+      @if (inlineCreate) {
+        <button type="button" class="secondary" (click)="cancelInline()">
+          Cancelar cadastro
+        </button>
+      }
+    </div>
+  </form>
+</ng-template>
+
+@if (page === "movements") {
+  <section class="panel">
+    <h2>Registrar movimentação</h2>
+    <div class="form-grid">
+      <div class="field">
+        <label for="ca-search">Buscar pelo C.A.</label>
+        <div class="copy-row">
+          <input
+            id="ca-search"
+            [(ngModel)]="caQuery"
+            inputmode="numeric"
+            maxlength="20"
+            (keydown.enter)="findByCa()"
+            placeholder="Somente números"
+          /><button class="secondary" type="button" (click)="findByCa()">
+            Buscar C.A.
+          </button>
+        </div>
+        @if (caSearchMessage) {
+          <small class="helper" aria-live="polite">{{ caSearchMessage }}</small>
+        }
+        @if (caNotFound) {
+          <p class="note" aria-live="polite">
+            Nenhum equipamento cadastrado com o C.A. {{ caNotFound }}.
+            <button
+              type="button"
+              class="secondary"
+              (click)="createFromCa()"
+              [disabled]="s.busy()"
+            >
+              Cadastrar equipamento com este C.A.
+            </button>
+          </p>
+        }
+      </div>
+    </div>
+    @if (inlineCreate) {
+      <section class="panel inset" aria-label="Cadastro de equipamento">
+        <h3>Novo equipamento</h3>
+        <ng-container [ngTemplateOutlet]="productFormTpl" />
+      </section>
+    }
+    <form (ngSubmit)="move()">
+      <div class="movement-picker spaced">
+        <label class="field"
+          >Equipamento<select
+            name="movementProduct"
+            [ngModel]="movement.productId"
+            (ngModelChange)="selectProduct($event)"
+            required
+          >
+            <option value="">Selecionar</option>
+            @for (p of movementProducts; track p.id) {
+              <option [value]="p.id">
+                {{ p.description }}{{ p.ca ? " · CA " + p.ca : "" }}
+              </option>
+            }
+          </select></label
+        >
+        <fieldset class="size-choice" [disabled]="!movement.productId">
+          <legend>Tamanho e estoque</legend>
+          @for (v of movementSizes; track v.id) {
+            <label class="size-option" [class.checked]="movement.variantId === v.id"
+              ><input
+                type="radio"
+                name="movementVariant"
+                [value]="v.id"
+                [(ngModel)]="movement.variantId"
+              /><span>{{ v.size }}</span
+              ><small
+                >{{ s.stock(v.id) }} disp.{{
+                  v.active === false ? " · inativo" : ""
+                }}</small
+              ></label
+            >
+          } @empty {
+            <small class="muted">Escolha o equipamento para ver os tamanhos.</small>
+          }
+        </fieldset>
+      </div>
+      <div class="form-grid spaced">
+        <label class="field"
+          >Operação<select name="operation" [(ngModel)]="movement.operation">
+            <option value="ADJUSTMENT">Ajuste (para mais ou para menos)</option>
+            <option value="RECEIPT">Entrada de estoque</option>
+            <option value="WITHDRAWAL">Retirada fora de ficha</option>
+          </select></label
+        >
+        <label class="field"
+          >{{ operationHint
+          }}<input
+            name="quantity"
+            type="number"
+            [min]="movement.operation === 'ADJUSTMENT' ? -100000 : 1"
+            max="100000"
+            [(ngModel)]="movement.quantity"
+            required
+        /></label>
+        <label class="field full"
+          >Justificativa (obrigatória)<input
+            name="reason"
+            [(ngModel)]="movement.reason"
+            required
+            minlength="5"
+            maxlength="300"
+            placeholder="Ex.: nota fiscal 123, inventário, perda identificada"
+        /></label>
+      </div>
+      <p class="note">
+        Toda entrada, retirada ou ajuste feito fora de uma ficha exige
+        justificativa. A saída de entrega é feita na confirmação física da
+        ficha. Movimentações não podem consumir unidades reservadas ou
+        bloqueadas.
+      </p>
+      <button
+        class="primary"
+        [disabled]="
+          s.busy() ||
+          !movement.variantId ||
+          movement.reason.trim().length < 5 ||
+          !movement.quantity
+        "
+      >
+        Registrar movimentação
+      </button>
     </form>
   </section>
 }
+
+@if (page === "new" || (editing && !inlineCreate)) {
+  <section class="panel">
+    <h2>{{ editing ? "Editar equipamento" : "Dados do equipamento" }}</h2>
+    <ng-container [ngTemplateOutlet]="productFormTpl" />
+  </section>
+}
+
+@if (page === "catalog" && caAlerts.length) {
+  <section class="panel" aria-labelledby="ca-alerts-title">
+    <h2 id="ca-alerts-title">Validade dos C.A.</h2>
+    <ul class="ca-alert-list">
+      @for (p of caAlerts; track p.id) {
+        <li [class]="'ca-alert level-' + caAlert(p)">
+          <strong>{{ caAlertText(p) }}</strong>
+          <span>{{ p.description }} · CA {{ p.ca || "não informado" }}</span>
+        </li>
+      }
+    </ul>
+  </section>
+}
+
 @if (page !== "new") {
   <section class="panel">
     <div class="toolbar" [class.equipment-filters]="page === 'catalog'">
@@ -136,7 +357,7 @@
         >
           <option value="">Todas as categorias</option>
           @for (c of allCategories; track c) {
-            <option>{{ c }}</option>
+            <option [value]="c">{{ c }}</option>
           }
         </select>
         <select aria-label="Filtrar tamanho" [(ngModel)]="size">
@@ -163,7 +384,9 @@
         <select aria-label="Tipo de movimentação" [(ngModel)]="kind">
           <option value="">Todos os tipos</option>
           <option value="ADJUSTMENT">Ajustes</option>
+          <option value="RETURN">Devoluções</option>
           <option value="RECEIPT">Entradas</option>
+          <option value="WITHDRAWAL">Retiradas</option>
           <option value="ISSUE">Saídas</option>
         </select>
       }
@@ -171,13 +394,23 @@
     @if (page === "catalog") {
       <div class="equipment-grid catalog">
         @for (p of products; track p.id) {
-          <article class="equipment-card">
+          <article class="equipment-card" [class.ca-flag]="caAlert(p)">
             <span class="chip">{{ p.category }}</span
             ><strong>{{ p.description }}</strong
             ><small>CA {{ p.ca || "Não informado" }} · {{ p.brand }}</small>
-            <div class="variant-chips">
+            @if (caAlert(p); as level) {
+              <span [class]="'ca-alert level-' + level">{{
+                caAlertText(p)
+              }}</span>
+            }
+            <div class="variant-chips" aria-label="Tamanhos e estoque disponível">
               @for (v of variantsByProduct().get(p.id) || []; track v.id) {
-                <span class="chip">{{ v.size }}</span>
+                <span class="chip" [class.inactive]="v.active === false"
+                  >{{ v.size }}
+                  <b>{{ s.stock(v.id) }} un.</b>{{
+                    v.active === false ? " · inativo" : ""
+                  }}</span
+                >
               }
             </div>
             <div class="catalog-card-footer">
@@ -185,7 +418,7 @@
                 Editar equipamento
               </button>
               <div class="catalog-quantity">
-                <small>Em estoque</small>
+                <small>Disponível</small>
                 <strong>{{ productStock(p.id) }} un.</strong>
               </div>
             </div>
@@ -237,59 +470,5 @@
         </table>
       </div>
     }
-  </section>
-}
-@if (page === "movements") {
-  <section class="panel spaced">
-    <h2>Registrar entrada ou ajuste</h2>
-    <form (ngSubmit)="move()">
-      <div class="form-grid">
-        <label class="field"
-          >Equipamento e tamanho<select
-            name="movementVariant"
-            [(ngModel)]="movement.variantId"
-            required
-          >
-            <option value="">Selecionar</option>
-            @for (v of variantOptions(); track v.id) {
-              <option [value]="v.id">{{ variantName(v.id) }}</option>
-            }
-          </select></label
-        >
-        <label class="field"
-          >Operação<select name="operation" [(ngModel)]="movement.adjust">
-            <option [ngValue]="true">Ajuste com justificativa</option>
-            <option [ngValue]="false">Entrada de estoque</option>
-          </select></label
-        >
-        <label class="field"
-          >{{
-            movement.adjust
-              ? "Variação do saldo (negativo para reduzir)"
-              : "Quantidade de entrada"
-          }}<input
-            name="quantity"
-            type="number"
-            [min]="movement.adjust ? -100000 : 1"
-            max="100000"
-            [(ngModel)]="movement.quantity"
-            required
-        /></label>
-        <label class="field"
-          >Justificativa<input
-            name="reason"
-            [(ngModel)]="movement.reason"
-            [required]="movement.adjust"
-            maxlength="300"
-        /></label>
-      </div>
-      <p class="note">
-        A saída de entrega é feita na confirmação física da ficha. Ajustes não
-        podem consumir unidades reservadas ou bloqueadas do histórico.
-      </p>
-      <button class="primary" [disabled]="s.busy()">
-        Registrar movimentação
-      </button>
-    </form>
   </section>
 }

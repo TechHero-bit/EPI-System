@@ -103,19 +103,40 @@
     }
   </div>
   <div class="dashboard-column">
-    @if (isWarehouse) {
-      <section class="panel">
-        <div class="panel-title">
-          <h2>Certificados de aprovação</h2>
+    <section class="panel" aria-labelledby="ca-card-title">
+      <div class="panel-title">
+        <h2 id="ca-card-title">Validade dos C.A.</h2>
+        @if (isWarehouse || s.role === "ADMIN") {
           <a routerLink="/almoxarifado/equipamentos" class="text-button"
             >Ver equipamentos</a
           >
-        </div>
-        <p class="note">
-          {{ expiring }} certificados de aprovação vencidos ou com vencimento
-          nos próximos 30 dias.
-        </p>
-      </section>
+        }
+      </div>
+      <div class="ca-levels">
+        @for (level of caLevels; track level.id) {
+          <span [class]="'ca-alert level-' + level.id"
+            >{{ level.label }}: <strong>{{ caCount(level.id) }}</strong></span
+          >
+        }
+      </div>
+      <ul class="ca-alert-list spaced">
+        @for (a of caAlerts.slice(0, 6); track a.product.id) {
+          <li [class]="'ca-alert level-' + a.level">
+            <strong>{{ a.label }}</strong>
+            <span
+              >{{ a.product.description }} · CA {{ a.product.ca || "não informado" }} ·
+              {{ a.product.ca_expires_at | date: "dd/MM/yyyy" }}</span
+            >
+          </li>
+        } @empty {
+          <li class="empty">Nenhum C.A. vencido ou a vencer em 30 dias.</li>
+        }
+      </ul>
+      <p class="note">
+        Fichas não podem ser emitidas com C.A. vencido.
+      </p>
+    </section>
+    @if (isWarehouse) {
       <section class="panel">
         <div class="panel-title">
           <h2>Movimentações recentes</h2>

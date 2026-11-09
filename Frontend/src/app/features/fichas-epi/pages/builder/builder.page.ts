@@ -41,16 +41,102 @@ export class BuilderComponent implements OnInit, OnDestroy {
           const product = this.s.product(v.product_id);
           return (
             product?.active &&
+            v.active !== false &&
             (!this.category || product.category === this.category)
           );
         })
         .map((v) => v.size),
     );
   }
+  /** A lista completa só aparece depois de pesquisar ou filtrar. */
+  browsing = false;
+  // "Todas as categorias" também limpa o tamanho dependente: antes o tamanho
+  // escolhido continuava aplicado e a opção "todas" não devolvia todos os itens.
   categoryChanged(category: string) {
     this.category = category;
-    if (!this.sizeGroups.some((group) => group.sizes.includes(this.size)))
+    this.browsing = true;
+    if (
+      !category ||
+      !this.sizeGroups.some((group) => group.sizes.includes(this.size))
+    )
       this.size = "";
+  }
+  sizeChanged(size: string) {
+    this.size = size;
+    this.browsing = true;
+  }
+  queryChanged(query: string) {
+    this.query = query;
+    if (query.trim()) this.browsing = true;
+  }
+  showAll() {
+    this.category = "";
+    this.size = "";
+    this.query = "";
+    this.browsing = true;
+  }
+  clearFilters() {
+    this.category = "";
+    this.size = "";
+    this.query = "";
+    this.browsing = false;
+  }
+
+  // Kit do cliente e função: itens vêm marcados; o operador escolhe o tamanho.
+  kitRows: { productId: string; size: string; include: boolean }[] = [];
+  private kitEmployee = "";
+  get kit() {
+    return this.s.kitFor(this.s.employee(this.employeeId));
+  }
+  prepareKit() {
+    if (this.preparedId || this.kitEmployee === this.employeeId) return;
+    this.kitEmployee = this.employeeId;
+    this.kitRows = (this.kit?.items ?? []).flatMap((item: { product_id: string; quantity: number }) =>
+      Array.from({ length: item.quantity }, () => ({
+        productId: item.product_id,
+        size: "",
+        include: true,
+      })),
+    );
+    for (const row of this.kitRows) {
+      row.include = this.kitHasStock(row.productId);
+      const sizes = this.kitSizes(row.productId);
+      if (sizes.length === 1 && this.available(sizes[0].id) > 0)
+        row.size = sizes[0].size;
+    }
+  }
+  kitSizes(productId: string) {
+    const product = this.s.product(productId);
+    if (!product?.active) return [];
+    return this.s
+      .data()
+      .variants.filter((v) => v.product_id === productId && v.active !== false);
+  }
+  kitHasStock(productId: string) {
+    return this.kitSizes(productId).some((v) => this.available(v.id) > 0);
+  }
+  addKit() {
+    const failures: string[] = [];
+    const added: typeof this.kitRows = [];
+    for (const row of this.kitRows.filter((r) => r.include)) {
+      const name = this.s.product(row.productId)?.description ?? "EPI";
+      const variant = this.kitSizes(row.productId).find((v) => v.size === row.size);
+      if (!variant) failures.push(`${name}: escolha o tamanho`);
+      else if (this.available(variant.id) < 1)
+        failures.push(`${name} ${row.size}: sem estoque`);
+      else if (this.draft.length >= 15) failures.push(`${name}: limite de 15 itens`);
+      else {
+        this.draft.push({ variantId: variant.id, quantity: 1 });
+        added.push(row);
+      }
+    }
+    this.kitRows = this.kitRows.filter((row) => !added.includes(row));
+    if (failures.length)
+      this.s.failure.set(`Itens não incluídos: ${failures.join("; ")}.`);
+    else if (added.length) {
+      this.s.failure.set("");
+      this.s.message.set(`${added.length} itens do kit incluídos na ficha.`);
+    }
   }
   step = 1;
   date = today();
@@ -109,6 +195,7 @@ export class BuilderComponent implements OnInit, OnDestroy {
   goTo(target: number) {
     if (this.s.busy() || target < 1 || target > 3) return;
     if (target === 2 && !this.employeeId) return;
+    if (target === 2) this.prepareKit();
     if (target === 3 && !this.draft.length && !this.preparedId) return;
     if (target === 3 && this.step < 3 && !this.preparedId) {
       this.selectionDialog.nativeElement.showModal();
@@ -311,12 +398,19 @@ export class BuilderComponent implements OnInit, OnDestroy {
       compareLabels,
     );
   }
+  unavailableReason(id: string) {
+    const p = this.s.product(this.s.variant(id)?.product_id);
+    if (p?.ca_expires_at && p.ca_expires_at < today())
+      return "C.A. vencido — não pode ser incluído";
+    return "Sem estoque — não pode ser incluído";
+  }
   get variants() {
     return alphabetical(
       this.s.data().variants.filter((v) => {
         const p = this.s.product(v.product_id);
         return (
           p?.active &&
+          v.active !== false &&
           (!this.category || p.category === this.category) &&
           (!this.size || v.size === this.size) &&
           `${p.description} ${p.ca} ${p.brand} ${v.size}`
@@ -328,7 +422,9 @@ export class BuilderComponent implements OnInit, OnDestroy {
     );
   }
   available(id: string) {
-    const p = this.s.product(this.s.variant(id)?.product_id);
+    const v = this.s.variant(id);
+    const p = this.s.product(v?.product_id);
+    if (v?.active === false || !p?.active) return 0;
     if (p?.ca_expires_at && p.ca_expires_at < today()) return 0;
     return (
       this.s.stock(id) -
@@ -341,7 +437,12 @@ export class BuilderComponent implements OnInit, OnDestroy {
       this.s.failure.set("Limite de 15 itens por ficha.");
       return;
     }
-    if (this.available(v.id) < 1) return;
+    if (this.available(v.id) < 1) {
+      this.s.failure.set(
+        "Item sem estoque disponível não pode ser incluído na ficha.",
+      );
+      return;
+    }
     this.draft.push({
       variantId: v.id,
       quantity: 1,

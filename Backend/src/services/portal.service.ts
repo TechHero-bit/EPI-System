@@ -155,6 +155,11 @@ export async function signingLink(raw: string) {
     .select("*")
     .eq("token_hash", secretHash(raw, config().TOKEN_PEPPER))
     .single();
+  if (data?.blocked_at)
+    throw error(
+      "Link bloqueado por excesso de tentativas. Solicite um novo link ao RH.",
+      423,
+    );
   if (
     !data ||
     data.consumed_at ||

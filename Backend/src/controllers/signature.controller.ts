@@ -17,9 +17,23 @@ import {
 import {
   otp,
   secretHash,
-  sha256,
-  token,
+  signerIdentityMatches,
 } from "../services/security.service.js";
+
+/** Generic on purpose: never reveal which field (name, CPF digits) failed. */
+const IDENTITY_FAILED = "Dados de confirmação não conferem. Revise e tente novamente.";
+const IDENTITY_BLOCKED =
+  "Link bloqueado por excesso de tentativas. Solicite um novo link ao RH.";
+
+async function employeeCpf(db: any, sheetId: string): Promise<string | null> {
+  const sheet = dbResult(
+    await db.from("sheets").select("employee_id").eq("id", sheetId).single(),
+  );
+  const employee = dbResult(
+    await db.from("employees").select("cpf").eq("id", sheet.employee_id).single(),
+  );
+  return employee.cpf ?? null;
+}
 
 export const getsignToken: RequestHandler<{
   id: string;
@@ -110,6 +124,8 @@ export const postsignTokenPreview: RequestHandler<{
       .eq("id", link.sheet_id)
       .single(),
   );
+  // Only a flag: the public page never receives the CPF or any of its digits.
+  const identityRequired = !!(await employeeCpf(db, link.sheet_id));
   const signed = dbResult(
     await db.storage.from("epi-sheets").createSignedUrl(sheet.pdf_path, 60),
   );
@@ -127,6 +143,7 @@ export const postsignTokenPreview: RequestHandler<{
     signerName: sheet.snapshot.employee.name,
     terms: SIGNATURE_TERMS,
     termsVersion: SIGNATURE_TERMS_VERSION,
+    identityRequired,
   });
 };
 
@@ -141,9 +158,28 @@ export const postsignTokenConfirm: RequestHandler<{
       signerName: z.string().trim().min(2).max(180),
       signatureStyle: z.enum(["classic", "handwritten", "elegant"]),
       termsVersion: z.literal(SIGNATURE_TERMS_VERSION),
+      cpfStart: z.string().regex(/^\d{3}$/).optional(),
+      cpfEnd: z.string().regex(/^\d{3}$/).optional(),
     })
     .parse(req.body);
   const { db, link } = await checkCode(req.params.token, body.code);
+  const cpf = await employeeCpf(db, link.sheet_id);
+  if (cpf) {
+    const sheet = dbResult(
+      await db.from("sheets").select("snapshot").eq("id", link.sheet_id).single(),
+    );
+    const valid = signerIdentityMatches(
+      { name: body.signerName, cpfStart: body.cpfStart, cpfEnd: body.cpfEnd },
+      { name: sheet.snapshot.employee.name, cpf },
+      config().TOKEN_PEPPER,
+    );
+    // Attempts are counted in Postgres; the fifth failure blocks the link.
+    const outcome = dbResult(
+      await db.rpc("record_identity_check", { p_link: link.id, p_valid: valid }),
+    );
+    if (outcome === "BLOCKED") throw error(IDENTITY_BLOCKED, 423);
+    if (outcome !== "OK") throw error(IDENTITY_FAILED, 401);
+  }
   const ip = req.ip && /^[0-9a-fA-F:.]+$/.test(req.ip) ? req.ip : null;
   const sheetId = dbResult(
     await db.rpc("complete_signature", {

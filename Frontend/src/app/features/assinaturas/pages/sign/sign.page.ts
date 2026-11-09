@@ -22,6 +22,14 @@ export class SignComponent implements OnInit {
   accepted = false;
   done = false;
   signerName = "";
+  cpfStart = "";
+  cpfEnd = "";
+  get identityReady() {
+    return (
+      !this.previewData?.identityRequired ||
+      (/^\d{3}$/.test(this.cpfStart) && /^\d{3}$/.test(this.cpfEnd))
+    );
+  }
   signatureStyle = "classic";
   styles = SIGNATURE_STYLES;
   get signatureFont() {
@@ -76,7 +84,13 @@ export class SignComponent implements OnInit {
     void this.s.action(() => this.loadPreview(), "");
   }
   confirm() {
-    if (!this.accepted || !this.validName || !this.previewData || this.s.busy())
+    if (
+      !this.accepted ||
+      !this.validName ||
+      !this.identityReady ||
+      !this.previewData ||
+      this.s.busy()
+    )
       return;
     void this.s.action(async () => {
       await this.s.publicAction(this.token, "confirm", {
@@ -85,6 +99,9 @@ export class SignComponent implements OnInit {
         signerName: this.signerName.trim().replace(/\s+/g, " "),
         signatureStyle: this.signatureStyle,
         termsVersion: this.previewData.termsVersion,
+        ...(this.previewData.identityRequired
+          ? { cpfStart: this.cpfStart, cpfEnd: this.cpfEnd }
+          : {}),
       });
       this.done = true;
     }, "");

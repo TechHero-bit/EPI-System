@@ -1,0 +1,150 @@
+<div class="page-head">
+  <div>
+    <h1>{{ termination ? "Devolução demissional" : "Registrar devolução" }}</h1>
+    <p>
+      A devolução é um registro novo. A ficha original e o documento emitido
+      não são alterados.
+    </p>
+  </div>
+  <div class="toolbar">
+    <a class="secondary button-link" [routerLink]="['/rh/fichas', id]"
+      >← Voltar à ficha</a
+    >
+  </div>
+</div>
+@if (sheet) {
+  <section class="panel">
+    <div class="panel-title">
+      <h2>{{ sheet.snapshot?.employee?.name }}</h2>
+      <span class="count"
+        >Nº de Registro {{ sheet.employee_registration || sheet.snapshot?.recordNumber }}
+        · Versão {{ sheet.version }}</span
+      >
+    </div>
+    @if (!returnable) {
+      <p class="alert error" role="alert">
+        Somente fichas com entrega física confirmada aceitam devolução. Para
+        fichas pendentes, use o cancelamento, que libera a reserva.
+      </p>
+    } @else {
+      <form (ngSubmit)="save()">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Devolver</th>
+                <th scope="col">Equipamento</th>
+                <th scope="col">Entrega</th>
+                <th scope="col">Motivo (M.D.)</th>
+                <th scope="col">Destino</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows; track row.index) {
+                <tr>
+                  @if (returnedItem(row.index); as done) {
+                    <td><span class="status ok">Devolvido</span></td>
+                    <td>
+                      {{ row.item.description }}<br /><small
+                        >Tam. {{ row.item.size }}</small
+                      >
+                    </td>
+                    <td>{{ row.item.date | date: "dd/MM/yyyy" }}</td>
+                    <td>
+                      {{ done.reason_code }} – {{ reasonLabel(done.reason_code) }}
+                    </td>
+                    <td>
+                      {{
+                        done.destination === "RESTOCK"
+                          ? "Voltou ao estoque"
+                          : "Descarte/avaria"
+                      }}
+                      · {{ done.returned_on | date: "dd/MM/yyyy" }}
+                    </td>
+                  } @else {
+                    <td>
+                      <input
+                        type="checkbox"
+                        [name]="'select-' + row.index"
+                        [(ngModel)]="row.selected"
+                        [attr.aria-label]="'Devolver ' + row.item.description + ' (linha ' + (row.index + 1) + ')'"
+                      />
+                    </td>
+                    <td>
+                      {{ row.item.description }}<br /><small
+                        >Tam. {{ row.item.size }} · C.A.
+                        {{ row.item.ca || "N/A" }}</small
+                      >
+                    </td>
+                    <td>{{ row.item.date | date: "dd/MM/yyyy" }}</td>
+                    <td>
+                      <select
+                        [name]="'reason-' + row.index"
+                        [(ngModel)]="row.reasonCode"
+                        [disabled]="!row.selected"
+                        [attr.aria-label]="'Motivo da linha ' + (row.index + 1)"
+                      >
+                        <option [ngValue]="null">Selecionar</option>
+                        @for (r of reasons; track r.code) {
+                          <option [ngValue]="r.code">
+                            {{ r.code }} – {{ r.label }}
+                          </option>
+                        }
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        [name]="'destination-' + row.index"
+                        [(ngModel)]="row.destination"
+                        [disabled]="!row.selected"
+                        [attr.aria-label]="'Destino da linha ' + (row.index + 1)"
+                      >
+                        <option value="">Selecionar</option>
+                        @for (d of destinations; track d.id) {
+                          <option [value]="d.id">{{ d.label }}</option>
+                        }
+                      </select>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="form-grid spaced">
+          <label class="field"
+            >Data da devolução<input
+              type="date"
+              name="returnedOn"
+              [max]="maxDate"
+              [(ngModel)]="returnedOn"
+              required
+          /></label>
+          <label class="field full"
+            >Assinatura presencial do colaborador (observações)<textarea
+              name="note"
+              [(ngModel)]="note"
+              maxlength="500"
+              required
+              placeholder="Quem devolveu, quem recebeu e onde o documento assinado foi arquivado"
+            ></textarea>
+          </label>
+        </div>
+        <p class="note">
+          “Volta ao estoque” soma a unidade ao saldo disponível. “Baixa como
+          descarte/avaria” não altera o saldo (a unidade já saiu na entrega).
+          Ao registrar, você declara que o colaborador assinou a devolução
+          presencialmente. Imprima a ficha atualizada para o arquivo físico.
+        </p>
+        <button class="primary" [disabled]="s.busy() || !ready">
+          Registrar devolução ({{ selected.length }}
+          {{ selected.length === 1 ? "item" : "itens" }})
+        </button>
+      </form>
+    }
+  </section>
+} @else {
+  <section class="panel empty">
+    {{ s.busy() ? "Carregando ficha…" : "Ficha não encontrada." }}
+  </section>
+}

@@ -57,7 +57,11 @@ test("tamanho cadastrado com equipamento fica disponível nas movimentações", 
   await page
     .getByLabel("Categoria", { exact: true })
     .selectOption("Botas de segurança");
-  await page.getByLabel("Tamanho", { exact: true }).selectOption("41");
+  await page
+    .getByRole("radiogroup", { name: "Grade de tamanhos" })
+    .getByRole("radio", { name: "Números" })
+    .check();
+  await page.getByRole("checkbox", { name: "Tamanho 41" }).check();
   await expect(
     page.getByRole("textbox", { name: /SKU|código interno/i }),
   ).toHaveCount(0);
@@ -74,15 +78,21 @@ test("tamanho cadastrado com equipamento fica disponível nas movimentações", 
   ).toContainText("41");
   await page.goto("/almoxarifado/movimentacoes");
   const selector = page.getByRole("combobox", {
-    name: "Equipamento e tamanho",
+    name: "Equipamento",
     exact: true,
   });
-  const id = await selector
-    .locator("option")
-    .filter({ hasText: "Bota cadastrada com tamanho · 41" })
-    .getAttribute("value");
-  await selector.selectOption(id!);
-  await page.getByLabel("Quantidade de entrada", { exact: true }).fill("5");
+  await selector.selectOption({ label: "Bota cadastrada com tamanho" });
+  // Tamanhos aparecem ao lado do equipamento, com o estoque disponível.
+  await expect(page.locator(".size-choice")).toContainText("41");
+  await expect(page.locator(".size-choice")).toContainText("0 disp.");
+  await page.getByLabel("Operação").selectOption("RECEIPT");
+  await page.getByLabel("Quantidade recebida", { exact: true }).fill("5");
+  await expect(
+    page.getByRole("button", { name: "Registrar movimentação" }),
+  ).toBeDisabled();
+  await page
+    .getByLabel("Justificativa (obrigatória)")
+    .fill("Nota fiscal fictícia 001");
   await page.getByRole("button", { name: "Registrar movimentação" }).click();
   await expect(page.getByRole("status")).toContainText(
     "Movimentação registrada",
@@ -118,6 +128,7 @@ test("matrícula manual aparece como registro em todas as fichas do funcionário
       .getByRole("button", { name: /Funcionário manual de teste/ })
       .click();
     await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+    await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
     await page
       .getByRole("button", { name: /Bota de segurança em couro/ })
       .click();
@@ -150,6 +161,7 @@ test("ficha usa catálogo somente leitura e mantém datas de entrega editáveis"
   await page.goto("/rh/fichas/nova");
   await page.getByRole("button", { name: /Ana Martins/ }).click();
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
   await alphabetical(
     page.getByRole("combobox", { name: "Categoria", exact: true }),
   );
