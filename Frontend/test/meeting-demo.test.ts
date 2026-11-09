@@ -205,3 +205,16 @@ test("demo 4.1/4.2: CPF de teste em todos; confirmação exige nome e dígitos; 
   });
   assert.equal(r.data.states.find((s) => s.sheet_id === "sheet-0").signature_status, "SIGNED_ELECTRONIC");
 });
+
+test("demo 4.2: dados salvos antes do CPF recebem o CPF de teste e a simulação pede os dígitos", () => {
+  const saved = makeDemoData();
+  for (const e of saved.employees) delete e.cpf; // como no localStorage antigo
+  saved.employees[1].cpf = null; // CPF deixado em branco no formulário continua sem CPF
+  const r = new DemoRepository(JSON.parse(JSON.stringify(saved)));
+  assert.equal(r.data.employees[0].cpf, "93492854010");
+  assert.equal(r.data.employees[1].cpf, null);
+  r.data.role = "RH";
+  const token = r.createSigningLink("sheet-0");
+  r.publicSigning(token, "code");
+  assert.equal(r.publicSigning(token, "preview").identityRequired, true);
+});

@@ -216,6 +216,10 @@ export class DemoRepository {
     // Browser data saved before the managed lists existed.
     for (const key of ["clients", "workUnits", "racs", "employeeRacs", "kits", "kitItems", "returns"] as const)
       (data as any)[key] ??= [];
+    // Demo employees saved before the CPF confirmation have no `cpf` key: give them the
+    // fictitious test CPF. An explicit null (CPF left blank in the form) is kept.
+    for (const employee of data.employees ?? [])
+      if (employee.cpf === undefined) employee.cpf = TEST_CPF;
     // One-time migration of browser v2 data. Original storage is separately backed up.
     const legacy = (data as any).lots as any[] | undefined;
     if (!data.inventory) {
