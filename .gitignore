@@ -12,3 +12,35 @@ database/supabase/.temp/
 database/supabase/.branches/
 *.log
 Frontend/public/runtime-config.js
+
+# Configuração local de ferramentas de IA / MCP (contém IDs de projeto e preferências locais)
+.mcp.json
+.claude/settings.local.json
+.claude/*.local.*
+
+# Chaves, certificados e credenciais
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+.npmrc
+.netrc
+service-account*.json
+
+# Dumps e dados reais (nunca versionar dados de colaboradores)
+*.dump
+*.bak
+*.sql.gz
+*.sqlite
+*.sqlite3
+database/supabase/.env
+database/**/*.local.sql
+
+# Artefatos de auditoria de segurança e temporários
+security-audit-skill/
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
