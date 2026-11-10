@@ -5,7 +5,7 @@ import {
   DemoRepository,
   makeDemoData,
 } from "../src/app/core/services/demo-repository.service.ts";
-import { caAlertLevel } from "../../contracts/ca-alerts.mjs";
+import { caAlertLevel, caSeverity } from "../../contracts/ca-alerts.mjs";
 import { today } from "../src/app/core/models/portal.model.ts";
 
 const stockRepo = () => {
@@ -61,10 +61,13 @@ test("demo 1.2/1.4: consulta de C.A. fictícia e alertas em todos os níveis", (
   assert.equal(r.caLookup("CA 9900101").expires_at, "2029-06-30");
   assert.throws(() => r.caLookup("123"), /não encontrado/);
   assert.throws(() => r.caLookup("12a"), /números/);
+  // Todos os equipamentos têm C.A. demonstrativo vencendo em 30, 15 ou 7 dias.
+  assert.ok(r.data.products.every((p) => p.ca));
   const levels = r.data.products.map((p) => caAlertLevel(p.ca_expires_at, today()));
-  for (const level of ["EXPIRED", "D7", "D15", "D30"]) assert.ok(levels.includes(level as any), level);
+  assert.deepEqual([...new Set(levels)].sort(), ["D15", "D30", "D7"]);
   // C.A. vencido bloqueia a emissão.
-  const expired = r.data.products.find((p) => caAlertLevel(p.ca_expires_at, today()) === "EXPIRED");
+  const expired = r.data.products[0];
+  expired.ca_expires_at = "2020-01-01";
   const variant = r.data.variants.find((v) => v.product_id === expired.id);
   r.data.inventory.find((b) => b.id === variant.id).stock_quantity = 5;
   r.data.role = "RH";
@@ -77,7 +80,12 @@ test("demo 1.2/1.4: consulta de C.A. fictícia e alertas em todos os níveis", (
 test("demo 2.1: listas só para ADMIN, sem duplicatas; colaborador recebe cliente, unidade e RACs", () => {
   const r = new DemoRepository(makeDemoData());
   r.data.role = "RH";
-  assert.throws(() => r.listItem("clients", { name: "Novo" }), /perfil/);
+  // RH inclui cliente, mas não unidades/RACs nem edita itens.
+  const byHr = r.listItem("clients", { name: "Cliente do RH" });
+  assert.throws(() => r.listItem("clients", { active: false }, byHr.id), /perfil/);
+  assert.throws(() => r.listItem("racs", { name: "RAC novo" }), /perfil/);
+  r.data.role = "ALMOXARIFADO";
+  assert.throws(() => r.listItem("clients", { name: "Outro" }), /perfil/);
   r.data.role = "ADMIN";
   const client = r.listItem("clients", { name: "Cliente Gama" });
   assert.throws(() => r.listItem("clients", { name: " cliente gama " }), /Já existe/);
@@ -123,6 +131,25 @@ test("demo 2.2: kit por cliente e função, até 15 unidades, regravação subst
   );
   r.deleteKit(kit.id);
   assert.equal(r.data.kits!.some((k) => k.id === kit.id), false);
+});
+
+test("kit sem função é o kit geral do cliente e vale quando a função não tem kit", () => {
+  const r = new DemoRepository(makeDemoData());
+  r.data.role = "RH";
+  const general = r.saveKit("client-1", "  ", [{ productId: "product-1", quantity: 1 }]);
+  assert.equal(general.job_title, "");
+  assert.equal(r.saveKit("client-1", "", [{ productId: "product-2", quantity: 1 }]).id, general.id);
+  const own = r.saveKit("client-1", "Auxiliar", [{ productId: "product-3", quantity: 1 }]);
+  assert.notEqual(own.id, general.id);
+  assert.throws(() => r.saveKit("client-1", "x".repeat(121), [{ productId: "product-1", quantity: 1 }]), /Função/);
+});
+
+test("validade do C.A. em três faixas: crítico, alerta e normal", () => {
+  assert.equal(caSeverity("EXPIRED"), "CRITICAL");
+  assert.equal(caSeverity("D7"), "CRITICAL");
+  assert.equal(caSeverity("D15"), "WARNING");
+  assert.equal(caSeverity("D30"), "NORMAL");
+  assert.equal(caSeverity(null), null);
 });
 
 test("demo 3.2: devolução de ficha entregue com motivo e destino; snapshot preservado", () => {
@@ -217,4 +244,50 @@ test("demo 4.2: dados salvos antes do CPF recebem o CPF de teste e a simulação
   const token = r.createSigningLink("sheet-0");
   r.publicSigning(token, "code");
   assert.equal(r.publicSigning(token, "preview").identityRequired, true);
+});
+
+test("demo 2.1: dados salvos antes das listas recuperam clientes, unidades, RACs e kit fictícios", () => {
+  const saved = makeDemoData();
+  for (const key of ["clients", "workUnits", "racs", "employeeRacs", "kits", "kitItems"] as const) (saved as any)[key] = [];
+  for (const e of saved.employees) {
+    delete e.client_id;
+    delete e.work_unit_id;
+  }
+  const r = new DemoRepository(JSON.parse(JSON.stringify(saved)));
+  assert.equal(r.data.clients!.length, 2);
+  assert.equal(r.data.kits!.length, 1);
+  assert.equal(r.data.employees[0].client_id, "client-0");
+  // Listas já preenchidas pelo usuário não são substituídas.
+  r.data.clients = [{ id: "c-x", name: "Cliente próprio", active: true }];
+  r.data.kits = [];
+  const again = new DemoRepository(JSON.parse(JSON.stringify(r.data)));
+  assert.deepEqual(again.data.clients!.map((c) => c.id), ["c-x"]);
+});
+
+test("demo 4.1: etapa de identidade confirma antes do aceite e conta tentativas", () => {
+  const r = new DemoRepository(makeDemoData());
+  r.data.role = "RH";
+  const token = r.createSigningLink("sheet-0");
+  r.publicSigning(token, "code");
+  assert.throws(() => r.publicSigning(token, "identity", false, { signerName: "Ana Martins", cpfStart: "934", cpfEnd: "010" }), /Confira o documento/);
+  r.publicSigning(token, "preview");
+  assert.throws(() => r.publicSigning(token, "identity", false, { signerName: "Ana Martins", cpfStart: "934", cpfEnd: "011" }), /não conferem/);
+  assert.deepEqual(r.publicSigning(token, "identity", false, { signerName: "Ana Martins", cpfStart: "934", cpfEnd: "010" }), { confirmed: true });
+  assert.equal(r.data.signingLinks!.find((l) => l.token === token).identityAttempts, 1);
+});
+
+test("demo 1.4: dados salvos antes recebem C.A. demonstrativo e validade de 30, 15 e 7 dias uma vez", () => {
+  const saved = makeDemoData();
+  delete (saved as any).caDemoSchedule;
+  saved.products.forEach((p) => (p.ca_expires_at = "2028-12-31"));
+  saved.products[3].ca = "";
+  const r = new DemoRepository(JSON.parse(JSON.stringify(saved)));
+  assert.equal(r.data.products[3].ca, "DEMO-2003");
+  assert.deepEqual(
+    r.data.products.slice(0, 3).map((p) => caAlertLevel(p.ca_expires_at, today())),
+    ["D30", "D15", "D7"],
+  );
+  // Depois da atualização, edições do usuário são preservadas.
+  r.data.products[0].ca_expires_at = "2029-01-01";
+  assert.equal(new DemoRepository(JSON.parse(JSON.stringify(r.data))).data.products[0].ca_expires_at, "2029-01-01");
 });

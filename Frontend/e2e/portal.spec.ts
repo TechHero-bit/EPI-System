@@ -176,8 +176,16 @@ test("QR na revisão aguarda aceite em outra aba antes da ficha final", async ({
   await expect(
     signer.getByRole("button", { name: "Simular aceite" }),
   ).toBeDisabled();
+  // Botão só libera depois que o servidor (aqui, a simulação) confirma os dígitos.
   await signer.getByLabel("3 primeiros dígitos").fill("934");
+  await signer.getByLabel("3 últimos dígitos").fill("011");
+  await expect(signer.getByRole("alert")).toContainText("não conferem");
+  await signer.getByRole("checkbox").check();
+  await expect(
+    signer.getByRole("button", { name: "Simular aceite" }),
+  ).toBeDisabled();
   await signer.getByLabel("3 últimos dígitos").fill("010");
+  await expect(signer.getByText("Dados confirmados.")).toBeVisible();
   await signer.getByRole("checkbox").check();
   await signer.getByRole("button", { name: "Simular aceite" }).click();
   await expect(

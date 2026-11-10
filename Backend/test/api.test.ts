@@ -55,3 +55,10 @@ test("CORS só autoriza a origem configurada e erros são JSON", async () => {
   assert.equal(missing.status, 404);
   assert.equal(typeof missing.body.error, "string");
 });
+test("inclusão de itens das listas exige sessão", async () => {
+  for (const kind of ["clients", "work-units", "racs"])
+    assert.equal(
+      (await request(app).post(`/api/admin/lists/${kind}`).send({ name: "X" })).status,
+      401,
+    );
+});

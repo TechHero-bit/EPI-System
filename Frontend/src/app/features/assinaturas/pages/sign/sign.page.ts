@@ -24,11 +24,43 @@ export class SignComponent implements OnInit {
   signerName = "";
   cpfStart = "";
   cpfEnd = "";
+  /** Confirmed by the server (the page never knows the CPF). */
+  identityOk = false;
+  identityError = "";
+  checkingIdentity = false;
+  get digitsComplete() {
+    return /^\d{3}$/.test(this.cpfStart) && /^\d{3}$/.test(this.cpfEnd);
+  }
   get identityReady() {
-    return (
-      !this.previewData?.identityRequired ||
-      (/^\d{3}$/.test(this.cpfStart) && /^\d{3}$/.test(this.cpfEnd))
-    );
+    return !this.previewData?.identityRequired || this.identityOk;
+  }
+  /** Any change to name or digits requires a new server check. */
+  identityChanged() {
+    this.identityOk = false;
+    this.identityError = "";
+    this.resetConsent();
+    if (this.previewData?.identityRequired && this.digitsComplete && this.validName)
+      void this.checkIdentity();
+  }
+  async checkIdentity() {
+    if (this.checkingIdentity || !this.digitsComplete || !this.validName) return;
+    this.checkingIdentity = true;
+    const sent = { name: this.signerName, start: this.cpfStart, end: this.cpfEnd };
+    try {
+      await this.s.publicAction(this.token, "identity", {
+        code: this.code,
+        signerName: this.signerName.trim().replace(/\s+/g, " "),
+        cpfStart: this.cpfStart,
+        cpfEnd: this.cpfEnd,
+      });
+      // Ignore a late answer if the fields changed meanwhile.
+      this.identityOk =
+        sent.name === this.signerName && sent.start === this.cpfStart && sent.end === this.cpfEnd;
+    } catch (e) {
+      this.identityError = e instanceof Error ? e.message : "Não foi possível conferir os dados.";
+    } finally {
+      this.checkingIdentity = false;
+    }
   }
   signatureStyle = "classic";
   styles = SIGNATURE_STYLES;

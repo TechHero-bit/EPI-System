@@ -984,3 +984,12 @@ textarea::placeholder {
 .digital-mark {
   margin: 4px 0 0;
 }
+.identity-ok {
+  color: var(--success);
+  font-weight: 600;
+  margin: 8px 0 0;
+}
+.identity-error {
+  color: var(--danger);
+  margin: 8px 0 0;
+}

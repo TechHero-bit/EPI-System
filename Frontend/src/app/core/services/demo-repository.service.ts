@@ -41,7 +41,9 @@ const shiftDays = (days: number) => {
   return base.toISOString().slice(0, 10);
 };
 // Validades fictícias relativas a hoje, para exibir cada nível de alerta do C.A.
-const demoCaExpiry = [null, null, null, null, -3, 5, 12, 25];
+// Todo equipamento tem C.A. demonstrativo vencendo em 30, 15 ou 7 dias a partir de hoje.
+const DEMO_CA_DAYS = [30, 15, 7] as const;
+const demoCaExpiry = (i: number) => shiftDays(DEMO_CA_DAYS[i % DEMO_CA_DAYS.length]);
 export const MOVEMENT_OPERATIONS = ["RECEIPT", "WITHDRAWAL", "ADJUSTMENT"] as const;
 export type MovementOperation = (typeof MOVEMENT_OPERATIONS)[number];
 export function makeDemoData(): PortalData {
@@ -106,6 +108,7 @@ export function makeDemoData(): PortalData {
     { kit_id: "kit-0", product_id: "product-4", quantity: 1 },
   ];
   data.returns = [];
+  (data as any).caDemoSchedule = today();
   const equipment = [
     "Bota de segurança em couro",
     "Capacete com suspensão",
@@ -124,8 +127,7 @@ export function makeDemoData(): PortalData {
     brand: "Proteção Demo",
     model: `Série ${i + 1}`,
     risk_code: "",
-    ca_expires_at:
-      demoCaExpiry[i] === null ? "2028-12-31" : shiftDays(demoCaExpiry[i]!),
+    ca_expires_at: demoCaExpiry(i),
     active: true,
     photo_url: null,
     unit: "UN",
@@ -216,6 +218,42 @@ export class DemoRepository {
     // Browser data saved before the managed lists existed.
     for (const key of ["clients", "workUnits", "racs", "employeeRacs", "kits", "kitItems", "returns"] as const)
       (data as any)[key] ??= [];
+    // Demo data saved before the managed lists existed has them empty: restore the
+    // fictitious clients, units, RACs and kit so the kit and employee screens work.
+    if (
+      data.organization?.id === "demo" &&
+      !data.clients!.length &&
+      !data.workUnits!.length &&
+      !data.racs!.length &&
+      !data.kits!.length
+    ) {
+      const seed = makeDemoData();
+      data.clients = seed.clients;
+      data.workUnits = seed.workUnits;
+      data.racs = seed.racs;
+      data.kits = seed.kits;
+      data.kitItems = seed.kitItems!.filter((i) =>
+        data.products.some((p) => p.id === i.product_id),
+      );
+      for (const employee of data.employees) {
+        const original = seed.employees.find((e) => e.id === employee.id);
+        if (!original) continue;
+        employee.client_id ??= original.client_id;
+        employee.work_unit_id ??= original.work_unit_id;
+      }
+      data.employeeRacs = seed.employeeRacs!.filter((r) =>
+        data.employees.some((e) => e.id === r.employee_id),
+      );
+    }
+    // One-time refresh of demo data saved earlier: every product gets a demo C.A. and a
+    // validity 30, 15 or 7 days from the day of the refresh.
+    if (data.organization?.id === "demo" && !(data as any).caDemoSchedule) {
+      data.products.forEach((product, i) => {
+        if (!String(product.ca ?? "").trim()) product.ca = `DEMO-${2000 + i}`;
+        product.ca_expires_at = demoCaExpiry(i);
+      });
+      (data as any).caDemoSchedule = today();
+    }
     // Demo employees saved before the CPF confirmation have no `cpf` key: give them the
     // fictitious test CPF. An explicit null (CPF left blank in the form) is kept.
     for (const employee of data.employees ?? [])
@@ -352,9 +390,10 @@ export class DemoRepository {
     this.event("EMPLOYEE_SAVED", value.id);
     return value;
   }
-  /** Clientes, unidades e RACs: somente ADMIN, como na API. */
+  /** Clientes, unidades e RACs: ADMIN; o RH também inclui clientes, como na API. */
   listItem(kind: ListKind, body: { name?: string; active?: boolean }, id?: string) {
-    this.require(["ADMIN"]);
+    // RH may add clients (kit screen); units, RACs and edits stay with ADMIN.
+    this.require(kind === "clients" && !id ? ["ADMIN", "RH"] : ["ADMIN"]);
     const meta = LIST_KINDS[kind];
     if (!meta) throw new Error("Lista não encontrada.");
     const rows = (this.data as any)[meta.key] as any[];
@@ -387,7 +426,8 @@ export class DemoRepository {
     this.require(["ADMIN", "RH"]);
     if (!this.data.clients!.some((c) => c.id === clientId)) throw new Error("Cliente não encontrado.");
     const job = jobTitle.trim().replace(/\s+/g, " ");
-    if (!job || job.length > 120) throw new Error("Informe a função.");
+    // Função vazia = kit geral do cliente.
+    if (job.length > 120) throw new Error("Função inválida.");
     if (!items.length) throw new Error("Inclua ao menos um EPI no kit.");
     if (
       items.some(
@@ -866,12 +906,8 @@ export class DemoRepository {
       link.previewed = true;
     }
     const cpf = this.data.employees.find((e) => e.id === sheet.employee_id)?.cpf;
-    if (step === "confirm") {
-      if (!link.previewed || !acceptedTerms)
-        throw new Error(
-          "Confira o documento e aceite os termos antes de confirmar.",
-        );
-      // Mesma regra da API: nome + 3 primeiros + 3 últimos dígitos, 5 tentativas por link.
+    // Mesma regra da API: nome + 3 primeiros + 3 últimos dígitos, 5 tentativas por link.
+    const checkIdentity = () => {
       if (cpf) {
         const valid =
           normalizeSignerName(signature?.signerName ?? "") ===
@@ -893,6 +929,19 @@ export class DemoRepository {
         }
         this.event("SIGNER_IDENTITY_CONFIRMED", sheet.id);
       }
+    };
+    if (step === "identity") {
+      if (!link.previewed)
+        throw new Error("Confira o documento antes de confirmar o CPF.");
+      checkIdentity();
+      return { confirmed: true };
+    }
+    if (step === "confirm") {
+      if (!link.previewed || !acceptedTerms)
+        throw new Error(
+          "Confira o documento e aceite os termos antes de confirmar.",
+        );
+      checkIdentity();
       if (
         !signature?.signerName ||
         normalizeSignerName(signature.signerName) !==

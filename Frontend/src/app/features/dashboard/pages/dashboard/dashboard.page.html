@@ -114,7 +114,7 @@
       </div>
       <div class="ca-levels">
         @for (level of caLevels; track level.id) {
-          <span [class]="'ca-alert level-' + level.id"
+          <span [class]="'sev sev-' + level.id"
             >{{ level.label }}: <strong>{{ caCount(level.id) }}</strong></span
           >
         }

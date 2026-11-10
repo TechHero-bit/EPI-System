@@ -148,7 +148,7 @@
         <input
           id="signer-name"
           [(ngModel)]="signerName"
-          (ngModelChange)="resetConsent()"
+          (ngModelChange)="identityChanged()"
           maxlength="180"
           autocomplete="name"
           placeholder="Digite seu nome conforme a ficha"
@@ -172,7 +172,7 @@
               <input
                 id="cpf-start"
                 [(ngModel)]="cpfStart"
-                (ngModelChange)="resetConsent()"
+                (ngModelChange)="identityChanged()"
                 inputmode="numeric"
                 maxlength="3"
                 autocomplete="off"
@@ -182,13 +182,22 @@
               <input
                 id="cpf-end"
                 [(ngModel)]="cpfEnd"
-                (ngModelChange)="resetConsent()"
+                (ngModelChange)="identityChanged()"
                 inputmode="numeric"
                 maxlength="3"
                 autocomplete="off"
                 pattern="[0-9]{3}"
               />
             </div>
+            @if (checkingIdentity) {
+              <p class="muted small" role="status">Conferindo os dados…</p>
+            } @else if (identityOk) {
+              <p class="identity-ok" role="status">✓ Dados confirmados.</p>
+            } @else if (identityError) {
+              <p class="identity-error" role="alert">{{ identityError }}</p>
+            } @else if (!validName) {
+              <p class="muted small">Digite primeiro o seu nome completo.</p>
+            }
           </fieldset>
         }
         <label class="field" for="signature-style">Estilo da assinatura</label>

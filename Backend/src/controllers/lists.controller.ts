@@ -25,7 +25,11 @@ const table = (kind: string) => {
 };
 
 export const postList: RequestHandler<{ kind: string }> = async (req, res) => {
-  const c = await context(req, ["ADMIN"]);
+  // RH may add clients (from the kit screen); units, RACs and any edit stay with ADMIN.
+  const c = await context(
+    req,
+    req.params.kind === "clients" ? ["ADMIN", "RH"] : ["ADMIN"],
+  );
   const name = table(req.params.kind);
   const body = z.object({ name: required.max(160) }).parse(req.body);
   const data = dbResult(
@@ -71,7 +75,8 @@ export const putKit: RequestHandler = async (req, res) => {
   const body = z
     .object({
       clientId: uuid,
-      jobTitle: required.max(120),
+      // Vazio = kit geral do cliente, usado quando não há kit da função.
+      jobTitle: z.string().trim().max(120).default(""),
       items: z
         .array(z.object({ productId: uuid, quantity: z.number().int().min(1).max(15) }))
         .min(1)

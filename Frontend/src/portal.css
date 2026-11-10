@@ -93,7 +93,7 @@ a {
 }
 .toolbar.equipment-filters {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.7fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.7fr) minmax(140px, 0.8fr) minmax(0, 1.4fr);
 }
 .toolbar.equipment-filters select {
   max-width: none;
@@ -847,47 +847,104 @@ textarea::placeholder {
   margin-left: 2px;
 }
 
-/* Alertas de validade do C.A.: texto sempre presente; destaque cresce com a urgência. */
-.ca-alert {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  font-size: 0.76rem;
-  color: var(--warning);
-}
-.ca-alert.level-D15 {
+/* Validade do C.A. em três faixas: crítico (vencido ou até 7 dias), alerta
+   (até 15 dias) e normal (até 30 dias). O texto sempre acompanha a cor. */
+.ca-alert,
+.sev {
+  --sev-ink: var(--sev-normal);
+  --sev-bg: var(--sev-normal-bg);
+  --sev-line: var(--sev-normal-line);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--sev-line);
+  background: var(--sev-bg);
+  color: var(--sev-ink);
+  font-size: 0.74rem;
   font-weight: 600;
-  border-color: var(--warning);
+  line-height: 1.4;
 }
-.ca-alert.level-D7 {
-  font-weight: 700;
-  color: var(--danger);
-  border: 2px solid var(--danger);
+.ca-alert::before,
+.sev::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.ca-alert.level-EXPIRED,
+.ca-alert.level-D7,
+.sev-CRITICAL {
+  --sev-ink: var(--sev-critical);
+  --sev-bg: var(--sev-critical-bg);
+  --sev-line: var(--sev-critical-line);
+}
+.ca-alert.level-D15,
+.sev-WARNING {
+  --sev-ink: var(--sev-warning);
+  --sev-bg: var(--sev-warning-bg);
+  --sev-line: var(--sev-warning-line);
 }
 .ca-alert.level-EXPIRED {
   font-weight: 700;
-  color: var(--bg-secondary);
-  background: var(--danger);
-  border: 2px solid var(--danger);
+  border-width: 2px;
 }
 .ca-alert-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 .ca-alert-list .ca-alert {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  border-radius: 8px;
+  padding: 7px 11px;
+  gap: 4px 10px;
 }
 .ca-alert-list .ca-alert span {
   font-weight: 400;
+  color: var(--text-secondary);
 }
-.equipment-card.ca-flag {
-  border-color: var(--warning);
+.equipment-card.sev-card-CRITICAL {
+  border-color: var(--sev-critical-line);
+  box-shadow: inset 0 3px 0 var(--sev-critical);
+}
+.equipment-card.sev-card-WARNING {
+  box-shadow: inset 0 3px 0 var(--sev-warning);
+}
+.equipment-card.sev-card-NORMAL {
+  box-shadow: inset 0 3px 0 var(--sev-normal-line);
+}
+/* Resumo clicável que também filtra o catálogo. */
+.ca-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ca-summary h2 {
+  margin: 0 8px 0 0;
+}
+.ca-summary button.sev {
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+.ca-summary button.sev[aria-pressed="true"] {
+  outline: 2px solid var(--sev-ink);
+  outline-offset: 1px;
+}
+.ca-summary button.sev:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ca-summary b {
+  font-weight: 800;
 }
 .ca-levels {
   display: flex;
@@ -945,4 +1002,40 @@ textarea::placeholder {
   max-width: 520px;
   width: 100%;
   margin: 0;
+}
+
+/* Seleção de equipamentos com filtros à esquerda (montador e kits). */
+.builder-browse {
+  display: grid;
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.toolbar.equipment-filters.filters-side {
+  grid-template-columns: 1fr;
+  margin-bottom: 0;
+}
+.filters-side select {
+  max-width: none;
+  width: 100%;
+}
+@media (max-width: 800px) {
+  .builder-browse {
+    grid-template-columns: 1fr;
+  }
+}
+.kit-quantity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.kit-quantity .secondary {
+  min-width: 34px;
+  padding: 4px 8px;
+}
+.sev-OK {
+  --sev-ink: var(--success);
+  --sev-bg: color-mix(in srgb, var(--success) 10%, var(--bg-primary));
+  --sev-line: color-mix(in srgb, var(--success) 40%, var(--bg-primary));
 }

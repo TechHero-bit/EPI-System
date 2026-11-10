@@ -279,7 +279,6 @@
       <div class="form-grid spaced">
         <label class="field"
           >Operação<select name="operation" [(ngModel)]="movement.operation">
-            <option value="ADJUSTMENT">Ajuste (para mais ou para menos)</option>
             <option value="RECEIPT">Entrada de estoque</option>
             <option value="WITHDRAWAL">Retirada fora de ficha</option>
           </select></label
@@ -289,7 +288,7 @@
           }}<input
             name="quantity"
             type="number"
-            [min]="movement.operation === 'ADJUSTMENT' ? -100000 : 1"
+            min="1"
             max="100000"
             [(ngModel)]="movement.quantity"
             required
@@ -305,7 +304,7 @@
         /></label>
       </div>
       <p class="note">
-        Toda entrada, retirada ou ajuste feito fora de uma ficha exige
+        Toda entrada ou retirada feita fora de uma ficha exige
         justificativa. A saída de entrega é feita na confirmação física da
         ficha. Movimentações não podem consumir unidades reservadas ou
         bloqueadas.
@@ -333,16 +332,28 @@
 }
 
 @if (page === "catalog" && caAlerts.length) {
-  <section class="panel" aria-labelledby="ca-alerts-title">
+  <section class="panel ca-summary" aria-labelledby="ca-alerts-title">
     <h2 id="ca-alerts-title">Validade dos C.A.</h2>
-    <ul class="ca-alert-list">
-      @for (p of caAlerts; track p.id) {
-        <li [class]="'ca-alert level-' + caAlert(p)">
-          <strong>{{ caAlertText(p) }}</strong>
-          <span>{{ p.description }} · CA {{ p.ca || "não informado" }}</span>
-        </li>
-      }
-    </ul>
+    @for (sev of severities; track sev.id) {
+      <button
+        type="button"
+        [class]="'sev sev-' + sev.id"
+        [attr.aria-pressed]="validity === sev.id"
+        [disabled]="!severityCount(sev.id)"
+        (click)="toggleValidity(sev.id)"
+      >
+        {{ sev.label }} <b>{{ severityCount(sev.id) }}</b>
+      </button>
+    }
+    @if (validity) {
+      <button type="button" class="text-button" (click)="validity = ''">
+        Mostrar todos
+      </button>
+    }
+    <small class="muted">
+      Crítico: vencido ou vence em até 7 dias · Alerta: até 15 dias · Normal:
+      até 30 dias.
+    </small>
   </section>
 }
 
@@ -359,6 +370,13 @@
           @for (c of allCategories; track c) {
             <option [value]="c">{{ c }}</option>
           }
+        </select>
+        <select aria-label="Filtrar validade do C.A." [(ngModel)]="validity">
+          <option value="">Todas as validades</option>
+          @for (sev of severities; track sev.id) {
+            <option [value]="sev.id">{{ sev.label }}</option>
+          }
+          <option value="OK">Sem alerta de validade</option>
         </select>
         <select aria-label="Filtrar tamanho" [(ngModel)]="size">
           <option value="">Todos os tamanhos</option>
@@ -394,7 +412,9 @@
     @if (page === "catalog") {
       <div class="equipment-grid catalog">
         @for (p of products; track p.id) {
-          <article class="equipment-card" [class.ca-flag]="caAlert(p)">
+          <article
+            [class]="'equipment-card sev-card-' + (severityOf(p) || 'OK')"
+          >
             <span class="chip">{{ p.category }}</span
             ><strong>{{ p.description }}</strong
             ><small>CA {{ p.ca || "Não informado" }} · {{ p.brand }}</small>

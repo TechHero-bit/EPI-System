@@ -1,9 +1,17 @@
 import { Component, inject } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { PortalStore } from "../../../../core/services/portal.service";
-import { alphabetical } from "../../../../shared/utils/alphabetical";
+import { normalizeJobTitle } from "../../../../core/models/portal.model";
+import {
+  alphabetical,
+  compareLabels,
+} from "../../../../shared/utils/alphabetical";
+
+const KIT_LIMIT = 15;
 
 // Kit de EPIs por cliente e função: ponto de partida do montador de fichas.
+// A escolha dos equipamentos segue o padrão do montador: filtros à esquerda,
+// cartões que adicionam uma unidade e um resumo com as quantidades.
 @Component({
   standalone: true,
   imports: [FormsModule],
@@ -14,23 +22,51 @@ export class KitsComponent {
   clientId = "";
   jobTitle = "";
   editingId = "";
-  quantities: Record<string, number> = {};
+  /** productId → unidades, na ordem em que foram escolhidos. */
+  items: { productId: string; quantity: number }[] = [];
+  category = "";
+  query = "";
+  browsing = false;
+  newClient = "";
+  limit = KIT_LIMIT;
   get canEdit() {
+    return ["ADMIN", "RH"].includes(this.s.role);
+  }
+  /** ADMIN e RH incluem clientes; renomear e desativar continua na Administração. */
+  get canAddClient() {
     return ["ADMIN", "RH"].includes(this.s.role);
   }
   get clients() {
     return alphabetical(
-      (this.s.data().clients ?? []).filter((c) => c.active || c.id === this.clientId),
+      (this.s.data().clients ?? []).filter(
+        (c) => c.active || c.id === this.clientId,
+      ),
       (c) => c.name,
     );
   }
-  /** Funções já usadas nos cadastros, para sugerir o texto exato. */
-  get jobTitles() {
-    return [...new Set(this.s.data().employees.map((e) => e.job_title).filter(Boolean))].sort();
+  get categories() {
+    return [
+      ...new Set(
+        this.s
+          .data()
+          .products.filter((p) => p.active)
+          .map((p) => p.category),
+      ),
+    ].sort(compareLabels);
   }
   get products() {
+    const q = this.query.trim().toLowerCase();
     return alphabetical(
-      this.s.data().products.filter((p) => p.active),
+      this.s
+        .data()
+        .products.filter(
+          (p) =>
+            p.active &&
+            (!this.category || p.category === this.category) &&
+            `${p.description} ${p.ca ?? ""} ${p.brand ?? ""}`
+              .toLowerCase()
+              .includes(q),
+        ),
       (p) => p.description,
     );
   }
@@ -45,34 +81,106 @@ export class KitsComponent {
     );
   }
   get total() {
-    return Object.values(this.quantities).reduce((n, q) => n + (Number(q) || 0), 0);
+    return this.items.reduce((n, i) => n + i.quantity, 0);
+  }
+  get canSave() {
+    return (
+      !!this.clientId &&
+      this.total > 0 &&
+      this.total <= KIT_LIMIT
+    );
+  }
+  /** Kit sem função vale para todo o cliente quando a função não tem kit próprio. */
+  jobLabel(jobTitle: string) {
+    return jobTitle?.trim() || "Kit geral (todas as funções)";
+  }
+  /** Já existe kit para este cliente e função? Salvar substitui os itens dele. */
+  get replaces() {
+    if (this.editingId) return undefined;
+    const job = normalizeJobTitle(this.jobTitle);
+    return (this.s.data().kits ?? []).find(
+      (k) => k.client_id === this.clientId && normalizeJobTitle(k.job_title) === job,
+    );
   }
   productName(id: string) {
     return this.s.product(id)?.description ?? "Equipamento removido";
+  }
+  sizes(productId: string) {
+    return this.s
+      .data()
+      .variants.filter((v) => v.product_id === productId && v.active !== false)
+      .map((v) => v.size)
+      .join(", ");
+  }
+  quantityOf(productId: string) {
+    return this.items.find((i) => i.productId === productId)?.quantity ?? 0;
+  }
+  categoryChanged(category: string) {
+    this.category = category;
+    this.browsing = true;
+  }
+  queryChanged(query: string) {
+    this.query = query;
+    if (query.trim()) this.browsing = true;
+  }
+  showAll() {
+    this.category = "";
+    this.query = "";
+    this.browsing = true;
+  }
+  add(productId: string) {
+    if (this.total >= KIT_LIMIT) {
+      this.s.failure.set(`O kit pode ter no máximo ${KIT_LIMIT} unidades, o limite da ficha.`);
+      return;
+    }
+    const item = this.items.find((i) => i.productId === productId);
+    if (item) item.quantity++;
+    else this.items.push({ productId, quantity: 1 });
+  }
+  decrease(productId: string) {
+    const item = this.items.find((i) => i.productId === productId);
+    if (!item) return;
+    item.quantity--;
+    if (item.quantity < 1) this.remove(productId);
+  }
+  remove(productId: string) {
+    this.items = this.items.filter((i) => i.productId !== productId);
+  }
+  addClient() {
+    const name = this.newClient.trim();
+    void this.s
+      .action(async () => {
+        await this.s.saveListItem("clients", { name });
+        this.clientId =
+          (this.s.data().clients ?? []).find((c) => c.name === name)?.id ?? "";
+      }, "Cliente incluído.")
+      .then((ok) => ok && (this.newClient = ""));
   }
   edit(kit: any) {
     this.editingId = kit.id;
     this.clientId = kit.client_id;
     this.jobTitle = kit.job_title;
-    this.quantities = Object.fromEntries(kit.items.map((i: any) => [i.product_id, i.quantity]));
+    this.items = kit.items.map((i: any) => ({
+      productId: i.product_id,
+      quantity: i.quantity,
+    }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
   reset() {
     this.editingId = "";
     this.clientId = "";
     this.jobTitle = "";
-    this.quantities = {};
+    this.items = [];
   }
   save() {
     void this.s
-      .action(async () => {
-        const items = Object.entries(this.quantities)
-          .map(([productId, quantity]) => ({ productId, quantity: Number(quantity) }))
-          .filter((i) => i.quantity > 0);
-        await this.s.saveKit(this.clientId, this.jobTitle, items);
-      }, "Kit salvo.")
+      .action(
+        () => this.s.saveKit(this.clientId, this.jobTitle.trim(), this.items),
+        "Kit salvo.",
+      )
       .then((ok) => ok && this.reset());
   }
-  remove(kit: any) {
+  removeKit(kit: any) {
     void this.s.action(() => this.s.deleteKit(kit.id), "Kit removido.");
   }
 }

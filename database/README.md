@@ -4,7 +4,7 @@ A fonte SQL está em `supabase/migrations/`. Escolha uma forma de instalação; 
 
 ## Índice numerado das migrations
 
-Os arquivos vão de **001 a 013**, na ordem de aplicação. Em banco com 001 a 009 aplicadas, execute somente 010, 011, 012 e 013, nessa ordem, antes de publicar a API atualizada (a API passa a chamar `move_inventory`, `sync_product_sizes`, `register_sheet_return` e `record_identity_check`).
+Os arquivos vão de **001 a 014**, na ordem de aplicação. Em banco com 001 a 009 aplicadas, execute somente 010, 011, 012 e 013, nessa ordem, antes de publicar a API atualizada (a API passa a chamar `move_inventory`, `sync_product_sizes`, `register_sheet_return` e `record_identity_check`).
 
 ### Tamanhos padronizados
 
@@ -33,6 +33,7 @@ where size not in ('Único','PP','P','M','G','GG','XG','XGG','XXG','XXXG')
 | 011 | [011_managed_lists_kits.sql](supabase/migrations/011_managed_lists_kits.sql) | Listas gerenciadas `clients`, `work_units`, `racs`, vínculos do colaborador (`client_id`, `work_unit_id`, `employee_racs`) e kits `epi_kits`/`epi_kit_items` por cliente e função. Converte os textos existentes de `employees.work_unit` em itens de `work_units` e vincula cada colaborador; a coluna textual é mantida. |
 | 012 | [012_sheet_returns.sql](supabase/migrations/012_sheet_returns.sql) | Devolução de fichas entregues (`sheet_returns`, `sheet_return_items`, `register_sheet_return`), somente acréscimo, motivo M.D. e destino por item. Desenho em `docs/DEVOLUCAO-DESENHO-20261109.md`. |
 | 013 | [013_signer_identity_check.sql](supabase/migrations/013_signer_identity_check.sql) | Confirmação do signatário por nome e dígitos do CPF: tentativas contadas no link (`record_identity_check`), bloqueio na quinta falha e exigência em `complete_signature` quando há CPF cadastrado. |
+| 014 | [014_kit_without_job_title.sql](supabase/migrations/014_kit_without_job_title.sql) | Kit sem função (função vazia = kit geral do cliente): relaxa a checagem de `epi_kits.job_title` e `save_epi_kit` aceita função vazia. Nada é convertido. |
 
 ### Atualização de 09/11/2026 (010 a 013)
 

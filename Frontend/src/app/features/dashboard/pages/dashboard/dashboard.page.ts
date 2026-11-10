@@ -6,9 +6,11 @@ import { StatusComponent } from "../../../../shared/components/status-badge/stat
 import { today } from "../../../../core/models/portal.model";
 import {
   caAlertLevel,
-  caAlertLabel,
+  caSeverity,
+  caSeverityLabel,
   daysUntil,
   CA_ALERT_LEVELS,
+  CA_SEVERITIES,
 } from "../../../../../../../contracts/ca-alerts.mjs";
 @Component({
   standalone: true,
@@ -97,17 +99,24 @@ export class DashboardComponent {
       .products.filter((p) => p.active)
       .map((p) => ({ product: p, level: caAlertLevel(p.ca_expires_at, today()) }))
       .filter((a) => a.level)
-      .map((a) => ({
-        ...a,
-        label: caAlertLabel(a.level!),
-        days: daysUntil(a.product.ca_expires_at, today()),
-      }))
+      .map((a) => {
+        const days = daysUntil(a.product.ca_expires_at, today());
+        const severity = caSeverity(a.level)!;
+        return {
+          ...a,
+          severity,
+          days,
+          label: `${caSeverityLabel(severity)} · ${
+            days < 0 ? "vencido" : days === 0 ? "vence hoje" : `${days} ${days === 1 ? "dia" : "dias"}`
+          }`,
+        };
+      })
       .sort((a, b) => order.indexOf(a.level!) - order.indexOf(b.level!) || a.days - b.days);
   }
-  caCount(level: string) {
-    return this.caAlerts.filter((a) => a.level === level).length;
+  caCount(severity: string) {
+    return this.caAlerts.filter((a) => a.severity === severity).length;
   }
-  readonly caLevels = CA_ALERT_LEVELS;
+  readonly caLevels = CA_SEVERITIES;
   get expiring() {
     return this.caAlerts.length;
   }

@@ -37,7 +37,7 @@ Implementação das solicitações de Almoxarifado, RH e Segurança do Trabalho.
 
 - Telas de administração (ADMIN) para clientes, unidades e RACs: incluir, renomear, desativar e reativar.
 - Cadastro do colaborador com cliente, unidade (listas) e RACs (seleção múltipla); lista de colaboradores com filtros por cliente, unidade e RAC.
-- Kits por cliente e função (`/rh/kits`, ADMIN e RH). No montador, os itens do kit vêm marcados; o operador escolhe o tamanho (pré-selecionado quando há um só); itens sem saldo ficam sinalizados e desabilitados.
+- Kits por cliente e função (`/rh/kits`, ADMIN e RH). O painel do kit no montador foi implementado e depois retirado a pedido do usuário; os kits continuam cadastrados, mas hoje não pré-preenchem a ficha.
 - Montador: filtros à esquerda; a lista só aparece após pesquisa, filtro ou "Ver todos os equipamentos"; item sem estoque ou com C.A. vencido mostra o motivo e não pode ser incluído; data por item e remoção mantidas.
 - Bug corrigido: ao voltar para "Todas as categorias", o tamanho escolhido (ex.: M) continuava aplicado e a lista não voltava completa. Agora "todas" limpa o tamanho dependente, no montador e no catálogo; há também "Limpar filtros".
 
@@ -52,6 +52,11 @@ Implementação das solicitações de Almoxarifado, RH e Segurança do Trabalho.
 - Confirmação por nome completo + 3 primeiros + 3 últimos dígitos do CPF, além do código por e-mail; comparação só na API, em tempo constante; 5 tentativas por link contadas no Postgres; bloqueio auditado; mensagem genérica; nenhum dígito vai para a página, log, auditoria ou evidência. Sem CPF, fluxo anterior.
 - CPF de teste `93492854010` em `seed.sql`, na demonstração e nas fixtures (unitárias, PGlite e e2e). Script separado `database/scripts/dev-set-test-cpf.sql` com aviso de uso exclusivo em desenvolvimento (não executado). O e2e de assinatura digita 934 e 010.
 - "Assinado digitalmente": já presente no rodapé do PDF/XLSX das fichas eletrônicas (e ausente nas presenciais); a tela de aceite passou a mostrar a mesma indicação, com a referência já documentada (MP 2.200-2/2001, art. 10, § 2º). Avaliação: não é necessária uma V5 do modelo, porque nada muda no layout nem no original emitido (README dos assets atualizado).
+
+## Ajustes após revisão (09/11/2026)
+
+- Assinatura: o botão de aceite só é liberado depois que o servidor confirma nome e dígitos do CPF (`POST /api/sign/:token/identity`); a página nunca recebe o CPF. Dados da demonstração salvos antes da mudança recebem o CPF de teste.
+- Kits: função é texto livre (sem lista de sugestões); equipamentos escolhidos como no montador (filtros à esquerda, cartões que somam 1 unidade, resumo com + e −). Por decisão posterior do usuário, ADMIN e RH incluem clientes direto na tela de kits (`POST /api/admin/lists/clients`); renomear, desativar e gerenciar unidades e RACs continua só com ADMIN. Dados antigos da demonstração recuperam os clientes, unidades, RACs e kit fictícios.
 
 ## Divergências encontradas e decisões tomadas
 

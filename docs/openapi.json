@@ -811,7 +811,7 @@
     },
     "/admin/lists/{kind}": {
       "post": {
-        "summary": "Incluir cliente, unidade de trabalho ou RAC (kind: clients, work-units, racs; ADMIN)",
+        "summary": "Incluir cliente (ADMIN/RH), unidade de trabalho ou RAC (ADMIN). kind: clients, work-units, racs",
         "parameters": [
           {
             "name": "kind",
@@ -1886,6 +1886,54 @@
     "/sign/{token}/preview": {
       "post": {
         "summary": "Verificar OTP e obter URL do PDF exato por 60 segundos",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída"
+          },
+          "201": {
+            "description": "Registro criado"
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "401": {
+            "description": "Sessão ou código inválido"
+          },
+          "403": {
+            "description": "Perfil não autorizado"
+          },
+          "409": {
+            "description": "Conflito de estado ou saldo"
+          },
+          "410": {
+            "description": "Link expirado ou consumido"
+          },
+          "423": {
+            "description": "Link bloqueado por tentativas de confirmação"
+          },
+          "429": {
+            "description": "Limite de tentativas"
+          },
+          "503": {
+            "description": "Integração indisponível"
+          }
+        }
+      }
+    },
+    "/sign/{token}/identity": {
+      "post": {
+        "summary": "Conferir nome completo e 3 primeiros + 3 últimos dígitos do CPF (com o código do e-mail) antes de liberar o botão de assinatura. Conta tentativa em caso de erro; a quinta bloqueia o link (423). Nunca devolve o CPF",
         "security": [],
         "parameters": [
           {

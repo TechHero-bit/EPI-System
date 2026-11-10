@@ -41,7 +41,7 @@ const methods: Record<string, Record<string, string>> = {
     post: "Ajuste para mais ou para menos, idempotente, com justificativa obrigatória",
   },
   "/admin/lists/{kind}": {
-    post: "Incluir cliente, unidade de trabalho ou RAC (kind: clients, work-units, racs; ADMIN)",
+    post: "Incluir cliente (ADMIN/RH), unidade de trabalho ou RAC (ADMIN). kind: clients, work-units, racs",
   },
   "/admin/lists/{kind}/{id}": {
     patch: "Renomear, desativar ou reativar item da lista (ADMIN)",
@@ -91,6 +91,9 @@ const methods: Record<string, Record<string, string>> = {
   "/sign/{token}/code": { post: "Enviar OTP ao canal previamente verificado" },
   "/sign/{token}/preview": {
     post: "Verificar OTP e obter URL do PDF exato por 60 segundos",
+  },
+  "/sign/{token}/identity": {
+    post: "Conferir nome completo e 3 primeiros + 3 últimos dígitos do CPF (com o código do e-mail) antes de liberar o botão de assinatura. Conta tentativa em caso de erro; a quinta bloqueia o link (423). Nunca devolve o CPF",
   },
   "/sign/{token}/confirm": {
     post: "Confirmar OTP, aceite e, se houver CPF cadastrado, nome completo + 3 primeiros e 3 últimos dígitos (cpfStart, cpfEnd). Cinco erros bloqueiam o link (423). A assinatura não confirma entrega",

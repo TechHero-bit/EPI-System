@@ -147,6 +147,52 @@ export const postsignTokenPreview: RequestHandler<{
   });
 };
 
+const identitySchema = z.object({
+  code: z.string().regex(/^\d{6}$/),
+  signerName: z.string().trim().min(2).max(180),
+  cpfStart: z.string().regex(/^\d{3}$/).optional(),
+  cpfEnd: z.string().regex(/^\d{3}$/).optional(),
+});
+
+/**
+ * Compares name + CPF digits with the registered CPF in constant time and records the
+ * attempt in Postgres (the fifth failure blocks the link). Returns false when the
+ * employee has no CPF, in which case the previous flow applies.
+ */
+async function verifyIdentity(
+  db: any,
+  link: { id: string; sheet_id: string },
+  body: { signerName: string; cpfStart?: string; cpfEnd?: string },
+) {
+  const cpf = await employeeCpf(db, link.sheet_id);
+  if (!cpf) return false;
+  const sheet = dbResult(
+    await db.from("sheets").select("snapshot").eq("id", link.sheet_id).single(),
+  );
+  const valid = signerIdentityMatches(
+    { name: body.signerName, cpfStart: body.cpfStart, cpfEnd: body.cpfEnd },
+    { name: sheet.snapshot.employee.name, cpf },
+    config().TOKEN_PEPPER,
+  );
+  const outcome = dbResult(
+    await db.rpc("record_identity_check", { p_link: link.id, p_valid: valid }),
+  );
+  if (outcome === "BLOCKED") throw error(IDENTITY_BLOCKED, 423);
+  if (outcome !== "OK") throw error(IDENTITY_FAILED, 401);
+  return true;
+}
+
+/** Lets the page enable "Concluir assinatura" only after the server confirms the data. */
+export const postsignTokenIdentity: RequestHandler<{ token: string }> = async (
+  req,
+  res,
+) => {
+  const body = identitySchema.parse(req.body);
+  const { db, link } = await checkCode(req.params.token, body.code);
+  await verifyIdentity(db, link, body);
+  res.json({ confirmed: true });
+};
+
 export const postsignTokenConfirm: RequestHandler<{
   id: string;
   token: string;
@@ -163,23 +209,8 @@ export const postsignTokenConfirm: RequestHandler<{
     })
     .parse(req.body);
   const { db, link } = await checkCode(req.params.token, body.code);
-  const cpf = await employeeCpf(db, link.sheet_id);
-  if (cpf) {
-    const sheet = dbResult(
-      await db.from("sheets").select("snapshot").eq("id", link.sheet_id).single(),
-    );
-    const valid = signerIdentityMatches(
-      { name: body.signerName, cpfStart: body.cpfStart, cpfEnd: body.cpfEnd },
-      { name: sheet.snapshot.employee.name, cpf },
-      config().TOKEN_PEPPER,
-    );
-    // Attempts are counted in Postgres; the fifth failure blocks the link.
-    const outcome = dbResult(
-      await db.rpc("record_identity_check", { p_link: link.id, p_valid: valid }),
-    );
-    if (outcome === "BLOCKED") throw error(IDENTITY_BLOCKED, 423);
-    if (outcome !== "OK") throw error(IDENTITY_FAILED, 401);
-  }
+  // Checked again here: the earlier /identity call only enables the button on the page.
+  await verifyIdentity(db, link, body);
   const ip = req.ip && /^[0-9a-fA-F:.]+$/.test(req.ip) ? req.ip : null;
   const sheetId = dbResult(
     await db.rpc("complete_signature", {

@@ -82,7 +82,7 @@ Páginas Angular normalmente têm arquivos `.page.ts` e `.page.html` separados. 
 
 ### Perfis e áreas
 
-- `ADMIN`: administração, RH e estoque conforme permissões previstas. Somente ADMIN gerencia as listas de clientes, unidades de trabalho e RACs.
+- `ADMIN`: administração, RH e estoque conforme permissões previstas. Somente ADMIN gerencia as listas de clientes, unidades de trabalho e RACs; o RH também pode incluir clientes (tela de kits), sem renomear nem desativar.
 - `RH` e `SEGURANCA_TRABALHO`: colaboradores e fichas.
 - `ALMOXARIFADO`: catálogo, estoque e movimentações; não acessa CPF nem documentos pessoais de RH.
 - O frontend protege rotas para navegação, mas a autorização real também é verificada pela API e pelo banco/RLS.
@@ -112,7 +112,7 @@ Páginas Angular normalmente têm arquivos `.page.ts` e `.page.html` separados. 
 - Cada equipamento tem uma grade de tamanhos marcados no cadastro (`PUT /products/:id/sizes`, `sync_product_sizes`). Tamanho com saldo, reserva ou histórico não é removido: fica inativo (`variants.active=false`) e não entra em novas fichas nem recebe entrada.
 - Movimentação manual (`move_inventory`): entrada, retirada fora de ficha (`WITHDRAWAL`) e ajuste exigem justificativa de 5 a 300 caracteres; devoluções geram `RETURN`.
 - C.A.: base pública CAEPI importada por comando em `ca_registry` e consultada por `GET /api/ca/:numero`; a consulta preenche o cadastro, mas nunca o bloqueia. Alertas de validade em 30, 15 e 7 dias e vencido (`contracts/ca-alerts.mts`), sempre com texto.
-- Clientes, unidades de trabalho e RACs são listas gerenciadas (migration 011). Nada disso é fixo no código. Kits de EPI por cliente e função (ADMIN/RH) pré-marcam itens no montador; o operador escolhe o tamanho e o kit não muda o snapshot.
+- Clientes, unidades de trabalho e RACs são listas gerenciadas (migration 011). Nada disso é fixo no código. Kits de EPI por cliente e função (ADMIN/RH) ficam cadastrados em `/rh/kits`; por pedido do usuário (09/11/2026), o painel do kit foi retirado do montador de fichas, que não usa o kit no momento.
 - O montador de fichas só lista equipamentos após pesquisa, filtro ou "Ver todos"; voltar para "Todas as categorias" limpa o tamanho dependente.
 - Tamanhos válidos para novos cadastros: `Único`, `PP`, `P`, `M`, `G`, `GG`, `XG`, `XGG`, `XXG`, `XXXG` e inteiros `1` a `70`, sem zeros à esquerda. A regra compartilhada está em `contracts/equipment-sizes.mts`; migration 009 espelha a constraint.
 - Descrição, C.A., marca e risco vêm do catálogo, sem sobrescrita na emissão.

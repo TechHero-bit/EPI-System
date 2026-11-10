@@ -4,8 +4,10 @@ import {
   sizeGroupsFor,
 } from "../../../../../../../contracts/equipment-sizes.mjs";
 import {
+  CA_SEVERITIES,
   caAlertLevel,
-  caAlertLabel,
+  caSeverity,
+  caSeverityLabel,
   daysUntil,
 } from "../../../../../../../contracts/ca-alerts.mjs";
 import { DatePipe, NgTemplateOutlet } from "@angular/common";
@@ -52,6 +54,9 @@ export class InventoryComponent {
   category = "";
   size = "";
   kind = "";
+  /** Filtro de validade do C.A.: CRITICAL, WARNING, NORMAL, OK (sem alerta) ou todos. */
+  validity = "";
+  readonly severities = CA_SEVERITIES;
   sizeGroups = SIZE_GROUPS;
   categories = categories;
   get filterSizeGroups() {
@@ -226,6 +231,7 @@ export class InventoryComponent {
       .products.filter(
         (p) =>
           (!this.category || p.category === this.category) &&
+          (!this.validity || (this.severityOf(p) ?? "OK") === this.validity) &&
           (!this.size ||
             this.s
               .data()
@@ -273,13 +279,27 @@ export class InventoryComponent {
   caAlert(p: any) {
     return caAlertLevel(p?.ca_expires_at, today());
   }
+  severityOf(p: any) {
+    return caSeverity(this.caAlert(p));
+  }
+  /** Texto curto: faixa + prazo. A data aparece completa só quando já venceu. */
   caAlertText(p: any) {
-    const level = this.caAlert(p);
-    if (!level) return "";
+    const severity = this.severityOf(p);
+    if (!severity) return "";
     const days = daysUntil(p.ca_expires_at, today());
-    return level === "EXPIRED"
-      ? `${caAlertLabel(level)} desde ${p.ca_expires_at.split("-").reverse().join("/")}`
-      : `${caAlertLabel(level)} (${days === 0 ? "vence hoje" : `faltam ${days} dias`})`;
+    const when =
+      days < 0
+        ? `vencido em ${p.ca_expires_at.slice(0, 10).split("-").reverse().join("/")}`
+        : days === 0
+          ? "vence hoje"
+          : `vence em ${days} ${days === 1 ? "dia" : "dias"}`;
+    return `${caSeverityLabel(severity)} · ${when}`;
+  }
+  severityCount(id: string) {
+    return this.caAlerts.filter((p) => this.severityOf(p) === id).length;
+  }
+  toggleValidity(id: string) {
+    this.validity = this.validity === id ? "" : id;
   }
   private alertRank(p: any) {
     return ["EXPIRED", "D7", "D15", "D30"].indexOf(this.caAlert(p) ?? "") >>> 0;

@@ -170,6 +170,81 @@
     @if (step === 2) {
       <section class="panel">
         <h2>Escolha os equipamentos e tamanhos</h2>
+        <div class="kit-picker">
+          <label class="field"
+            >Kit / cliente<select
+              [ngModel]="kitId"
+              (ngModelChange)="selectKit($event)"
+              [disabled]="!!preparedId"
+            >
+              <option value="">Sem kit, escolher manualmente</option>
+              @for (k of kitOptions; track k.id) {
+                <option [value]="k.id">
+                  {{ k.label }}{{ k.id === suggestedKit?.id ? " (sugerido)" : "" }}
+                </option>
+              }
+            </select></label
+          >
+          @if (suggestedKit && !kitId && !preparedId) {
+            <button
+              type="button"
+              class="secondary"
+              (click)="selectKit(suggestedKit.id)"
+            >
+              Usar kit sugerido: {{ kitLabel(suggestedKit.id) }}
+            </button>
+          } @else if (!kitOptions.length) {
+            <small class="muted">Nenhum kit cadastrado. Cadastre em Kits de EPI.</small>
+          }
+        </div>
+        @if (kitId) {
+          <section class="kit-check" aria-labelledby="kit-check-title">
+            <div class="kit-check-head">
+              <h3 id="kit-check-title">Itens do kit</h3>
+              @if (kitMissing.length) {
+                <span class="sev sev-CRITICAL"
+                  >{{ kitMissing.length }}
+                  {{ kitMissing.length === 1 ? "item em falta" : "itens em falta" }}</span
+                >
+              } @else {
+                <span class="sev sev-OK">Nenhum item em falta</span>
+              }
+            </div>
+            <ul>
+              @for (row of kitRows; track row.productId) {
+                <li>
+                  <div class="kit-check-item">
+                    <div>
+                      <strong>{{ row.name }}</strong>
+                      <small
+                        >CA {{ row.ca || "N/A" }} · {{ row.inDraft }} de
+                        {{ row.quantity }} un. na ficha</small
+                      >
+                    </div>
+                    <span [class]="'sev sev-' + row.severity">{{ row.status }}</span>
+                  </div>
+                  @if (row.remaining && !row.missing && row.variants.length > 1) {
+                    <div class="kit-sizes" [attr.aria-label]="'Tamanhos de ' + row.name">
+                      @for (v of row.variants; track v.id) {
+                        <button
+                          type="button"
+                          class="size-option"
+                          [disabled]="!!preparedId || available(v.id) < 1"
+                          (click)="add(v)"
+                        >
+                          <span>{{ v.size }}</span
+                          ><small>{{ available(v.id) }} disp.</small>
+                        </button>
+                      }
+                    </div>
+                  }
+                </li>
+              } @empty {
+                <li class="empty">Este kit não tem itens.</li>
+              }
+            </ul>
+          </section>
+        }
         <div class="builder-browse">
           <div class="toolbar equipment-filters filters-side">
             <select
@@ -210,54 +285,6 @@
             </button>
           </div>
           <div>
-            @if (kit && kitRows.length && !preparedId) {
-              <section class="kit-panel" aria-labelledby="kit-title">
-                <h3 id="kit-title">
-                  Kit de {{ s.listName("clients", kit.client_id) }} ·
-                  {{ kit.job_title }}
-                </h3>
-                <p class="muted small">
-                  Itens do kit já vêm marcados. Escolha o tamanho de cada um;
-                  você pode desmarcar itens e adicionar outros abaixo.
-                </p>
-                @for (row of kitRows; track $index) {
-                  <div class="kit-row" [class.out]="!kitHasStock(row.productId)">
-                    <label class="checkline"
-                      ><input
-                        type="checkbox"
-                        [(ngModel)]="row.include"
-                        [disabled]="!kitHasStock(row.productId)"
-                        [attr.aria-label]="
-                          'Incluir ' + s.product(row.productId)?.description
-                        "
-                      />{{ s.product(row.productId)?.description }}</label
-                    >
-                    <select
-                      [attr.aria-label]="
-                        'Tamanho de ' + s.product(row.productId)?.description
-                      "
-                      [(ngModel)]="row.size"
-                      [disabled]="!row.include"
-                    >
-                      <option value="">Escolher tamanho</option>
-                      @for (v of kitSizes(row.productId); track v.id) {
-                        <option [value]="v.size" [disabled]="available(v.id) < 1">
-                          {{ v.size }} · {{ available(v.id) }} disp.
-                        </option>
-                      }
-                    </select>
-                    @if (!kitHasStock(row.productId)) {
-                      <small class="stock-tag out" role="note"
-                        >Sem estoque — não pode ser incluído</small
-                      >
-                    }
-                  </div>
-                }
-                <button class="primary spaced" type="button" (click)="addKit()">
-                  Adicionar itens marcados à ficha
-                </button>
-              </section>
-            }
             @if (browsing) {
               <div class="equipment-grid">
                 @for (v of variants; track v.id) {

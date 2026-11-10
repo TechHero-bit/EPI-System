@@ -82,27 +82,29 @@ test("1.1 edição: tamanho com histórico é desativado em vez de removido", as
   await expect(card.locator(".variant-chips")).toContainText("41 0 un.");
 });
 
-test("1.4 alertas de C.A. em 30, 15 e 7 dias e vencido, com texto, no dashboard e catálogo", async ({
+test("1.4 alertas de C.A. em 30, 15 e 7 dias, com texto, no dashboard e catálogo", async ({
   page,
 }) => {
   for (const role of ["RH", "ALMOXARIFADO"]) {
     await login(page, role);
     const card = page.locator("section").filter({ has: page.getByRole("heading", { name: "Validade dos C.A." }) });
-    for (const text of ["C.A. vencido", "Vence em até 7 dias", "Vence em até 15 dias", "Vence em até 30 dias"])
+    for (const text of ["Vence em até 7 dias", "Vence em até 15 dias", "Vence em até 30 dias"])
       await expect(card.locator(".ca-alert-list")).toContainText(text);
     // Mais urgente primeiro.
-    await expect(card.locator(".ca-alert-list li").first()).toContainText("C.A. vencido");
+    await expect(card.locator(".ca-alert-list li").first()).toContainText("Vence em até 7 dias");
     await page.getByRole("button", { name: "Sair", exact: true }).click();
   }
   await login(page, "ALMOXARIFADO");
   await page.goto("/almoxarifado/equipamentos");
-  await expect(page.locator(".catalog .equipment-card").first()).toContainText("C.A. vencido");
+  await expect(page.locator(".catalog .equipment-card").first()).toContainText("Vence em até 7 dias");
+  // Todo equipamento do catálogo demonstrativo tem alerta de validade.
+  await expect(page.locator(".catalog .equipment-card .ca-alert")).toHaveCount(8);
   await expect(page.locator(".catalog .equipment-card").filter({ hasText: "Capacete com jugular" })).toContainText(
     "Vence em até 7 dias",
   );
 });
 
-test("2.2/2.3 kit vem marcado, exige tamanho, item sem saldo bloqueado; lista só ao filtrar; 'todas' volta tudo", async ({
+test("2.3 montador sem painel de kit; lista só ao filtrar; 'todas' volta tudo; sem saldo bloqueado", async ({
   page,
 }) => {
   await login(page);
@@ -110,29 +112,17 @@ test("2.2/2.3 kit vem marcado, exige tamanho, item sem saldo bloqueado; lista s�
   await page.getByRole("button", { name: /Ana Martins/ }).click();
   await page.getByRole("button", { name: "Escolher equipamentos →" }).click();
   await expect(page.locator(".equipment-grid")).toHaveCount(0);
-  const kit = page.locator(".kit-panel");
-  await expect(kit).toContainText("Cliente Fictício Alfa · Operador(a)");
-  await expect(kit.getByRole("checkbox", { name: "Incluir Luva de proteção mecânica" })).toHaveCount(2);
-  await expect(kit.getByRole("checkbox", { name: "Incluir Luva de proteção mecânica" }).first()).toBeChecked();
-  // Bota impermeável: sem saldo e C.A. vencido; sinalizada e não pode ser incluída.
-  const out = kit.locator(".kit-row").filter({ hasText: "Bota impermeável" });
-  await expect(out).toContainText("Sem estoque — não pode ser incluído");
-  await expect(out.getByRole("checkbox")).toBeDisabled();
-  await expect(out.getByRole("checkbox")).not.toBeChecked();
-  // Produtos com um único tamanho já vêm com ele escolhido; sem tamanho, o item não entra.
-  const gloves = kit.getByRole("combobox", { name: "Tamanho de Luva de proteção mecânica" });
-  await expect(gloves.first()).toHaveValue("M");
-  await gloves.first().selectOption("");
-  await page.getByRole("button", { name: "Adicionar itens marcados à ficha" }).click();
-  await expect(page.getByRole("alert").first()).toContainText("escolha o tamanho");
-  await expect(page.locator(".builder-summary .draft-item")).toHaveCount(2);
-  await kit.getByRole("combobox", { name: "Tamanho de Luva de proteção mecânica" }).selectOption("M");
-  await page.getByRole("button", { name: "Adicionar itens marcados à ficha" }).click();
-  await expect(page.locator(".builder-summary .draft-item")).toHaveCount(3);
+  // O kit não aparece mais na montagem da ficha.
+  await expect(page.locator(".kit-panel")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Adicionar itens marcados à ficha" })).toHaveCount(0);
   // Lista completa só depois de filtrar; "Todas as categorias" devolve tudo.
   await page.getByLabel("Categoria", { exact: true }).selectOption("Luvas de proteção");
   await page.getByLabel("Tamanho", { exact: true }).selectOption("M");
   await expect(page.locator(".equipment-grid .equipment-card")).toHaveCount(1);
+  await page.locator(".equipment-grid").getByRole("button", { name: /Luva de proteção mecânica/ }).click();
+  await page.locator(".equipment-grid").getByRole("button", { name: /Luva de proteção mecânica/ }).click();
+  await page.locator(".equipment-grid").getByRole("button", { name: /Luva de proteção mecânica/ }).click();
+  await expect(page.locator(".builder-summary .draft-item")).toHaveCount(3);
   await page.getByLabel("Categoria", { exact: true }).selectOption("");
   await expect(page.getByLabel("Tamanho", { exact: true })).toHaveValue("");
   await expect(page.locator(".equipment-grid .equipment-card")).toHaveCount(8);
@@ -169,12 +159,25 @@ test("2.1/2.2 colaboradores filtram por cliente, unidade e RAC; RH cadastra kit"
   await page.getByLabel("Filtrar unidade").selectOption({ label: "Unidade fictícia Sul" });
   await expect(page.locator("tbody tr")).toContainText("Bruno Almeida");
   await expect(page.locator("tbody tr")).toContainText("RAC 02 - Espaço confinado, RAC 03 - Eletricidade");
-  // Kits
+  // Kits: função é texto livre; equipamentos escolhidos como no montador.
   await page.goto("/rh/kits");
+  await expect(page.locator("datalist")).toHaveCount(0);
+  // RH inclui um cliente na própria tela; ele já fica selecionado.
+  await page.getByLabel("Novo cliente").fill("Cliente Fictício Gama");
+  await page.getByRole("button", { name: "Incluir cliente" }).click();
+  await expect(page.getByRole("combobox", { name: "Cliente", exact: true })).toHaveValue(/.+/);
+  await expect(page.getByRole("combobox", { name: "Cliente", exact: true }).locator("option:checked")).toHaveText("Cliente Fictício Gama");
   await page.getByRole("combobox", { name: "Cliente", exact: true }).selectOption({ label: "Cliente Fictício Beta" });
   await page.getByLabel("Função", { exact: true }).fill("Técnico(a)");
-  await page.getByLabel("Quantidade de Capacete com suspensão").fill("1");
-  await page.getByLabel("Quantidade de Cinto paraquedista").fill("1");
+  await expect(page.locator(".equipment-grid")).toHaveCount(0);
+  await page.getByRole("button", { name: "Ver todos os equipamentos" }).click();
+  await page.locator(".equipment-grid").getByRole("button", { name: /Capacete com suspensão/ }).click();
+  await page.locator(".equipment-grid").getByRole("button", { name: /Cinto paraquedista/ }).click();
+  await page.locator(".equipment-grid").getByRole("button", { name: /Cinto paraquedista/ }).click();
+  const summary = page.getByRole("complementary", { name: "Itens do kit" });
+  await expect(summary).toContainText("3 de 15 un.");
+  await summary.getByRole("button", { name: "Diminuir Cinto paraquedista" }).click();
+  await expect(summary).toContainText("2 de 15 un.");
   await page.getByRole("button", { name: "Salvar kit" }).click();
   await expect(page.getByRole("status").first()).toContainText("Kit salvo.");
   await expect(page.locator("tbody tr").filter({ hasText: "Técnico(a)" })).toContainText("1 × Cinto paraquedista");

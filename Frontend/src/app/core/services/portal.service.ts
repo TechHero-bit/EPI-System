@@ -293,14 +293,16 @@ export class PortalStore {
       await this.load();
     }
   }
-  /** Kit do par cliente e função do colaborador, se houver. */
+  /** Kit do par cliente e função do colaborador; sem ele, o kit geral (sem função) do cliente. */
   kitFor(employee: any) {
     if (!employee?.client_id) return undefined;
-    const kit = (this.data().kits ?? []).find(
-      (k) =>
-        k.client_id === employee.client_id &&
-        normalizeJobTitle(k.job_title) === normalizeJobTitle(employee.job_title),
-    );
+    const kits = (this.data().kits ?? []).filter((k) => k.client_id === employee.client_id);
+    const kit =
+      kits.find(
+        (k) =>
+          !!normalizeJobTitle(k.job_title) &&
+          normalizeJobTitle(k.job_title) === normalizeJobTitle(employee.job_title),
+      ) ?? kits.find((k) => !normalizeJobTitle(k.job_title));
     if (!kit) return undefined;
     return {
       ...kit,
@@ -475,14 +477,17 @@ export class PortalStore {
     if (!token.startsWith("demo-"))
       throw new Error("Este link requer o ambiente real.");
     await this.load();
-    const result = this.repository.publicSigning(
-      token.slice(5),
-      step,
-      body?.acceptedTerms === true,
-      body,
-    );
-    if (step) this.persist();
-    return result;
+    try {
+      return this.repository.publicSigning(
+        token.slice(5),
+        step,
+        body?.acceptedTerms === true,
+        body,
+      );
+    } finally {
+      // Persist failures too, so wrong CPF attempts accumulate as in Postgres.
+      if (step) this.persist();
+    }
   }
   async request(
     path: string,

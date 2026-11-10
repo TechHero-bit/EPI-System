@@ -16,7 +16,27 @@ import {
 import { PortalStore } from "../../../../core/services/portal.service";
 import { today, type DraftItem } from "../../../../core/models/portal.model";
 import { restoreReviewDraft } from "../../../../shared/utils/review-draft";
-import { sizeGroupsFor } from "../../../../../../../contracts/equipment-sizes.mjs";
+import {
+  SIZE_GROUPS,
+  sizeGroupsFor,
+} from "../../../../../../../contracts/equipment-sizes.mjs";
+
+const SIZE_ORDER: string[] = SIZE_GROUPS.flatMap((g) => [...g.sizes]);
+
+/** Situação de um item do kit diante do estoque e do que já está na ficha. */
+interface KitRow {
+  productId: string;
+  name: string;
+  ca: string;
+  quantity: number;
+  inDraft: number;
+  remaining: number;
+  variants: any[];
+  severity: "OK" | "NORMAL" | "WARNING" | "CRITICAL";
+  status: string;
+  /** Falta de estoque, C.A. vencido ou equipamento inativo. */
+  missing: boolean;
+}
 @Component({
   standalone: true,
   imports: [FormsModule, DatePipe],
@@ -82,62 +102,102 @@ export class BuilderComponent implements OnInit, OnDestroy {
     this.browsing = false;
   }
 
-  // Kit do cliente e função: itens vêm marcados; o operador escolhe o tamanho.
-  kitRows: { productId: string; size: string; include: boolean }[] = [];
-  private kitEmployee = "";
-  get kit() {
+  // Kit / cliente: puxa os itens do kit e mostra o que está em falta.
+  kitId = "";
+  jobLabel(jobTitle: string | null | undefined) {
+    return jobTitle?.trim() || "Kit geral";
+  }
+  get kitOptions() {
+    return alphabetical(
+      (this.s.data().kits ?? []).map((k) => ({
+        id: k.id as string,
+        label: `${this.s.listName("clients", k.client_id) || "Cliente removido"} · ${this.jobLabel(k.job_title)}`,
+      })),
+      (k) => k.label,
+    );
+  }
+  /** Kit do cliente e função do colaborador (ou o kit geral do cliente). */
+  get suggestedKit() {
     return this.s.kitFor(this.s.employee(this.employeeId));
   }
-  prepareKit() {
-    if (this.preparedId || this.kitEmployee === this.employeeId) return;
-    this.kitEmployee = this.employeeId;
-    this.kitRows = (this.kit?.items ?? []).flatMap((item: { product_id: string; quantity: number }) =>
-      Array.from({ length: item.quantity }, () => ({
-        productId: item.product_id,
-        size: "",
-        include: true,
-      })),
-    );
+  kitLabel(id: string) {
+    return this.kitOptions.find((k) => k.id === id)?.label ?? "";
+  }
+  private inDraft(productId: string) {
+    return this.draft.filter(
+      (item) => this.s.variant(item.variantId)?.product_id === productId,
+    ).length;
+  }
+  get kitRows(): KitRow[] {
+    return (this.s.data().kitItems ?? [])
+      .filter((i) => i.kit_id === this.kitId)
+      .map((item): KitRow => {
+        const p = this.s.product(item.product_id);
+        const variants = this.s
+          .data()
+          .variants.filter((v) => v.product_id === item.product_id && v.active !== false)
+          .sort((a, b) => SIZE_ORDER.indexOf(a.size) - SIZE_ORDER.indexOf(b.size));
+        const inDraft = this.inDraft(item.product_id);
+        const remaining = Math.max(0, item.quantity - inDraft);
+        const stockLeft = variants.reduce((n, v) => n + Math.max(0, this.available(v.id)), 0);
+        const row = {
+          productId: item.product_id,
+          name: p?.description ?? "Equipamento removido",
+          ca: p?.ca ?? "",
+          quantity: item.quantity,
+          inDraft,
+          remaining,
+          variants,
+        };
+        const state = (severity: KitRow["severity"], status: string, missing: boolean) => ({
+          ...row,
+          severity,
+          status,
+          missing,
+        });
+        if (!p?.active || !variants.length) return state("CRITICAL", "Equipamento inativo", true);
+        if (p.ca_expires_at && p.ca_expires_at < today()) return state("CRITICAL", "C.A. vencido", true);
+        if (!remaining) return state("OK", "Completo na ficha", false);
+        if (!stockLeft) return state("CRITICAL", "Em falta no estoque", true);
+        if (stockLeft < remaining)
+          return state("WARNING", `Estoque insuficiente: ${stockLeft} de ${remaining} un.`, true);
+        return state("NORMAL", variants.length > 1 ? "Escolha o tamanho" : "Disponível", false);
+      });
+  }
+  get kitMissing() {
+    return this.kitRows.filter((r) => r.missing);
+  }
+  /**
+   * Escolher um kit já adiciona os itens de tamanho único com estoque;
+   * os demais esperam a escolha do tamanho do colaborador.
+   */
+  selectKit(id: string) {
+    this.kitId = id;
+    if (!id || this.preparedId) return;
+    let added = 0;
     for (const row of this.kitRows) {
-      row.include = this.kitHasStock(row.productId);
-      const sizes = this.kitSizes(row.productId);
-      if (sizes.length === 1 && this.available(sizes[0].id) > 0)
-        row.size = sizes[0].size;
-    }
-  }
-  kitSizes(productId: string) {
-    const product = this.s.product(productId);
-    if (!product?.active) return [];
-    return this.s
-      .data()
-      .variants.filter((v) => v.product_id === productId && v.active !== false);
-  }
-  kitHasStock(productId: string) {
-    return this.kitSizes(productId).some((v) => this.available(v.id) > 0);
-  }
-  addKit() {
-    const failures: string[] = [];
-    const added: typeof this.kitRows = [];
-    for (const row of this.kitRows.filter((r) => r.include)) {
-      const name = this.s.product(row.productId)?.description ?? "EPI";
-      const variant = this.kitSizes(row.productId).find((v) => v.size === row.size);
-      if (!variant) failures.push(`${name}: escolha o tamanho`);
-      else if (this.available(variant.id) < 1)
-        failures.push(`${name} ${row.size}: sem estoque`);
-      else if (this.draft.length >= 15) failures.push(`${name}: limite de 15 itens`);
-      else {
-        this.draft.push({ variantId: variant.id, quantity: 1 });
-        added.push(row);
+      if (row.variants.length !== 1 || row.missing) continue;
+      const v = row.variants[0];
+      for (let n = 0; n < row.remaining && this.draft.length < 15 && this.available(v.id) > 0; n++) {
+        this.draft.push({ variantId: v.id, quantity: 1 });
+        added++;
       }
     }
-    this.kitRows = this.kitRows.filter((row) => !added.includes(row));
-    if (failures.length)
-      this.s.failure.set(`Itens não incluídos: ${failures.join("; ")}.`);
-    else if (added.length) {
-      this.s.failure.set("");
-      this.s.message.set(`${added.length} itens do kit incluídos na ficha.`);
-    }
+    const rows = this.kitRows;
+    const missing = rows.filter((r) => r.missing).length;
+    this.s.message.set(
+      [
+        added
+          ? `${added} ${added === 1 ? "unidade adicionada" : "unidades adicionadas"} do kit.`
+          : "Kit selecionado.",
+        rows.some((r) => r.remaining && !r.missing) ? "Escolha o tamanho dos itens restantes." : "",
+        missing ? `${missing} ${missing === 1 ? "item em falta" : "itens em falta"}.` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
   }
+
   step = 1;
   date = today();
   method = "MANUAL";
@@ -195,7 +255,6 @@ export class BuilderComponent implements OnInit, OnDestroy {
   goTo(target: number) {
     if (this.s.busy() || target < 1 || target > 3) return;
     if (target === 2 && !this.employeeId) return;
-    if (target === 2) this.prepareKit();
     if (target === 3 && !this.draft.length && !this.preparedId) return;
     if (target === 3 && this.step < 3 && !this.preparedId) {
       this.selectionDialog.nativeElement.showModal();

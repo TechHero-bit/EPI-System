@@ -99,6 +99,7 @@ test("arquivos de migrations são numerados a partir de 001 sem lacunas", async 
     "011_managed_lists_kits.sql",
     "012_sheet_returns.sql",
     "013_signer_identity_check.sql",
+    "014_kit_without_job_title.sql",
   ]);
   for (const [index, file] of files.entries()) {
     const source = await readFile(

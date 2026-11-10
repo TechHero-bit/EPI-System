@@ -12,6 +12,16 @@
   --success: #207553;
   --warning: #8a4a12;
   --danger: #a12c32;
+  /* Validade do C.A.: crítico, alerta e normal (texto, fundo suave, borda). */
+  --sev-critical: #b42318;
+  --sev-critical-bg: #fef3f2;
+  --sev-critical-line: #f4b4ad;
+  --sev-warning: #93530d;
+  --sev-warning-bg: #fffaeb;
+  --sev-warning-line: #f3cf86;
+  --sev-normal: #1d6b8f;
+  --sev-normal-bg: #eff8fc;
+  --sev-normal-line: #a9d3e6;
   --bg-primary: #fff;
   --bg-secondary: #edf2f5;
   --bg-tertiary: #f3f6f8;
@@ -49,6 +59,15 @@
   --success: #34d399;
   --warning: #fbbf24;
   --danger: #fca5a5;
+  --sev-critical: #fda29b;
+  --sev-critical-bg: #3a1d22;
+  --sev-critical-line: #7a2e33;
+  --sev-warning: #fcd34d;
+  --sev-warning-bg: #33291a;
+  --sev-warning-line: #6b5420;
+  --sev-normal: #7dd3fc;
+  --sev-normal-bg: #172a38;
+  --sev-normal-line: #2b5873;
   --bg-primary: #1f212e;
   --bg-secondary: #13151b;
   --bg-tertiary: #2a2d3d;

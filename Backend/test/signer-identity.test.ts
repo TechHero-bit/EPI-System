@@ -29,3 +29,9 @@ test("4.1 confirmação pública valida formato antes de acessar o banco e não 
   assert.ok(!JSON.stringify(res.body).includes("93x"));
   assert.ok(!JSON.stringify(res.body).includes("010"));
 });
+
+test("4.1 rota de conferência de identidade existe e é pública (com limite de requisições)", async () => {
+  const res = await request(app).post(`/api/sign/${"a".repeat(43)}/identity`).send({});
+  assert.notEqual(res.status, 404);
+  assert.ok(!JSON.stringify(res.body).includes("cpf"));
+});
