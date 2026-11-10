@@ -104,6 +104,8 @@ export class BuilderComponent implements OnInit, OnDestroy {
 
   // Kit / cliente: puxa os itens do kit e mostra o que está em falta.
   kitId = "";
+  /** Itens que o kit colocou na ficha automaticamente (saem se o kit for desmarcado). */
+  private kitAdded = new Set<DraftItem>();
   jobLabel(jobTitle: string | null | undefined) {
     return jobTitle?.trim() || "Kit geral";
   }
@@ -119,9 +121,6 @@ export class BuilderComponent implements OnInit, OnDestroy {
   /** Kit do cliente e função do colaborador (ou o kit geral do cliente). */
   get suggestedKit() {
     return this.s.kitFor(this.s.employee(this.employeeId));
-  }
-  kitLabel(id: string) {
-    return this.kitOptions.find((k) => k.id === id)?.label ?? "";
   }
   private inDraft(productId: string) {
     return this.draft.filter(
@@ -172,14 +171,25 @@ export class BuilderComponent implements OnInit, OnDestroy {
    * os demais esperam a escolha do tamanho do colaborador.
    */
   selectKit(id: string) {
+    if (this.preparedId) return;
+    // Trocar de kit (ou voltar para "Sem kit") desfaz o que o kit anterior adicionou sozinho.
+    if (this.kitAdded.size) {
+      this.draft = this.draft.filter((item) => !this.kitAdded.has(item));
+      this.kitAdded.clear();
+    }
     this.kitId = id;
-    if (!id || this.preparedId) return;
+    if (!id) {
+      this.s.message.set("");
+      return;
+    }
     let added = 0;
     for (const row of this.kitRows) {
       if (row.variants.length !== 1 || row.missing) continue;
       const v = row.variants[0];
       for (let n = 0; n < row.remaining && this.draft.length < 15 && this.available(v.id) > 0; n++) {
-        this.draft.push({ variantId: v.id, quantity: 1 });
+        const item: DraftItem = { variantId: v.id, quantity: 1 };
+        this.draft.push(item);
+        this.kitAdded.add(item);
         added++;
       }
     }
