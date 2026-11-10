@@ -188,10 +188,11 @@
           @if (suggestedKit && !kitId && !preparedId) {
             <button
               type="button"
-              class="secondary"
+              class="secondary kit-suggest"
+              [title]="'Usar ' + kitLabel(suggestedKit.id)"
               (click)="selectKit(suggestedKit.id)"
             >
-              Usar kit sugerido: {{ kitLabel(suggestedKit.id) }}
+              <span>Usar {{ kitLabel(suggestedKit.id) }}</span>
             </button>
           } @else if (!kitOptions.length) {
             <small class="muted">Nenhum kit cadastrado. Cadastre em Kits de EPI.</small>
