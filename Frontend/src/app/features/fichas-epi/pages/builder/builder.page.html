@@ -215,7 +215,7 @@
                     </div>
                     <span [class]="'sev sev-' + row.severity">{{ row.status }}</span>
                   </div>
-                  @if (row.remaining && !row.missing && row.variants.length > 1) {
+                  @if (row.remaining && row.pickSize) {
                     <div class="kit-sizes" [attr.aria-label]="'Tamanhos de ' + row.name">
                       @for (v of row.variants; track v.id) {
                         <button
@@ -224,11 +224,14 @@
                           [disabled]="!!preparedId || available(v.id) < 1"
                           (click)="add(v)"
                         >
-                          <span>{{ v.size }}</span
+                          <span>{{ sizeLabel(row, v) }}</span
                           ><small>{{ available(v.id) }} disp.</small>
                         </button>
                       }
                     </div>
+                    <small class="muted"
+                      >Aparecem os tamanhos de todos os equipamentos com este C.A.</small
+                    >
                   }
                 </li>
               } @empty {

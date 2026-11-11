@@ -32,6 +32,8 @@ interface KitRow {
   inDraft: number;
   remaining: number;
   variants: any[];
+  /** Equipamento com tamanho de verdade: sempre espera a escolha na ficha (só "Único" entra direto). */
+  pickSize: boolean;
   severity: "OK" | "NORMAL" | "WARNING" | "CRITICAL";
   status: string;
   /** Falta de estoque, C.A. vencido ou equipamento inativo. */
@@ -122,21 +124,47 @@ export class BuilderComponent implements OnInit, OnDestroy {
   get suggestedKit() {
     return this.s.kitFor(this.s.employee(this.employeeId));
   }
-  private inDraft(productId: string) {
-    return this.draft.filter(
-      (item) => this.s.variant(item.variantId)?.product_id === productId,
+  /**
+   * O kit guarda o equipamento sem tamanho. Na ficha, valem todos os equipamentos ativos
+   * com o mesmo C.A. (ex.: uma bota cadastrada por tamanho, todas com o mesmo C.A.).
+   */
+  private sameEquipment(productId: string) {
+    const ca = this.s.product(productId)?.ca?.trim().toLowerCase();
+    if (!ca) return new Set([productId]);
+    return new Set([
+      productId,
+      ...this.s
+        .data()
+        .products.filter((p) => p.active && p.ca?.trim().toLowerCase() === ca)
+        .map((p) => p.id as string),
+    ]);
+  }
+  private inDraft(products: Set<string>) {
+    return this.draft.filter((item) =>
+      products.has(this.s.variant(item.variantId)?.product_id),
     ).length;
+  }
+  /** Rótulo do tamanho; repete o nome só quando dois equipamentos do grupo têm o mesmo tamanho. */
+  sizeLabel(row: KitRow, v: any) {
+    const clash = row.variants.some((o) => o !== v && o.size === v.size);
+    return clash ? `${v.size} · ${this.s.product(v.product_id)?.description ?? ""}` : v.size;
   }
   get kitRows(): KitRow[] {
     return (this.s.data().kitItems ?? [])
       .filter((i) => i.kit_id === this.kitId)
       .map((item): KitRow => {
         const p = this.s.product(item.product_id);
+        const products = this.sameEquipment(item.product_id);
         const variants = this.s
           .data()
-          .variants.filter((v) => v.product_id === item.product_id && v.active !== false)
+          .variants.filter(
+            (v) =>
+              products.has(v.product_id) &&
+              v.active !== false &&
+              this.s.product(v.product_id)?.active,
+          )
           .sort((a, b) => SIZE_ORDER.indexOf(a.size) - SIZE_ORDER.indexOf(b.size));
-        const inDraft = this.inDraft(item.product_id);
+        const inDraft = this.inDraft(products);
         const remaining = Math.max(0, item.quantity - inDraft);
         const stockLeft = variants.reduce((n, v) => n + Math.max(0, this.available(v.id)), 0);
         const row = {
@@ -147,6 +175,7 @@ export class BuilderComponent implements OnInit, OnDestroy {
           inDraft,
           remaining,
           variants,
+          pickSize: variants.some((v) => v.size !== "Único"),
         };
         const state = (severity: KitRow["severity"], status: string, missing: boolean) => ({
           ...row,
@@ -154,21 +183,33 @@ export class BuilderComponent implements OnInit, OnDestroy {
           status,
           missing,
         });
-        if (!p?.active || !variants.length) return state("CRITICAL", "Equipamento inativo", true);
+        if (!variants.length) return state("CRITICAL", "Equipamento inativo", true);
         if (p.ca_expires_at && p.ca_expires_at < today()) return state("CRITICAL", "C.A. vencido", true);
         if (!remaining) return state("OK", "Completo na ficha", false);
         if (!stockLeft) return state("CRITICAL", "Em falta no estoque", true);
         if (stockLeft < remaining)
           return state("WARNING", `Estoque insuficiente: ${stockLeft} de ${remaining} un.`, true);
-        return state("NORMAL", variants.length > 1 ? "Escolha o tamanho" : "Disponível", false);
+        return state("NORMAL", row.pickSize ? "Escolha o tamanho" : "Disponível", false);
       });
   }
   get kitMissing() {
     return this.kitRows.filter((r) => r.missing);
   }
+  /** Colaborador para o qual o kit sugerido já foi aplicado. */
+  private kitEmployeeId = "";
   /**
-   * Escolher um kit já adiciona os itens de tamanho único com estoque;
-   * os demais esperam a escolha do tamanho do colaborador.
+   * Ao entrar na etapa 2, já traz o kit do colaborador (cliente + função ou kit geral).
+   * Trocar de colaborador troca o kit, desde que a ficha só tenha itens vindos do kit.
+   */
+  private applySuggestedKit() {
+    if (this.preparedId || this.kitEmployeeId === this.employeeId) return;
+    if (this.draft.some((item) => !this.kitAdded.has(item))) return;
+    this.kitEmployeeId = this.employeeId;
+    this.selectKit(this.suggestedKit?.id ?? "");
+  }
+  /**
+   * Escolher um kit já adiciona os itens de tamanho "Único" com estoque;
+   * os demais (mesmo com um só tamanho cadastrado) esperam a escolha do tamanho.
    */
   selectKit(id: string) {
     if (this.preparedId) return;
@@ -184,7 +225,8 @@ export class BuilderComponent implements OnInit, OnDestroy {
     }
     let added = 0;
     for (const row of this.kitRows) {
-      if (row.variants.length !== 1 || row.missing) continue;
+      // Com estoque parcial, adiciona o que houver; available() já zera C.A. vencido e inativos.
+      if (row.pickSize || row.variants.length !== 1) continue;
       const v = row.variants[0];
       for (let n = 0; n < row.remaining && this.draft.length < 15 && this.available(v.id) > 0; n++) {
         const item: DraftItem = { variantId: v.id, quantity: 1 };
@@ -275,6 +317,7 @@ export class BuilderComponent implements OnInit, OnDestroy {
       return;
     }
     this.step = target;
+    if (target === 2) this.applySuggestedKit();
   }
   confirmSelection() {
     if (this.s.busy() || !this.draft.length || !this.employeeId) return;
@@ -312,6 +355,8 @@ export class BuilderComponent implements OnInit, OnDestroy {
         return;
       }
       this.employeeId = restored.employeeId;
+      // O rascunho restaurado já tem os itens escolhidos; não reaplica o kit por cima.
+      this.kitEmployeeId = restored.employeeId;
       this.date = restored.date;
       this.method = restored.method;
       this.draft = restored.items;

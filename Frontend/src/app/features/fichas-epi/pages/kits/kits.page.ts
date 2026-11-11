@@ -54,8 +54,19 @@ export class KitsComponent {
       ),
     ].sort(compareLabels);
   }
+  /** Mesmo C.A. = mesmo equipamento no kit (cada tamanho pode ser um cadastro próprio). */
+  private equipmentKey(productId: string) {
+    const ca = this.s.product(productId)?.ca?.trim().toLowerCase();
+    return ca ? `ca:${ca}` : `id:${productId}`;
+  }
+  private itemOf(productId: string) {
+    const key = this.equipmentKey(productId);
+    return this.items.find((i) => this.equipmentKey(i.productId) === key);
+  }
+  /** Um cartão por C.A.; o primeiro em ordem alfabética representa o grupo. */
   get products() {
     const q = this.query.trim().toLowerCase();
+    const seen = new Set<string>();
     return alphabetical(
       this.s
         .data()
@@ -68,7 +79,12 @@ export class KitsComponent {
               .includes(q),
         ),
       (p) => p.description,
-    );
+    ).filter((p) => {
+      const key = this.equipmentKey(p.id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
   get kits() {
     return alphabetical(
@@ -105,15 +121,8 @@ export class KitsComponent {
   productName(id: string) {
     return this.s.product(id)?.description ?? "Equipamento removido";
   }
-  sizes(productId: string) {
-    return this.s
-      .data()
-      .variants.filter((v) => v.product_id === productId && v.active !== false)
-      .map((v) => v.size)
-      .join(", ");
-  }
   quantityOf(productId: string) {
-    return this.items.find((i) => i.productId === productId)?.quantity ?? 0;
+    return this.itemOf(productId)?.quantity ?? 0;
   }
   categoryChanged(category: string) {
     this.category = category;
@@ -133,7 +142,7 @@ export class KitsComponent {
       this.s.failure.set(`O kit pode ter no máximo ${KIT_LIMIT} unidades, o limite da ficha.`);
       return;
     }
-    const item = this.items.find((i) => i.productId === productId);
+    const item = this.itemOf(productId);
     if (item) item.quantity++;
     else this.items.push({ productId, quantity: 1 });
   }
@@ -160,10 +169,13 @@ export class KitsComponent {
     this.editingId = kit.id;
     this.clientId = kit.client_id;
     this.jobTitle = kit.job_title;
-    this.items = kit.items.map((i: any) => ({
-      productId: i.product_id,
-      quantity: i.quantity,
-    }));
+    // Kits antigos podem ter dois cadastros do mesmo C.A.: viram um item só, somando as unidades.
+    this.items = [];
+    for (const i of kit.items) {
+      const item = this.itemOf(i.product_id);
+      if (item) item.quantity += i.quantity;
+      else this.items.push({ productId: i.product_id, quantity: i.quantity });
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   reset() {

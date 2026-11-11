@@ -2,19 +2,17 @@
   <div>
     <h1>
       {{
-        page === "new"
-          ? "Cadastrar equipamento"
-          : page === "movements"
-            ? "Movimentações"
-            : "Catálogo de equipamentos"
+      page === "new"
+      ? "Cadastrar equipamento"
+      : page === "movements"
+      ? "Movimentações"
+      : "Catálogo de equipamentos"
       }}
     </h1>
     <p>Cadastre equipamentos e tamanhos e acompanhe as movimentações.</p>
   </div>
   @if (page === "catalog") {
-    <a class="primary button-link" routerLink="/almoxarifado/equipamentos/novo"
-      >+ Novo equipamento</a
-    >
+  <a class="primary button-link" routerLink="/almoxarifado/equipamentos/novo">+ Novo equipamento</a>
   }
 </div>
 
@@ -22,161 +20,82 @@
   <form #productForm="ngForm" (ngSubmit)="productForm.valid && save()">
     <div class="form-grid">
       <div class="field">
-        <label for="ca"
-          >C.A. — Certificado de Aprovação (quando aplicável)</label
-        >
+        <label for="ca">C.A. — Certificado de Aprovação (quando aplicável)</label>
         <div class="copy-row">
-          <input
-            id="ca"
-            name="ca"
-            [(ngModel)]="product.ca"
-            maxlength="50"
-            inputmode="numeric"
-            (blur)="product.ca && !caInfo && lookupCa()"
-          /><button type="button" class="secondary" (click)="lookupCa()">
+          <input id="ca" name="ca" [(ngModel)]="product.ca" maxlength="50" inputmode="numeric"
+            (blur)="product.ca && !caInfo && lookupCa()" /><button type="button" class="secondary" (click)="lookupCa()">
             Consultar C.A.
           </button>
         </div>
         @if (caMessage) {
-          <small class="helper" aria-live="polite">{{ caMessage }}</small>
+        <small class="helper" aria-live="polite">{{ caMessage }}</small>
         }
         @if (caInfo) {
-          <small class="helper"
-            >{{ caInfo.equipment_name }} · {{ caInfo.manufacturer }}</small
-          >
+        <small class="helper">{{ caInfo.equipment_name }} · {{ caInfo.manufacturer }}</small>
         }
       </div>
       <div class="field">
-        <label for="ca-date">Validade do CA</label
-        ><input
-          id="ca-date"
-          name="caDate"
-          type="date"
-          [(ngModel)]="product.caExpiresAt"
-        />
+        <label for="ca-date">Validade do CA</label><input id="ca-date" name="caDate" type="date"
+          [(ngModel)]="product.caExpiresAt" />
       </div>
       <div class="field">
-        <label for="description">Descrição de E.P.I.</label
-        ><input
-          id="description"
-          name="description"
-          [(ngModel)]="product.description"
-          required
-          maxlength="180"
-        />
+        <label for="description">Descrição de E.P.I.</label><input id="description" name="description"
+          [(ngModel)]="product.description" required maxlength="180" />
       </div>
       <div class="field">
-        <label for="category">Categoria</label
-        ><select
-          id="category"
-          name="category"
-          [(ngModel)]="categoryChoice"
-          required
-        >
+        <label for="category">Categoria</label><select id="category" name="category" [(ngModel)]="categoryChoice"
+          required>
           <option value="" disabled>Selecione uma categoria</option>
           @for (c of allCategories; track c) {
-            <option [value]="c">{{ c }}</option>
+          <option [value]="c">{{ c }}</option>
           }
           <option value="__new__">+ Adicionar nova categoria</option>
         </select>
       </div>
       @if (categoryChoice === "__new__") {
-        <div class="field full">
-          <label for="new-category">Nome da nova categoria</label
-          ><input
-            id="new-category"
-            name="newCategory"
-            [(ngModel)]="newCategory"
-            required
-            maxlength="80"
-            placeholder="Ex.: Protetores auditivos"
-          />
-        </div>
+      <div class="field full">
+        <label for="new-category">Nome da nova categoria</label><input id="new-category" name="newCategory"
+          [(ngModel)]="newCategory" required maxlength="80" placeholder="Ex.: Protetores auditivos" />
+      </div>
       }
       <div class="field">
-        <label for="brand">Marca</label
-        ><input
-          id="brand"
-          name="brand"
-          [(ngModel)]="product.brand"
-          maxlength="100"
-        />
+        <label for="brand">Marca</label><input id="brand" name="brand" [(ngModel)]="product.brand" maxlength="100" />
       </div>
       <div class="field">
-        <label for="model">Modelo</label
-        ><input
-          id="model"
-          name="model"
-          [(ngModel)]="product.model"
-          maxlength="100"
-        />
+        <label for="model">Modelo</label><input id="model" name="model" [(ngModel)]="product.model" maxlength="100" />
       </div>
       <div class="field">
-        <label for="risk">Risco</label
-        ><input
-          id="risk"
-          name="risk"
-          [(ngModel)]="product.riskCode"
-          maxlength="30"
-        />
+        <label for="risk">Risco</label><input id="risk" name="risk" [(ngModel)]="product.riskCode" maxlength="30" />
       </div>
     </div>
     <fieldset class="size-grid spaced" aria-describedby="size-help">
       <legend>Tamanhos que existem para este equipamento</legend>
       <div class="size-grid-tabs" role="radiogroup" aria-label="Grade de tamanhos">
         @for (group of sizeGroups; track group.label) {
-          <label class="checkline"
-            ><input
-              type="radio"
-              name="grid"
-              [value]="group.label"
-              [ngModel]="grid"
-              (ngModelChange)="gridChanged($event)"
-            />{{ group.label }}</label
-          >
+        <label class="checkline"><input type="radio" name="grid" [value]="group.label" [ngModel]="grid"
+            (ngModelChange)="gridChanged($event)" />{{ group.label }}</label>
         }
       </div>
       @if (grid === "Números") {
-        <div class="toolbar size-range">
-          <input
-            aria-label="Do número"
-            name="rangeFrom"
-            type="number"
-            min="1"
-            max="70"
-            placeholder="De"
-            [(ngModel)]="rangeFrom"
-          /><input
-            aria-label="Até o número"
-            name="rangeTo"
-            type="number"
-            min="1"
-            max="70"
-            placeholder="Até"
-            [(ngModel)]="rangeTo"
-          /><button type="button" class="secondary" (click)="markRange()">
-            Marcar intervalo
-          </button>
-        </div>
+      <div class="toolbar size-range">
+        <input aria-label="Do número" name="rangeFrom" type="number" min="1" max="70" placeholder="De"
+          [(ngModel)]="rangeFrom" /><input aria-label="Até o número" name="rangeTo" type="number" min="1" max="70"
+          placeholder="Até" [(ngModel)]="rangeTo" /><button type="button" class="secondary" (click)="markRange()">
+          Marcar intervalo
+        </button>
+      </div>
       }
       <div class="size-options">
         @for (size of gridSizes; track size) {
-          <label class="size-option" [class.checked]="selectedSizes.has(size)"
-            ><input
-              type="checkbox"
-              [name]="'size-' + size"
-              [attr.aria-label]="'Tamanho ' + size"
-              [checked]="selectedSizes.has(size)"
-              (change)="toggleSize(size, $any($event.target).checked)"
-            /><span>{{ size }}</span>
-            @if (editing && editingVariant(size); as v) {
-              <small
-                >{{ s.stock(v.id) }} un.{{
-                  v.active === false ? " · inativo" : ""
-                }}</small
-              >
-            }
-          </label>
+        <label class="size-option" [class.checked]="selectedSizes.has(size)"><input type="checkbox"
+            [name]="'size-' + size" [attr.aria-label]="'Tamanho ' + size" [checked]="selectedSizes.has(size)"
+            (change)="toggleSize(size, $any($event.target).checked)" /><span>{{ size }}</span>
+          @if (editing && editingVariant(size); as v) {
+          <small>{{ s.stock(v.id) }} un.{{
+            v.active === false ? " · inativo" : ""
+            }}</small>
+          }
+        </label>
         }
       </div>
       <p id="size-help" class="note">
@@ -188,307 +107,244 @@
     <div class="toolbar spaced">
       <button class="primary" [disabled]="s.busy()">Salvar equipamento</button>
       @if (inlineCreate) {
-        <button type="button" class="secondary" (click)="cancelInline()">
-          Cancelar cadastro
-        </button>
+      <button type="button" class="secondary" (click)="cancelInline()">
+        Cancelar cadastro
+      </button>
       }
     </div>
   </form>
 </ng-template>
 
 @if (page === "movements") {
-  <section class="panel">
-    <h2>Registrar movimentação</h2>
-    <div class="form-grid">
-      <div class="field">
-        <label for="ca-search">Buscar pelo C.A.</label>
-        <div class="copy-row">
-          <input
-            id="ca-search"
-            [(ngModel)]="caQuery"
-            inputmode="numeric"
-            maxlength="20"
-            (keydown.enter)="findByCa()"
-            placeholder="Somente números"
-          /><button class="secondary" type="button" (click)="findByCa()">
-            Buscar C.A.
-          </button>
-        </div>
-        @if (caSearchMessage) {
-          <small class="helper" aria-live="polite">{{ caSearchMessage }}</small>
-        }
-        @if (caNotFound) {
-          <p class="note" aria-live="polite">
-            Nenhum equipamento cadastrado com o C.A. {{ caNotFound }}.
-            <button
-              type="button"
-              class="secondary"
-              (click)="createFromCa()"
-              [disabled]="s.busy()"
-            >
-              Cadastrar equipamento com este C.A.
-            </button>
-          </p>
-        }
+<section class="panel">
+  <h2>Registrar movimentação</h2>
+  <div class="form-grid">
+    <div class="field">
+      <label for="ca-search">Buscar pelo C.A.</label>
+      <div class="copy-row">
+        <input id="ca-search" [(ngModel)]="caQuery" inputmode="numeric" maxlength="20" (keydown.enter)="findByCa()"
+          placeholder="Somente números" /><button class="secondary" type="button" (click)="findByCa()">
+          Buscar C.A.
+        </button>
       </div>
-    </div>
-    @if (inlineCreate) {
-      <section class="panel inset" aria-label="Cadastro de equipamento">
-        <h3>Novo equipamento</h3>
-        <ng-container [ngTemplateOutlet]="productFormTpl" />
-      </section>
-    }
-    <form (ngSubmit)="move()">
-      <div class="movement-picker spaced">
-        <label class="field"
-          >Equipamento<select
-            name="movementProduct"
-            [ngModel]="movement.productId"
-            (ngModelChange)="selectProduct($event)"
-            required
-          >
-            <option value="">Selecionar</option>
-            @for (p of movementProducts; track p.id) {
-              <option [value]="p.id">
-                {{ p.description }}{{ p.ca ? " · CA " + p.ca : "" }}
-              </option>
-            }
-          </select></label
-        >
-        <fieldset class="size-choice" [disabled]="!movement.productId">
-          <legend>Tamanho e estoque</legend>
-          @for (v of movementSizes; track v.id) {
-            <label class="size-option" [class.checked]="movement.variantId === v.id"
-              ><input
-                type="radio"
-                name="movementVariant"
-                [value]="v.id"
-                [(ngModel)]="movement.variantId"
-              /><span>{{ v.size }}</span
-              ><small
-                >{{ s.stock(v.id) }} disp.{{
-                  v.active === false ? " · inativo" : ""
-                }}</small
-              ></label
-            >
-          } @empty {
-            <small class="muted">Escolha o equipamento para ver os tamanhos.</small>
-          }
-        </fieldset>
-      </div>
-      <div class="form-grid spaced">
-        <label class="field"
-          >Operação<select name="operation" [(ngModel)]="movement.operation">
-            <option value="RECEIPT">Entrada de estoque</option>
-            <option value="WITHDRAWAL">Retirada fora de ficha</option>
-          </select></label
-        >
-        <label class="field"
-          >{{ operationHint
-          }}<input
-            name="quantity"
-            type="number"
-            min="1"
-            max="100000"
-            [(ngModel)]="movement.quantity"
-            required
-        /></label>
-        <label class="field full"
-          >Justificativa (obrigatória)<input
-            name="reason"
-            [(ngModel)]="movement.reason"
-            required
-            minlength="5"
-            maxlength="300"
-            placeholder="Ex.: nota fiscal 123, inventário, perda identificada"
-        /></label>
-      </div>
-      <p class="note">
-        Toda entrada ou retirada feita fora de uma ficha exige
-        justificativa. A saída de entrega é feita na confirmação física da
-        ficha. Movimentações não podem consumir unidades reservadas ou
-        bloqueadas.
+      @if (caSearchMessage) {
+      <small class="helper" aria-live="polite">{{ caSearchMessage }}</small>
+      }
+      @if (caNotFound) {
+      <p class="note" aria-live="polite">
+        Nenhum equipamento cadastrado com o C.A. {{ caNotFound }}.
+        <button type="button" class="secondary" (click)="createFromCa()" [disabled]="s.busy()">
+          Cadastrar equipamento com este C.A.
+        </button>
       </p>
-      <button
-        class="primary"
-        [disabled]="
+      }
+    </div>
+  </div>
+  @if (inlineCreate) {
+  <section class="panel inset" aria-label="Cadastro de equipamento">
+    <h3>Novo equipamento</h3>
+    <ng-container [ngTemplateOutlet]="productFormTpl" />
+  </section>
+  }
+  <form (ngSubmit)="move()">
+    <div class="movement-picker spaced">
+      <label class="field">Equipamento<select name="movementProduct" [ngModel]="movement.productId"
+          (ngModelChange)="selectProduct($event)" required>
+          <option value="">Selecionar</option>
+          @for (p of movementProducts; track p.id) {
+          <option [value]="p.id">
+            {{ p.description }}{{ p.ca ? " · CA " + p.ca : "" }}
+          </option>
+          }
+        </select></label>
+      <fieldset class="size-choice" [disabled]="!movement.productId">
+        <legend>Tamanho e estoque</legend>
+        @for (v of movementSizes; track v.id) {
+        <label class="size-option" [class.checked]="movement.variantId === v.id"><input type="radio"
+            name="movementVariant" [value]="v.id" [(ngModel)]="movement.variantId" /><span>{{ v.size }}</span><small>{{
+            s.stock(v.id) }} disp.{{
+            v.active === false ? " · inativo" : ""
+            }}</small></label>
+        } @empty {
+        <small class="muted">Escolha o equipamento para ver os tamanhos.</small>
+        }
+      </fieldset>
+    </div>
+    <div class="form-grid spaced">
+      <label class="field">Operação<select name="operation" [(ngModel)]="movement.operation">
+          <option value="RECEIPT">Entrada de estoque</option>
+          <option value="WITHDRAWAL">Retirada fora de ficha</option>
+        </select></label>
+      <label class="field">{{ operationHint
+        }}<input name="quantity" type="number" min="1" max="100000" [(ngModel)]="movement.quantity" required /></label>
+      <label class="field full">Justificativa (obrigatória)<input name="reason" [(ngModel)]="movement.reason" required
+          minlength="5" maxlength="300" placeholder="Ex.: nota fiscal 123, inventário, perda identificada" /></label>
+    </div>
+    <p class="note">
+      Toda entrada ou retirada feita fora de uma ficha exige
+      justificativa. A saída de entrega é feita na confirmação física da
+      ficha. Movimentações não podem consumir unidades reservadas ou
+      bloqueadas.
+    </p>
+    <button class="primary" [disabled]="
           s.busy() ||
           !movement.variantId ||
           movement.reason.trim().length < 5 ||
           !movement.quantity
-        "
-      >
-        Registrar movimentação
-      </button>
-    </form>
-  </section>
+        ">
+      Registrar movimentação
+    </button>
+  </form>
+</section>
 }
 
 @if (page === "new" || (editing && !inlineCreate)) {
-  <section class="panel">
-    <h2>{{ editing ? "Editar equipamento" : "Dados do equipamento" }}</h2>
-    <ng-container [ngTemplateOutlet]="productFormTpl" />
-  </section>
+<section class="panel">
+  <h2>{{ editing ? "Editar equipamento" : "Dados do equipamento" }}</h2>
+  <ng-container [ngTemplateOutlet]="productFormTpl" />
+</section>
 }
 
 @if (page === "catalog" && caAlerts.length) {
-  <section class="panel ca-summary" aria-labelledby="ca-alerts-title">
-    <h2 id="ca-alerts-title">Validade dos C.A.</h2>
-    @for (sev of severities; track sev.id) {
-      <button
-        type="button"
-        [class]="'sev sev-' + sev.id"
-        [attr.aria-pressed]="validity === sev.id"
-        [disabled]="!severityCount(sev.id)"
-        (click)="toggleValidity(sev.id)"
-      >
-        {{ sev.label }} <b>{{ severityCount(sev.id) }}</b>
-      </button>
-    }
-    @if (validity) {
-      <button type="button" class="text-button" (click)="validity = ''">
-        Mostrar todos
-      </button>
-    }
-    <small class="muted">
-      Crítico: vencido ou vence em até 7 dias · Alerta: até 15 dias · Normal:
-      até 30 dias.
-    </small>
-  </section>
+<section class="panel ca-summary" aria-labelledby="ca-alerts-title">
+  <h2 id="ca-alerts-title">Validade dos C.A.</h2>
+  @for (sev of severities; track sev.id) {
+  <button type="button" [class]="'sev sev-' + sev.id" [attr.aria-pressed]="validity === sev.id"
+    [disabled]="!severityCount(sev.id)" (click)="toggleValidity(sev.id)">
+    {{ sev.title }} <b>{{ severityCount(sev.id) }}</b>
+  </button>
+  }
+  @if (validity) {
+  <button type="button" class="text-button" (click)="validity = ''">
+    Mostrar todos
+  </button>
+  }
+  <small class="muted">
+    Crítico: vencido ou vence em até 7 dias · Alerta: até 15 dias · Normal:
+    até 30 dias.
+  </small>
+</section>
 }
 
 @if (page !== "new") {
-  <section class="panel">
-    <div class="toolbar" [class.equipment-filters]="page === 'catalog'">
-      @if (page === "catalog") {
-        <select
-          aria-label="Filtrar categoria"
-          [ngModel]="category"
-          (ngModelChange)="categoryChanged($event)"
-        >
-          <option value="">Todas as categorias</option>
-          @for (c of allCategories; track c) {
-            <option [value]="c">{{ c }}</option>
-          }
-        </select>
-        <select aria-label="Filtrar validade do C.A." [(ngModel)]="validity">
-          <option value="">Todas as validades</option>
-          @for (sev of severities; track sev.id) {
-            <option [value]="sev.id">{{ sev.label }}</option>
-          }
-          <option value="OK">Sem alerta de validade</option>
-        </select>
-        <select aria-label="Filtrar tamanho" [(ngModel)]="size">
-          <option value="">Todos os tamanhos</option>
-          @for (group of filterSizeGroups; track group.label) {
-            <optgroup [label]="group.label">
-              @for (option of group.sizes; track option) {
-                <option [value]="option">{{ option }}</option>
-              }
-            </optgroup>
-          }
-        </select>
+<section class="panel">
+  <div class="toolbar" [class.equipment-filters]="page === 'catalog'">
+    @if (page === "catalog") {
+    <select aria-label="Filtrar categoria" [ngModel]="category" (ngModelChange)="categoryChanged($event)">
+      <option value="">Todas as categorias</option>
+      @for (c of allCategories; track c) {
+      <option [value]="c">{{ c }}</option>
       }
-      <input
-        aria-label="Buscar"
-        [(ngModel)]="query"
-        [placeholder]="
+    </select>
+    <select aria-label="Filtrar validade do C.A." [(ngModel)]="validity">
+      <option value="">Todas as validades</option>
+      @for (sev of severities; track sev.id) {
+      <option [value]="sev.id">{{ sev.title }}</option>
+      }
+      <option value="OK">Sem alerta de validade</option>
+    </select>
+    <select aria-label="Filtrar tamanho" [(ngModel)]="size">
+      <option value="">Todos os tamanhos</option>
+      @for (group of filterSizeGroups; track group.label) {
+      <optgroup [label]="group.label">
+        @for (option of group.sizes; track option) {
+        <option [value]="option">{{ option }}</option>
+        }
+      </optgroup>
+      }
+    </select>
+    }
+    <input aria-label="Buscar" [(ngModel)]="query" [placeholder]="
           page === 'movements'
             ? 'Buscar equipamento, colaborador ou matrícula...'
             : 'Buscar nome, C.A. ou marca...'
-        "
-      />
-      @if (page === "movements") {
-        <select aria-label="Tipo de movimentação" [(ngModel)]="kind">
-          <option value="">Todos os tipos</option>
-          <option value="ADJUSTMENT">Ajustes</option>
-          <option value="RETURN">Devoluções</option>
-          <option value="RECEIPT">Entradas</option>
-          <option value="WITHDRAWAL">Retiradas</option>
-          <option value="ISSUE">Saídas</option>
-        </select>
+        " />
+    @if (page === "movements") {
+    <select aria-label="Tipo de movimentação" [(ngModel)]="kind">
+      <option value="">Todos os tipos</option>
+      <option value="ADJUSTMENT">Ajustes</option>
+      <option value="RETURN">Devoluções</option>
+      <option value="RECEIPT">Entradas</option>
+      <option value="WITHDRAWAL">Retiradas</option>
+      <option value="ISSUE">Saídas</option>
+    </select>
+    }
+  </div>
+  @if (page === "catalog") {
+  <div class="equipment-grid catalog">
+    @for (p of products; track p.id) {
+    <article [class]="'equipment-card sev-card-' + (severityOf(p) || 'OK')">
+      <span class="chip">{{ p.category }}</span><strong>{{ p.description }}</strong><small>CA {{ p.ca || "Não informado"
+        }} · {{ p.brand }}</small>
+      @if (caAlert(p); as level) {
+      <span [class]="'ca-alert level-' + level">{{
+        caAlertText(p)
+        }}</span>
       }
-    </div>
-    @if (page === "catalog") {
-      <div class="equipment-grid catalog">
-        @for (p of products; track p.id) {
-          <article
-            [class]="'equipment-card sev-card-' + (severityOf(p) || 'OK')"
-          >
-            <span class="chip">{{ p.category }}</span
-            ><strong>{{ p.description }}</strong
-            ><small>CA {{ p.ca || "Não informado" }} · {{ p.brand }}</small>
-            @if (caAlert(p); as level) {
-              <span [class]="'ca-alert level-' + level">{{
-                caAlertText(p)
-              }}</span>
-            }
-            <div class="variant-chips" aria-label="Tamanhos e estoque disponível">
-              @for (v of variantsByProduct().get(p.id) || []; track v.id) {
-                <span class="chip" [class.inactive]="v.active === false"
-                  >{{ v.size }}
-                  <b>{{ s.stock(v.id) }} un.</b>{{
-                    v.active === false ? " · inativo" : ""
-                  }}</span
-                >
-              }
-            </div>
-            <div class="catalog-card-footer">
-              <button class="secondary" (click)="edit(p)">
-                Editar equipamento
-              </button>
-              <div class="catalog-quantity">
-                <small>Disponível</small>
-                <strong>{{ productStock(p.id) }} un.</strong>
-              </div>
-            </div>
-          </article>
-        } @empty {
-          <div class="empty">
-            Nenhum equipamento encontrado. Ajuste os filtros ou cadastre um novo
-            EPI.
-          </div>
+      <div class="variant-chips" aria-label="Tamanhos e estoque disponível">
+        @for (v of variantsByProduct().get(p.id) || []; track v.id) {
+        <span class="chip" [class.inactive]="v.active === false">{{ v.size }}
+          <b>{{ s.stock(v.id) }} un.</b>{{
+          v.active === false ? " · inativo" : ""
+          }}</span>
         }
       </div>
-    }
-    @if (page === "movements") {
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Data</th>
-              <th scope="col">Equipamento / tamanho</th>
-              <th scope="col">Colaborador</th>
-              <th scope="col">Tipo</th>
-              <th scope="col">Quantidade</th>
-              <th scope="col">Justificativa</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (m of movements; track m.id) {
-              <tr>
-                <td>{{ m.created_at | date: "dd/MM/yyyy HH:mm" }}</td>
-                <td>{{ variantName(m.variant_id) }}</td>
-                <td>
-                  {{ movementEmployeeLabel(m) }}
-                  @if (movementEmployee(m)?.registration; as registration) {
-                    <br /><small>Matrícula: {{ registration }}</small>
-                  }
-                </td>
-                <td><epi-status [value]="m.type" /></td>
-                <td>{{ m.quantity > 0 ? "+" : "" }}{{ m.quantity }}</td>
-                <td>{{ m.reason || "Entrega de EPI" }}</td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="6" class="empty">
-                  Nenhuma movimentação encontrada.
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <div class="catalog-card-footer">
+        <button class="secondary" (click)="edit(p)">
+          Editar equipamento
+        </button>
+        <div class="catalog-quantity">
+          <small>Disponível</small>
+          <strong>{{ productStock(p.id) }} un.</strong>
+        </div>
       </div>
+    </article>
+    } @empty {
+    <div class="empty">
+      Nenhum equipamento encontrado. Ajuste os filtros ou cadastre um novo
+      EPI.
+    </div>
     }
-  </section>
+  </div>
+  }
+  @if (page === "movements") {
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Data</th>
+          <th scope="col">Equipamento / tamanho</th>
+          <th scope="col">Colaborador</th>
+          <th scope="col">Tipo</th>
+          <th scope="col">Quantidade</th>
+          <th scope="col">Justificativa</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (m of movements; track m.id) {
+        <tr>
+          <td>{{ m.created_at | date: "dd/MM/yyyy HH:mm" }}</td>
+          <td>{{ variantName(m.variant_id) }}</td>
+          <td>
+            {{ movementEmployeeLabel(m) }}
+            @if (movementEmployee(m)?.registration; as registration) {
+            <br /><small>Matrícula: {{ registration }}</small>
+            }
+          </td>
+          <td><epi-status [value]="m.type" /></td>
+          <td>{{ m.quantity > 0 ? "+" : "" }}{{ m.quantity }}</td>
+          <td>{{ m.reason || "Entrega de EPI" }}</td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="6" class="empty">
+            Nenhuma movimentação encontrada.
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</section>
 }

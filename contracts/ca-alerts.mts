@@ -8,12 +8,13 @@ export const CA_ALERT_LEVELS = [
 ] as const;
 export type CaAlertLevel = (typeof CA_ALERT_LEVELS)[number]["id"];
 
-// Três faixas de cor para leitura rápida: crítico (vencido ou até 7 dias),
-// alerta (até 15 dias) e normal (até 30 dias, só acompanhamento).
+// Três faixas de cor para leitura rápida: prioridade (vencido ou até 7 dias),
+// atenção (até 15 dias) e vigente (até 30 dias, só acompanhamento).
+// `title` nomeia a faixa em resumos e filtros; `label` acompanha cada item.
 export const CA_SEVERITIES = [
-  { id: "CRITICAL", label: "Crítico" },
-  { id: "WARNING", label: "Alerta" },
-  { id: "NORMAL", label: "Normal" },
+  { id: "CRITICAL", title: "CA em situação crítica", label: "Prioridade" },
+  { id: "WARNING", title: "CA em atenção", label: "Atenção" },
+  { id: "NORMAL", title: "CA vigente", label: "Vigente" },
 ] as const;
 export type CaSeverity = (typeof CA_SEVERITIES)[number]["id"];
 export const caSeverity = (level: CaAlertLevel | null | undefined): CaSeverity | null =>
