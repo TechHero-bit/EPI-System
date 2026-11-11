@@ -403,10 +403,10 @@ test("login oferece apenas RH e Almoxarifado com dashboards específicos", async
   await expect(
     nav.getByRole("link", { name: "Estoque", exact: true }),
   ).toHaveCount(0);
-  await expect(page.locator(".stats")).not.toContainText(
+  await expect(page.locator(".widget-grid")).not.toContainText(
     /Saldo disponível|Unidades reservadas|Estoque baixo/,
   );
-  await expect(page.locator(".stats")).toContainText("Tamanhos cadastrados");
+  await expect(page.locator(".widget-grid")).toContainText("Tamanhos cadastrados");
   await page.goto("/almoxarifado/estoque");
   await expect(page).toHaveURL(/\/almoxarifado\/equipamentos$/);
   await expect(page.locator(".catalog")).not.toContainText("disponíveis");

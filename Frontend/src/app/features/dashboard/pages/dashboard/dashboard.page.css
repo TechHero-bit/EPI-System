@@ -1,0 +1,498 @@
+/* Dashboard personalizável: cada card é um widget que o usuário move,
+   redimensiona e oculta, como na tela inicial do iPhone. */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Cabeçalho ─────────────────────────────────────────────── */
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.dashboard-actions .button-link {
+  margin: 0;
+  display: inline-flex;
+}
+.edit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 14px;
+  white-space: nowrap;
+}
+.edit-button.done {
+  min-width: 112px;
+  justify-content: center;
+}
+.restore {
+  padding: 8px 4px;
+  cursor: pointer;
+}
+.edit-hint {
+  padding-bottom: 8px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  animation: fade-in 200ms var(--ease-out);
+}
+.edit-hint b {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ── Grade ─────────────────────────────────────────────────── */
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--workspace-gap);
+  align-items: stretch;
+}
+.widget {
+  position: relative;
+  grid-column: span 6;
+  min-width: 0;
+  border-radius: var(--radius-panel);
+  transition:
+    scale 220ms var(--ease-out),
+    opacity 220ms var(--ease-out);
+}
+.widget[data-size="small"] {
+  grid-column: span 3;
+}
+.widget[data-size="large"] {
+  grid-column: 1 / -1;
+}
+.widget-body {
+  height: 100%;
+}
+.widget-body > .panel,
+.widget-body > .stat {
+  height: 100%;
+  margin: 0;
+  transition: box-shadow 220ms var(--ease-out);
+}
+.widget-body > .stat {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--bg-primary);
+}
+.widget[data-size="medium"] .stat {
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: end;
+}
+.widget[data-size="medium"] .stat strong {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-size: 2.5rem;
+}
+.widget .panel-title {
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.widget .text-button {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.widget-empty {
+  grid-column: 1 / -1;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 48px 16px;
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius-panel);
+  color: var(--text-secondary);
+  text-align: center;
+}
+.widget-empty p {
+  margin: 0;
+}
+
+/* ── Modo de edição ────────────────────────────────────────── */
+.editing .widget {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+/* Sinal estático de edição: contorno tracejado, sem animação contínua. */
+.editing .widget .widget-body > * {
+  outline: 2px dashed var(--control-border);
+  outline-offset: 3px;
+}
+.editing .widget:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.widget.is-dragging {
+  z-index: 20;
+  scale: 1.04;
+  opacity: 0.94;
+  cursor: grabbing;
+  transition:
+    scale 180ms var(--ease-out),
+    opacity 180ms var(--ease-out);
+}
+.widget.is-dragging .widget-body > * {
+  box-shadow:
+    0 22px 48px rgb(15 23 32 / 0.2),
+    0 6px 14px rgb(15 23 32 / 0.12);
+}
+.widget.is-leaving {
+  pointer-events: none;
+}
+
+.widget-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.widget-chrome > * {
+  pointer-events: auto;
+  animation: chrome-in 240ms var(--ease-out) both;
+}
+@keyframes chrome-in {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Botão “−”: o mesmo do iPhone, no canto de onde o card “sai”. */
+.widget-remove {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--bg-primary);
+  background: color-mix(in srgb, var(--text-primary) 76%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+  cursor: pointer;
+  transition: scale 100ms var(--ease-out);
+}
+.widget-remove::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+}
+.widget-remove:active {
+  scale: 0.88;
+}
+.widget-remove svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+/* Tamanho P / M / G: um controle segmentado de vidro. */
+.widget-sizes {
+  position: absolute;
+  top: -13px;
+  right: 12px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow: 0 2px 8px rgb(15 23 32 / 0.12);
+}
+.widget-sizes button {
+  min-width: 28px;
+  height: 22px;
+  min-height: 0;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+.widget-sizes button:hover {
+  color: var(--text-primary);
+}
+.widget-sizes button[aria-pressed="true"] {
+  background: var(--action);
+  color: var(--action-ink);
+}
+@media (pointer: coarse) {
+  .widget-sizes button {
+    min-width: 34px;
+    height: 30px;
+  }
+  .widget-sizes {
+    top: -17px;
+  }
+}
+
+/* ── Folha “Adicionar widget” ──────────────────────────────── */
+.widget-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  width: min(560px, 100%);
+  max-width: 100%;
+  max-height: min(72vh, 640px);
+  margin: 0 auto;
+  padding: 8px 20px max(24px, env(safe-area-inset-bottom));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  backdrop-filter: blur(28px) saturate(170%);
+  box-shadow: 0 -16px 48px rgb(15 23 32 / 0.18);
+  overscroll-behavior: contain;
+  translate: 0 0;
+  transition:
+    translate 420ms var(--ease-drawer),
+    display 420ms allow-discrete,
+    overlay 420ms allow-discrete;
+}
+.widget-sheet:not([open]) {
+  translate: 0 105%;
+}
+@starting-style {
+  .widget-sheet[open] {
+    translate: 0 105%;
+  }
+}
+.widget-sheet::backdrop {
+  background: rgb(8 14 20 / 0.32);
+  transition:
+    background-color 300ms ease,
+    display 300ms allow-discrete,
+    overlay 300ms allow-discrete;
+}
+.widget-sheet:not([open])::backdrop {
+  background: rgb(8 14 20 / 0);
+}
+@starting-style {
+  .widget-sheet[open]::backdrop {
+    background: rgb(8 14 20 / 0);
+  }
+}
+.sheet-grabber {
+  width: 36px;
+  height: 5px;
+  margin: 0 auto 10px;
+  border-radius: 999px;
+  background: var(--control-border);
+  opacity: 0.6;
+}
+.widget-sheet header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.widget-sheet h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+}
+.sheet-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.sheet-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sheet-list li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--row-rule);
+}
+.sheet-list li:last-child {
+  border-bottom: 0;
+}
+.sheet-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sheet-text strong {
+  font-size: 0.9375rem;
+}
+.sheet-text small {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+/* Miniatura que mostra a forma do widget. */
+.sheet-preview {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  justify-self: center;
+  width: 64px;
+  height: 40px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-primary);
+}
+.sheet-preview[data-size="small"] {
+  width: 44px;
+  height: 44px;
+}
+.sheet-preview i {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.sheet-preview i:first-child {
+  width: 60%;
+  background: var(--control-border);
+}
+.sheet-preview i:last-child {
+  width: 80%;
+}
+.sheet-add {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--action);
+  color: var(--action-ink);
+  cursor: pointer;
+  transition: scale 100ms var(--ease-out);
+}
+.sheet-add:active {
+  scale: 0.9;
+}
+.sheet-add svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.sheet-empty {
+  margin: 12px 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* ── Responsivo ────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .widget[data-size="small"] {
+    grid-column: span 6;
+  }
+}
+@media (max-width: 800px) {
+  .widget,
+  .widget[data-size="medium"] {
+    grid-column: 1 / -1;
+  }
+  .widget[data-size="small"] {
+    grid-column: span 6;
+  }
+}
+@media (max-width: 650px) {
+  .widget-grid {
+    gap: 12px;
+  }
+  .widget-body > .stat {
+    padding: 12px 14px;
+  }
+  .dashboard-actions {
+    justify-content: flex-start;
+  }
+  .edit-hint {
+    display: none;
+  }
+}
+
+/* ── Acessibilidade ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .widget.is-dragging {
+    scale: 1;
+  }
+  .widget-chrome > *,
+  .edit-hint {
+    animation: none;
+  }
+  .widget-sheet,
+  .widget-sheet::backdrop {
+    transition-property: opacity, display, overlay;
+    transition-duration: 200ms;
+  }
+  .widget-sheet:not([open]) {
+    translate: 0 0;
+    opacity: 0;
+  }
+  @starting-style {
+    .widget-sheet[open] {
+      translate: 0 0;
+      opacity: 0;
+    }
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .widget-sheet,
+  .widget-sizes {
+    background: var(--bg-primary);
+    backdrop-filter: none;
+  }
+  .widget-remove {
+    background: var(--text-primary);
+    backdrop-filter: none;
+  }
+}

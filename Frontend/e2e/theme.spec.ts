@@ -81,9 +81,10 @@ test("temas seguem o sistema, persistem e cobrem login, ficha, modal e assinatur
     "background-color",
     "rgb(37, 99, 235)",
   );
+  // Cada indicador agora é um widget próprio, com a superfície de um painel.
   await expect(page.locator(".stat").first()).toHaveCSS(
     "background-color",
-    "rgba(0, 0, 0, 0)",
+    "rgb(31, 33, 46)",
   );
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

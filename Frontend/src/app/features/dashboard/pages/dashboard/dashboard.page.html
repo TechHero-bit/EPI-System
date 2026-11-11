@@ -9,223 +9,367 @@
       }}
     </p>
   </div>
-  @if (isWarehouse) {
-    <a class="primary button-link" routerLink="/almoxarifado/equipamentos/novo"
-      >Cadastrar equipamento <span aria-hidden="true">+</span></a
+  <div class="dashboard-actions">
+    @if (editing()) {
+      <button type="button" class="text-button restore" (click)="restoreDefault()">
+        Restaurar padrão
+      </button>
+      <button type="button" class="secondary edit-button" (click)="openSheet()">
+        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        Adicionar widget
+      </button>
+      <button type="button" class="primary edit-button done" (click)="finishEditing()">
+        Concluído
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="secondary edit-button"
+        (click)="startEditing()"
+        aria-describedby="customize-hint"
+      >
+        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
+          <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
+          <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
+          <rect x="13.5" y="13.5" width="7" height="7" rx="2" />
+        </svg>
+        Customizar página
+      </button>
+      @if (isWarehouse) {
+        <a class="primary button-link" routerLink="/almoxarifado/equipamentos/novo"
+          >Cadastrar equipamento <span aria-hidden="true">+</span></a
+        >
+      } @else {
+        <a class="primary button-link" routerLink="/rh/fichas/nova"
+          >Montar nova ficha <span aria-hidden="true">+</span></a
+        >
+      }
+    }
+  </div>
+</div>
+<span id="customize-hint" hidden
+  >Reorganize, redimensione e oculte os cards deste painel. Também é possível
+  manter um card pressionado.</span
+>
+<div class="dashboard-scope">
+  <h2>{{ editing() ? "Editando o painel" : "Visão geral" }}</h2>
+  @if (editing()) {
+    <span class="edit-hint" id="edit-hint"
+      >Arraste para mover · <b>−</b> oculta · <b>P M G</b> muda o tamanho</span
     >
   } @else {
-    <a class="primary button-link" routerLink="/rh/fichas/nova"
-      >Montar nova ficha <span aria-hidden="true">+</span></a
-    >
+    <time class="date-pill">{{ date | date: "dd/MM/yyyy" }}</time>
   }
 </div>
-<div class="dashboard-scope">
-  <h2>Visão geral</h2>
-  <time class="date-pill">{{ date | date: "dd/MM/yyyy" }}</time>
-</div>
-<div class="stats">
-  @for (metric of metrics; track metric.label) {
-    <div class="stat">
-      <span>{{ metric.label }}</span
-      ><strong>{{ metric.value }}</strong
-      ><small>{{ metric.caption }}</small>
+<p class="visually-hidden" aria-live="polite">{{ announcement() }}</p>
+
+<div
+  class="widget-grid"
+  [class.editing]="editing()"
+  role="list"
+  aria-label="Widgets do painel"
+  (dragstart)="editing() && $event.preventDefault()"
+>
+  @for (slot of visible(); track slot.id; let i = $index) {
+    @let def = this.def(slot.id)!;
+    <article
+      class="widget"
+      role="listitem"
+      [attr.data-widget]="slot.id"
+      [attr.data-size]="slot.size"
+      [attr.tabindex]="editing() ? 0 : null"
+      [attr.aria-label]="
+        editing() ? def.title + ', posição ' + (i + 1) + ' de ' + visible().length : null
+      "
+      [attr.aria-describedby]="editing() ? 'edit-hint' : null"
+      (pointerdown)="onPointerDown($event, slot)"
+      (keydown)="onWidgetKeydown($event, slot)"
+    >
+      @if (editing()) {
+        <div class="widget-chrome">
+          <button
+            type="button"
+            class="widget-remove"
+            [attr.aria-label]="'Ocultar ' + def.title"
+            (click)="remove(slot)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10" /></svg>
+          </button>
+          <div class="widget-sizes" role="group" [attr.aria-label]="'Tamanho de ' + def.title">
+            @for (size of def.sizes; track size) {
+              <button
+                type="button"
+                [attr.aria-pressed]="slot.size === size"
+                [attr.aria-label]="sizeLabels[size].long"
+                [title]="sizeLabels[size].long"
+                (click)="setSize(slot, size)"
+              >
+                {{ sizeLabels[size].short }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+      <div class="widget-body" [inert]="editing()">
+        @if (metrics[slot.id]; as metric) {
+          <div class="stat">
+            <span>{{ metric.label }}</span
+            ><strong>{{ metric.value }}</strong
+            ><small>{{ metric.caption }}</small>
+          </div>
+        } @else {
+          @switch (slot.id) {
+            @case ("movements-chart") {
+              <section class="panel">
+                <h2>Entradas e saídas · últimos 7 dias</h2>
+                <div class="chart" aria-label="Gráfico de movimentações">
+                  @for (bar of bars; track bar.label) {
+                    <div class="chart-column">
+                      <div class="bar-pair">
+                        <div
+                          class="bar in"
+                          [style.height.px]="bar.input * scale"
+                          [title]="'Entradas: ' + bar.input"
+                        ></div>
+                        <div
+                          class="bar out"
+                          [style.height.px]="bar.output * scale"
+                          [title]="'Saídas: ' + bar.output"
+                        ></div>
+                      </div>
+                      <small>{{ bar.label }}</small>
+                    </div>
+                  }
+                </div>
+                <div class="legend">
+                  <span
+                    ><i class="legend-swatch" aria-hidden="true"></i>Entradas
+                    <strong>{{ input }} un.</strong></span
+                  ><span
+                    ><i class="legend-swatch out" aria-hidden="true"></i>Saídas
+                    <strong>{{ output }} un.</strong></span
+                  >
+                </div>
+              </section>
+            }
+            @case ("categories") {
+              <section class="panel">
+                <h2>Equipamentos por categoria</h2>
+                <div class="category-metrics">
+                  @for (c of categoryCounts; track c.name) {
+                    <div>
+                      <strong>{{ c.count }}</strong
+                      ><span>{{ c.name }}</span>
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+            @case ("recent-sheets") {
+              <section class="panel">
+                <div class="panel-title">
+                  <h2>Fichas recentes</h2>
+                  <a class="text-button" routerLink="/rh/fichas">Ver histórico</a>
+                </div>
+                @for (f of s.data().sheets.slice(0, 5); track f.id) {
+                  <a class="activity" [routerLink]="['/rh/fichas', f.id]"
+                    ><div>
+                      <strong>{{
+                        s.employee(f.employee_id)?.name || "Colaborador"
+                      }}</strong
+                      ><small
+                        >{{ f.issued_at | date: "dd/MM HH:mm" }} · versão
+                        {{ f.version }}</small
+                      >
+                    </div>
+                    <epi-status [value]="s.state(f.id)?.signature_status || 'PENDING'"
+                  /></a>
+                } @empty {
+                  <div class="empty">As fichas emitidas aparecerão aqui.</div>
+                }
+              </section>
+            }
+            @case ("ca-validity") {
+              <section class="panel" aria-labelledby="ca-card-title">
+                <div class="panel-title">
+                  <h2 id="ca-card-title">Validade dos C.A.</h2>
+                  @if (isWarehouse || s.role === "ADMIN") {
+                    <a routerLink="/almoxarifado/equipamentos" class="text-button"
+                      >Ver equipamentos</a
+                    >
+                  }
+                </div>
+                <div class="ca-levels">
+                  @for (level of caLevels; track level.id) {
+                    <span [class]="'sev sev-' + level.id"
+                      >{{ level.label }}: <strong>{{ caCount(level.id) }}</strong></span
+                    >
+                  }
+                </div>
+                <ul class="ca-alert-list spaced">
+                  @for (a of caAlerts.slice(0, 6); track a.product.id) {
+                    <li [class]="'ca-alert level-' + a.level">
+                      <strong>{{ a.label }}</strong>
+                      <span
+                        >{{ a.product.description }} · CA
+                        {{ a.product.ca || "não informado" }} ·
+                        {{ a.product.ca_expires_at | date: "dd/MM/yyyy" }}</span
+                      >
+                    </li>
+                  } @empty {
+                    <li class="empty">Nenhum C.A. vencido ou a vencer em 30 dias.</li>
+                  }
+                </ul>
+                <p class="note">Fichas não podem ser emitidas com C.A. vencido.</p>
+              </section>
+            }
+            @case ("recent-movements") {
+              <section class="panel">
+                <div class="panel-title">
+                  <h2>Movimentações recentes</h2>
+                  <a class="text-button" routerLink="/almoxarifado/movimentacoes"
+                    >Ver histórico</a
+                  >
+                </div>
+                @for (m of s.data().movements.slice(0, 5); track m.id) {
+                  <div class="activity">
+                    <div>
+                      <strong>{{ m.reason || "Movimentação de EPI" }}</strong
+                      ><small
+                        >{{ m.created_at | date: "dd/MM HH:mm" }} ·
+                        {{ m.quantity }} un.</small
+                      >
+                    </div>
+                    <epi-status [value]="m.type" />
+                  </div>
+                } @empty {
+                  <div class="empty">As movimentações aparecerão aqui.</div>
+                }
+              </section>
+            }
+            @case ("pending-deliveries") {
+              <section class="panel">
+                <div class="panel-title">
+                  <h2>Entregas a confirmar</h2>
+                  <a
+                    class="text-button"
+                    routerLink="/rh/fichas"
+                    [queryParams]="{ status: 'UNCONFIRMED' }"
+                    >Ver todas ({{ pendingDeliveries.length }})</a
+                  >
+                </div>
+                @for (f of pendingDeliveries.slice(0, 5); track f.id) {
+                  <a class="activity" [routerLink]="['/rh/fichas', f.id]"
+                    ><div>
+                      <strong>{{
+                        s.employee(f.employee_id)?.name || "Colaborador"
+                      }}</strong
+                      ><small>Conferir evidência da entrega física</small>
+                    </div>
+                    <epi-status value="UNCONFIRMED"
+                  /></a>
+                } @empty {
+                  <div class="empty">Nenhuma entrega pendente.</div>
+                }
+                <p class="note">
+                  A assinatura é acompanhada separadamente da entrega física dos
+                  equipamentos.
+                </p>
+              </section>
+            }
+            @case ("signature-status") {
+              <section class="panel">
+                <div class="panel-title">
+                  <h2>Status das assinaturas</h2>
+                  <a class="text-button" routerLink="/rh/fichas">Ver fichas</a>
+                </div>
+                <a
+                  class="activity"
+                  routerLink="/rh/fichas"
+                  [queryParams]="{ status: 'PENDING' }"
+                  ><div>
+                    <strong>Pendentes</strong
+                    ><small>Conferir fichas que aguardam assinatura</small>
+                  </div>
+                  <span class="count">{{ signatureCount("PENDING") }}</span></a
+                >
+                <a
+                  class="activity"
+                  routerLink="/rh/fichas"
+                  [queryParams]="{ status: 'SIGNED_MANUAL' }"
+                  ><div>
+                    <strong>Presenciais</strong
+                    ><small>Assinaturas registradas pelo RH</small>
+                  </div>
+                  <span class="count">{{ signatureCount("SIGNED_MANUAL") }}</span></a
+                >
+                <a
+                  class="activity"
+                  routerLink="/rh/fichas"
+                  [queryParams]="{ status: 'SIGNED_ELECTRONIC' }"
+                  ><div>
+                    <strong>Eletrônicas</strong
+                    ><small>Assinaturas registradas por link</small>
+                  </div>
+                  <span class="count">{{
+                    signatureCount("SIGNED_ELECTRONIC")
+                  }}</span></a
+                >
+              </section>
+            }
+          }
+        }
+      </div>
+    </article>
+  } @empty {
+    <div class="widget-empty">
+      <p>Seu painel está vazio.</p>
+      <button type="button" class="secondary" (click)="startEditing(); openSheet()">
+        Adicionar widget
+      </button>
     </div>
   }
 </div>
-<div class="dashboard-grid">
-  <div class="dashboard-column">
-    @if (isWarehouse) {
-      <section class="panel">
-        <h2>Entradas e saídas · últimos 7 dias</h2>
-        <div class="chart" aria-label="Gráfico de movimentações">
-          @for (bar of bars; track bar.label) {
-            <div class="chart-column">
-              <div class="bar-pair">
-                <div
-                  class="bar in"
-                  [style.height.px]="bar.input * scale"
-                  [title]="'Entradas: ' + bar.input"
-                ></div>
-                <div
-                  class="bar out"
-                  [style.height.px]="bar.output * scale"
-                  [title]="'Saídas: ' + bar.output"
-                ></div>
-              </div>
-              <small>{{ bar.label }}</small>
-            </div>
-          }
-        </div>
-        <div class="legend">
-          <span
-            ><i class="legend-swatch" aria-hidden="true"></i>Entradas
-            <strong>{{ input }} un.</strong></span
-          ><span
-            ><i class="legend-swatch out" aria-hidden="true"></i>Saídas
-            <strong>{{ output }} un.</strong></span
-          >
-        </div>
-      </section>
-      <section class="panel">
-        <h2>Equipamentos por categoria</h2>
-        <div class="category-metrics">
-          @for (c of categoryCounts; track c.name) {
-            <div>
-              <strong>{{ c.count }}</strong
-              ><span>{{ c.name }}</span>
-            </div>
-          }
-        </div>
-      </section>
-    } @else {
-      <section class="panel">
-        <div class="panel-title">
-          <h2>Fichas recentes</h2>
-          <a class="text-button" routerLink="/rh/fichas">Ver histórico</a>
-        </div>
-        @for (f of s.data().sheets.slice(0, 5); track f.id) {
-          <a class="activity" [routerLink]="['/rh/fichas', f.id]"
-            ><div>
-              <strong>{{
-                s.employee(f.employee_id)?.name || "Colaborador"
-              }}</strong
-              ><small
-                >{{ f.issued_at | date: "dd/MM HH:mm" }} · versão
-                {{ f.version }}</small
-              >
-            </div>
-            <epi-status [value]="s.state(f.id)?.signature_status || 'PENDING'"
-          /></a>
-        } @empty {
-          <div class="empty">As fichas emitidas aparecerão aqui.</div>
-        }
-      </section>
-    }
-  </div>
-  <div class="dashboard-column">
-    <section class="panel" aria-labelledby="ca-card-title">
-      <div class="panel-title">
-        <h2 id="ca-card-title">Validade dos C.A.</h2>
-        @if (isWarehouse || s.role === "ADMIN") {
-          <a routerLink="/almoxarifado/equipamentos" class="text-button"
-            >Ver equipamentos</a
-          >
-        }
-      </div>
-      <div class="ca-levels">
-        @for (level of caLevels; track level.id) {
-          <span [class]="'sev sev-' + level.id"
-            >{{ level.label }}: <strong>{{ caCount(level.id) }}</strong></span
-          >
-        }
-      </div>
-      <ul class="ca-alert-list spaced">
-        @for (a of caAlerts.slice(0, 6); track a.product.id) {
-          <li [class]="'ca-alert level-' + a.level">
-            <strong>{{ a.label }}</strong>
-            <span
-              >{{ a.product.description }} · CA {{ a.product.ca || "não informado" }} ·
-              {{ a.product.ca_expires_at | date: "dd/MM/yyyy" }}</span
-            >
-          </li>
-        } @empty {
-          <li class="empty">Nenhum C.A. vencido ou a vencer em 30 dias.</li>
-        }
-      </ul>
-      <p class="note">
-        Fichas não podem ser emitidas com C.A. vencido.
-      </p>
-    </section>
-    @if (isWarehouse) {
-      <section class="panel">
-        <div class="panel-title">
-          <h2>Movimentações recentes</h2>
-          <a class="text-button" routerLink="/almoxarifado/movimentacoes"
-            >Ver histórico</a
-          >
-        </div>
-        @for (m of s.data().movements.slice(0, 5); track m.id) {
-          <div class="activity">
-            <div>
-              <strong>{{ m.reason || "Movimentação de EPI" }}</strong
-              ><small
-                >{{ m.created_at | date: "dd/MM HH:mm" }} ·
-                {{ m.quantity }} un.</small
-              >
-            </div>
-            <epi-status [value]="m.type" />
+
+<dialog
+  #sheet
+  class="widget-sheet"
+  aria-labelledby="widget-sheet-title"
+  (click)="onSheetClick($event)"
+>
+  <div class="sheet-grabber" aria-hidden="true"></div>
+  <header>
+    <h2 id="widget-sheet-title">Adicionar widget</h2>
+    <button type="button" class="sheet-close" aria-label="Fechar" (click)="closeSheet()">
+      <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 6l12 12M18 6 6 18" />
+      </svg>
+    </button>
+  </header>
+  @if (hidden().length) {
+    <ul class="sheet-list">
+      @for (w of hidden(); track w.id) {
+        <li>
+          <div class="sheet-preview" [attr.data-size]="w.size" aria-hidden="true">
+            <i></i><i></i><i></i>
           </div>
-        } @empty {
-          <div class="empty">As movimentações aparecerão aqui.</div>
-        }
-      </section>
-    } @else {
-      <section class="panel">
-        <div class="panel-title">
-          <h2>Entregas a confirmar</h2>
-          <a
-            class="text-button"
-            routerLink="/rh/fichas"
-            [queryParams]="{ status: 'UNCONFIRMED' }"
-            >Ver todas ({{ pendingDeliveries.length }})</a
-          >
-        </div>
-        @for (f of pendingDeliveries.slice(0, 5); track f.id) {
-          <a class="activity" [routerLink]="['/rh/fichas', f.id]"
-            ><div>
-              <strong>{{
-                s.employee(f.employee_id)?.name || "Colaborador"
-              }}</strong
-              ><small>Conferir evidência da entrega física</small>
-            </div>
-            <epi-status value="UNCONFIRMED"
-          /></a>
-        } @empty {
-          <div class="empty">Nenhuma entrega pendente.</div>
-        }
-        <p class="note">
-          A assinatura é acompanhada separadamente da entrega física dos
-          equipamentos.
-        </p>
-      </section>
-      <section class="panel">
-        <div class="panel-title">
-          <h2>Status das assinaturas</h2>
-          <a class="text-button" routerLink="/rh/fichas">Ver fichas</a>
-        </div>
-        <a
-          class="activity"
-          routerLink="/rh/fichas"
-          [queryParams]="{ status: 'PENDING' }"
-          ><div>
-            <strong>Pendentes</strong
-            ><small>Conferir fichas que aguardam assinatura</small>
+          <div class="sheet-text">
+            <strong>{{ w.title }}</strong>
+            <small>{{ w.description }}</small>
           </div>
-          <span class="count">{{ signatureCount("PENDING") }}</span></a
-        >
-        <a
-          class="activity"
-          routerLink="/rh/fichas"
-          [queryParams]="{ status: 'SIGNED_MANUAL' }"
-          ><div>
-            <strong>Presenciais</strong
-            ><small>Assinaturas registradas pelo RH</small>
-          </div>
-          <span class="count">{{ signatureCount("SIGNED_MANUAL") }}</span></a
-        >
-        <a
-          class="activity"
-          routerLink="/rh/fichas"
-          [queryParams]="{ status: 'SIGNED_ELECTRONIC' }"
-          ><div>
-            <strong>Eletrônicas</strong
-            ><small>Assinaturas registradas por link</small>
-          </div>
-          <span class="count">{{
-            signatureCount("SIGNED_ELECTRONIC")
-          }}</span></a
-        >
-      </section>
-    }
-  </div>
-</div>
+          <button type="button" class="sheet-add" [attr.aria-label]="'Adicionar ' + w.title" (click)="add(w)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" /></svg>
+          </button>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="sheet-empty">
+      Todos os widgets já estão no painel. Toque em <b>−</b> em um card para
+      ocultá-lo e ele aparecerá aqui.
+    </p>
+  }
+</dialog>
